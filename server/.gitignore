@@ -1,0 +1,21 @@
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# Data
+data/
+*.db
+*.db-*
+
+# Config
+server.toml
+!server.example.toml
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

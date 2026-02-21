@@ -1,0 +1,24 @@
+# Client
+
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# Tauri
+src-tauri/target/
+src-tauri/Cargo.lock
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
