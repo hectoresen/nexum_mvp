@@ -8,6 +8,20 @@
 
 ---
 
+## 📥 Downloads
+
+**Windows Installers (v0.1.0)**
+
+- **MSI Installer** (3.47 MB) - Recommended for most users  
+  [Voice MVP_0.1.0_x64_en-US.msi](client/src-tauri/target/release/bundle/msi/Voice%20MVP_0.1.0_x64_en-US.msi)
+
+- **NSIS Installer** (2.32 MB) - Portable alternative  
+  [Voice MVP_0.1.0_x64-setup.exe](client/src-tauri/target/release/bundle/nsis/Voice%20MVP_0.1.0_x64-setup.exe)
+
+**Note:** These installers include only the client application. You'll need to run the server separately (see Quick Start below).
+
+---
+
 ## 🎯 Vision
 
 A lightweight, elegant alternative to Discord/TeamSpeak/Mumble with:
@@ -130,6 +144,7 @@ voice_mvp/
 - [x] Multi-user support (up to 200 configurable)
 - [x] Auto-reconnection with exponential backoff
 - [x] Modern dark UI with Tailwind CSS
+- [x] **Windows installers available** (.msi and .exe)
 
 ### 🚧 In Progress
 - [ ] Voice chat audio capture/playback (Web Audio API)
@@ -425,5 +440,5 @@ The complete project is set up and ready to run.
 
 **Built with ❤️ for privacy-focused, self-hosted communication**
 
-*Generated: 2026-02-21*  
-*Status: ✅ MVP Complete (Text Chat) | 🚧 Voice Pending*
+*Last updated: 2026-02-21*  
+*Status: ✅ MVP Complete (Text Chat) | 🚧 Voice Pending | 📦 Windows Builds Available*
