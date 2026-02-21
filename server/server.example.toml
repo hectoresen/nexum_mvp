@@ -1,0 +1,18 @@
+[server]
+name = "My Voice Server"
+host = "0.0.0.0"
+ws_port = 8080
+udp_port = 9000
+data_path = "./data"
+session_timeout_secs = 60
+ping_interval_secs = 30
+admin_password = "admin"
+
+[limits]
+max_users = 200
+max_users_per_voice_channel = 100
+max_message_size = 2000
+rate_limit_messages_per_minute = 60
+
+[persistence]
+enabled = true

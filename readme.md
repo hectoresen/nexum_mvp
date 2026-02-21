@@ -10,15 +10,22 @@
 
 ## 📥 Downloads
 
-**Windows Installers (v0.1.0)**
+**Coming Soon: Unified Installer**
 
-- **MSI Installer** (3.47 MB) - Recommended for most users  
-  [Voice MVP_0.1.0_x64_en-US.msi](client/src-tauri/target/release/bundle/msi/Voice%20MVP_0.1.0_x64_en-US.msi)
+The next release will include a **single installer** that bundles both client and server:
 
-- **NSIS Installer** (2.32 MB) - Portable alternative  
-  [Voice MVP_0.1.0_x64-setup.exe](client/src-tauri/target/release/bundle/nsis/Voice%20MVP_0.1.0_x64-setup.exe)
+- **One-click installation** - Client + CLI server together
+- **Local server management** - Start/stop server from client UI
+- **Setup wizard** - Easy first-time configuration
+- **Choice of modes** - Run local server or connect to remote
 
-**Note:** These installers include only the client application. You'll need to run the server separately (see Quick Start below).
+**Current Development Status:**
+- ✅ Client application (Tauri + React)
+- ✅ Server CLI with interactive setup
+- 🚧 Client-Server integration (in progress)
+- 📋 Unified installer (planned)
+
+See [CLIENT_SERVER_INTEGRATION.md](CLIENT_SERVER_INTEGRATION.md) for implementation roadmap.
 
 ---
 
@@ -26,12 +33,12 @@
 
 A lightweight, elegant alternative to Discord/TeamSpeak/Mumble with:
 
-- ✅ **No mandatory central infrastructure**
-- ✅ **No accounts or authentication required**
-- ✅ **No cloud storage or data collection**
-- ✅ **User-controlled, self-hosted servers**
-- ✅ **Clean, modern desktop UI**
-- ✅ **Efficient resource usage**
+- ✅ **Self-hosted by default** - Run your own server locally or remotely
+- ✅ **Integrated management** - Control server from client interface
+- ✅ **No central infrastructure** - Your data, your rules
+- ✅ **No accounts required** - Just username and optional admin password
+- ✅ **Clean, modern desktop UI** - Built with Tauri 2.0
+- ✅ **Efficient resource usage** - Rust backend, optimized performance
 
 See [architecture_spec.md](architecture_spec.md) for the complete architectural specification (v0.5).
 
@@ -44,31 +51,50 @@ See [architecture_spec.md](architecture_spec.md) for the complete architectural 
 - **Rust** 1.75+ ([install here](https://rustup.rs))
 - **Node.js** 20+ LTS ([install here](https://nodejs.org))
 
-### TL;DR
+### Option A: Auto-Launch Script (Windows)
 
-```bash
-# Terminal 1 - Start server
-cd server
-cargo run
-
-# Terminal 2 - Start client
-cd client
-npm install
-npm run tauri dev
-
-# In the app:
-# - Username: anything you want
-# - Server: localhost:8080
-# - Click Connect!
+```powershell
+# Run from project root - launches server + client automatically
+.\dev.ps1
 ```
 
-For detailed setup instructions, see **[quickstart.md](quickstart.md)**.
+This opens two terminals: one for the server, one for the client.
+
+### Option B: Manual Launch
+
+**Terminal 1 - Server:**
+
+```bash
+cd server
+cargo run
+```
+
+**Terminal 2 - Client:**
+
+```bash
+cd client
+npm install              # First time only
+npm run tauri dev        # Hot reload enabled
+```
+
+### Using the App
+
+1. **Add a server**: Click "Add Server" → Name: `Local`, Address: `localhost:8080`
+   - Use `localhost:8080` or `127.0.0.1:8080` for your local server
+   - Or use your PC's IP (e.g., `192.168.1.100:8080`) for LAN access
+2. **Connect**: Click "Connect" (validates server is running before connecting)
+3. **Enter username**: Any name you want (local to this server)
+4. **Create channels**: Click + button (text or voice channels)
+5. **Chat**: Select a channel and start messaging!
+
+For detailed instructions, see **[quickstart.md](quickstart.md)**.
 
 ---
 
 ## 📦 What's Included
 
 ### Server (Rust)
+
 - ✅ Standalone binary
 - ✅ WebSocket server for control (Axum)
 - ✅ UDP socket for voice packets
@@ -79,6 +105,7 @@ For detailed setup instructions, see **[quickstart.md](quickstart.md)**.
 - ✅ Configurable limits (TOML)
 
 ### Client (Tauri + React)
+
 - ✅ Cross-platform desktop app (Windows, macOS, Linux)
 - ✅ Modern dark UI (Tailwind CSS)
 - ✅ WebSocket client with auto-reconnect
@@ -136,6 +163,7 @@ voice_mvp/
 ## 🎮 Features Status
 
 ### ✅ Working Now (MVP)
+
 - [x] WebSocket-based text chat
 - [x] User sessions (username only, no passwords)
 - [x] Channel creation/deletion (owner only)
@@ -147,12 +175,14 @@ voice_mvp/
 - [x] **Windows installers available** (.msi and .exe)
 
 ### 🚧 In Progress
+
 - [ ] Voice chat audio capture/playback (Web Audio API)
 - [ ] UDP packet forwarding with address tracking
 - [ ] Server spawn from client
 - [ ] Production packaging (.msi, .dmg)
 
 ### 📋 Planned (Future)
+
 - [ ] Message history pagination
 - [ ] User list per channel
 - [ ] Typing indicators
@@ -180,6 +210,7 @@ The `dev.sh` script provides common commands:
 ### Manual Commands
 
 **Server:**
+
 ```bash
 cd server
 cargo check             # Check for errors (fast)
@@ -190,6 +221,7 @@ cargo run               # Run in debug mode
 ```
 
 **Client:**
+
 ```bash
 cd client
 npm install             # Install dependencies
@@ -267,7 +299,6 @@ cargo --version
   - Connections, channels, messages, users
   - Version: 1.0.0 (major must match)
   - Auto-reconnect with backoff
-  
 - **Voice Channel:** Binary over UDP
   - Opus-encoded audio packets
   - Packet format: `[version:1][sessionId:16][opus_data:variable]`
@@ -276,6 +307,7 @@ cargo --version
 ### Technology Stack
 
 **Server (Rust):**
+
 - Tokio 1.36+ (async runtime)
 - Axum 0.7+ (WebSocket server)
 - rusqlite 0.31+ (SQLite database)
@@ -283,6 +315,7 @@ cargo --version
 - UUID v4 (session & user IDs)
 
 **Client (Tauri + React):**
+
 - Tauri 2.0 (native app framework)
 - React 18 (UI framework)
 - TypeScript 5 (type safety)
@@ -300,10 +333,10 @@ cargo --version
 ✅ **Message persistence** (SQLite database)  
 ✅ **Auto-reconnect** (exponential backoff)  
 ✅ **Modern dark UI** (clean and minimal)  
-✅ **Cross-platform client** (Windows, macOS, Linux ready)  
+✅ **Cross-platform client** (Windows, macOS, Linux ready)
 
 ⚠️ **Voice chat UI present but audio not implemented yet**  
-⚠️ **UDP voice forwarding needs UDP address tracking**  
+⚠️ **UDP voice forwarding needs UDP address tracking**
 
 ---
 
@@ -334,6 +367,7 @@ cargo --version
 This is an MVP/prototype. Contributions welcome!
 
 ### Areas that need help:
+
 - 🎤 Voice audio implementation (Web Audio API)
 - 🔌 UDP address tracking for voice forwarding
 - 🧪 Test suite (unit + integration tests)
@@ -346,6 +380,7 @@ This is an MVP/prototype. Contributions welcome!
 See [definition_of_done.md](definition_of_done.md) for the complete task validation workflow.
 
 **Key rules:**
+
 - All tests must pass before merging
 - Client and server must build successfully
 - Update `changelog.md` for every change
@@ -386,7 +421,7 @@ Edit `client/src/index.css` and Tailwind configuration:
 
 ```css
 /* Change primary color */
-@apply bg-blue-600 /* Change to bg-purple-600, bg-green-600, etc. */
+@apply bg-blue-600; /* Change to bg-purple-600, bg-green-600, etc. */
 ```
 
 ### Change Server Ports
@@ -428,6 +463,7 @@ TBD - Check with project owner
 The complete project is set up and ready to run.
 
 **Next steps:**
+
 1. Install Rust and Node.js (if not already)
 2. Run `cd server && cargo run` (Terminal 1)
 3. Run `cd client && npm run tauri dev` (Terminal 2)
@@ -440,5 +476,5 @@ The complete project is set up and ready to run.
 
 **Built with ❤️ for privacy-focused, self-hosted communication**
 
-*Last updated: 2026-02-21*  
-*Status: ✅ MVP Complete (Text Chat) | 🚧 Voice Pending | 📦 Windows Builds Available*
+_Last updated: 2026-02-21_  
+_Status: ✅ MVP Complete (Text Chat) | 🚧 Voice Pending | 📦 Windows Builds Available_

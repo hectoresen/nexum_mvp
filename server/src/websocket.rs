@@ -8,6 +8,7 @@ use axum::{
 use tokio::sync::mpsc;
 use tracing::{info, warn, error};
 use std::sync::Arc;
+use futures_util::{SinkExt, StreamExt};
 
 use crate::config::Config;
 use crate::db::Database;
@@ -53,15 +54,13 @@ async fn ws_handler(
 }
 
 async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
-    let (sender, mut receiver) = socket.split();
+    use axum::extract::ws::Message;
+    
+    let (mut sender, mut receiver) = socket.split();
     let (tx, mut rx) = mpsc::unbounded_channel();
 
     // Spawn task to forward messages from tx to the WebSocket sender
     let mut send_task = tokio::spawn(async move {
-        use axum::extract::ws::Message;
-        use futures_util::SinkExt;
-        
-        let mut sender = sender;
         while let Some(msg) = rx.recv().await {
             if sender.send(msg).await.is_err() {
                 break;
@@ -74,9 +73,6 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
     let tx_clone = tx.clone();
     
     let mut recv_task = tokio::spawn(async move {
-        use axum::extract::ws::Message;
-        use futures_util::StreamExt;
-        
         let mut session_id = None;
 
         while let Some(Ok(msg)) = receiver.next().await {

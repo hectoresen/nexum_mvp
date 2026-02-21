@@ -1,177 +1,227 @@
 # Voice MVP - Quick Start Guide
 
-## Project Structure
-
-```
-voice_mvp/
-├── server/          # Rust WebSocket + UDP server
-├── client/          # Tauri desktop app (React + TypeScript)
-├── agent_decisions.md
-├── todo.md
-└── changelog.md
-```
-
-## Prerequisites
-
-- **Rust** 1.75+ (install from https://rustup.rs)
-- **Node.js** 20+ LTS (install from https://nodejs.org)
-- **Tauri CLI** (will be installed via npm)
-
-## Running the Server
-
-```bash
-# Navigate to server directory
-cd server
-
-# Build and run (debug mode)
-cargo run
-
-# The server will start on:
-# - WebSocket: ws://0.0.0.0:8080/ws
-# - UDP: 0.0.0.0:9000
-
-# Build release version
-cargo build --release
-# Binary will be at: target/release/voice-server
-```
-
-### Server Configuration
-
-On first run, a `server.example.toml` file will be created. Copy it to `server.toml` and customize:
-
-```toml
-[server]
-host = "0.0.0.0"
-ws_port = 8080
-udp_port = 9000
-data_path = "./data"
-
-[limits]
-max_users = 200
-max_users_per_voice_channel = 100
-max_message_size = 2000
-```
-
-## Running the Client
-
-```bash
-# Navigate to client directory
-cd client
-
-# Install dependencies
-npm install
-
-# Run in development mode
-npm run tauri dev
-
-# This will:
-# 1. Start Vite dev server (React)
-# 2. Launch Tauri app window
-```
-
-### Build Client for Production
-
-```bash
-# Build for your platform
-npm run tauri build
-
-# Output will be in:
-# - Windows: src-tauri/target/release/bundle/
-# - macOS: src-tauri/target/release/bundle/
-```
-
-## Testing the Full Stack
-
-1. **Start the server** (in one terminal):
-   ```bash
-   cd server
-   cargo run
-   ```
-
-2. **Start the client** (in another terminal):
-   ```bash
-   cd client
-   npm run tauri dev
-   ```
-
-3. **Connect from the client**:
-   - Username: any name you want
-   - Server Address: `localhost:8080`
-   - Click "Connect"
-
-4. **Create a channel** (first user becomes owner):
-   - Click the + button next to "Channels"
-   - Enter channel name
-   - Select "Text" or "Voice"
-   - Click "Create"
-
-5. **Send messages**:
-   - Click on a text channel
-   - Type a message
-   - Press Send or Enter
-
-## Current Status
-
-### ✅ Working
-- Server WebSocket connection
-- User authentication (no password, just username)
-- Channel creation/deletion (owner only)
-- Text messaging
-- Multi-user support
-- Session management
-- Database persistence (SQLite)
-
-### ⚠️ Not Yet Implemented
-- Voice chat audio capture/playback
-- UDP voice packet forwarding (structure exists, needs UDP address tracking)
-- Multiple clients testing
-- Server spawn from client
-- Production builds
-
-### 🐛 Known Issues
-- UDP voice forwarding incomplete (no UDP address registration)
-- No message history pagination (loads all messages)
-- No user-friendly error details in some cases
-- Voice channel join button shows but does nothing
-
-## Development Notes
-
-- Default server logs to console at INFO level
-- Set `RUST_LOG=debug` for verbose logging
-- Client hot-reloads on code changes (Vite HMR)
-- Server requires restart on code changes
-
-## Next Steps (See todo.md)
-
-1. Test multi-client scenarios
-2. Implement UDP address tracking for voice
-3. Add audio capture/playback in client
-4. Test on Windows/macOS
-5. Package for distribution
-
-## Architecture Overview
-
-**Server (Rust):**
-- Tokio async runtime
-- Axum WebSocket server
-- SQLite database (rusqlite)
-- UDP socket for voice packets
-- In-memory session management
-
-**Client (Tauri + React):**
-- Tauri 2 (Rust + WebView)
-- React 18 + TypeScript
-- Tailwind CSS
-- WebSocket client
-- (Audio: Web Audio API - planned)
-
-**Protocol:**
-- JSON over WebSocket (control)
-- Binary over UDP (voice - planned)
-- Versioned protocol (1.0.0)
+**Desarrollo y testing del proyecto Voice MVP**
 
 ---
 
-For detailed technical decisions, see [agent_decisions.md](agent_decisions.md)
-For task breakdown and questions, see [todo.md](todo.md)
-For change history, see [changelog.md](changelog.md)
+## 🎯 Current Development Phase
+
+**Phase 0.5 - Client-Server Integration**
+
+We're currently integrating the CLI server with the client for a unified experience. See [CLIENT_SERVER_INTEGRATION.md](CLIENT_SERVER_INTEGRATION.md) for details.
+
+**Status:**
+- ✅ Server CLI with interactive setup
+- ✅ Client application working
+- 🚧 Integration in progress (server detection, control from client)
+- 📋 Unified installer planned
+
+---
+
+## 🚀 Quick Start Options
+
+### Option 1: Using Build Script (Recommended)
+
+```powershell
+# Build both server and client
+.\build.ps1 -Release
+
+# Or for development (faster builds)
+.\build.ps1
+
+# Build only server
+.\build.ps1 -ServerOnly -Release
+
+# Build only client
+.\build.ps1 -ClientOnly
+
+# Create installer bundle
+.\build.ps1 -Release -Bundle
+```
+
+### Option 2: Manual Build (Development)
+
+```powershell
+# Terminal 1 - Build and run server
+cd server
+cargo run --release
+
+# Terminal 2 - Build and run client
+cd client
+npm run tauri dev
+```
+
+---
+
+## 📋 Development Workflow
+
+### First Time Setup
+
+```powershell
+# 1. Clone repository
+git clone <repo-url>
+cd voice_mvp
+
+# 2. Install Rust (if not installed)
+# Download from: https://rustup.rs
+
+# 3. Install Node.js (if not installed)
+# Download from: https://nodejs.org
+
+# 4. Install client dependencies
+cd client
+npm install
+cd ..
+
+# 5. Build everything
+.\build.ps1
+```
+
+### Server Development
+
+```powershell
+cd server
+cargo run                    # Debug mode (más logs)
+cargo run --release          # Release mode (optimizado)
+```
+
+El servidor inicia en:
+
+- **WebSocket**: `ws://0.0.0.0:8080/ws` (escucha en todas las interfaces)
+- **UDP**: `0.0.0.0:9000`
+- **Base de datos**: `./data/voice_mvp.db` (se crea automáticamente)
+
+**💡 Para conectarte desde el mismo PC, usa:** `localhost:8080` o `127.0.0.1:8080`
+
+### Cliente (Tauri + React)
+
+```powershell
+cd client
+$env:PATH += ";$env:USERPROFILE\.cargo\bin"   # Solo si Rust no está en PATH
+npm run tauri dev                               # Hot reload habilitado
+```
+
+**Hot reload:** Los cambios en React se recargan automáticamente. Cambios en Rust requieren reiniciar.
+
+---
+
+## 🎮 Cómo Usar la App
+
+1. **Abre la app** → Verás "Your Servers" (vacío al inicio)
+2. **Click "Add Server"**:
+   - Name: `Local`
+   - Address: `localhost:8080`
+   - Click "Add Server"
+3. **Click "Connect"** en el servidor que añadiste
+4. **Ingresa tu username** → Connect
+5. **Crea un canal** (botón +):
+   - Name: `general`
+   - Type: `Text`
+6. **Chatea!**
+
+---
+
+## 🏗️ Build para Producción
+
+### Cliente (Instalador Windows)
+
+```powershell
+cd client
+npm run tauri build
+```
+
+**Genera:**
+
+- `src-tauri/target/release/bundle/msi/Voice MVP_0.1.0_x64_en-US.msi` (~3.5 MB)
+- `src-tauri/target/release/bundle/nsis/Voice MVP_0.1.0_x64-setup.exe` (~2.3 MB)
+
+### Servidor (Binario standalone)
+
+```powershell
+cd server
+cargo build --release
+```
+
+**Genera:**
+
+- `target/release/voice-server.exe` (~5 MB)
+
+---
+
+## 🔧 Troubleshooting
+
+**Error: "cargo not found"**
+
+```powershell
+$env:PATH += ";$env:USERPROFILE\.cargo\bin"
+# O reinicia PowerShell después de instalar Rust
+```
+
+**Error: "failed to download crates"**
+
+```powershell
+# Revisa conexión a internet
+# Rust descarga ~400 MB de dependencias la primera vez
+```
+
+**El cliente no conecta:**
+
+- ✅ Verifica que el servidor esté corriendo (`cargo run` en otra terminal)
+- ✅ Dirección correcta: `localhost:8080` (sin `http://` ni `ws://`)
+
+---
+
+## 📁 Estructura del Proyecto
+
+```
+voice_mvp/
+├── server/                    # Rust (Tokio + Axum + SQLite)
+│   ├── src/
+│   │   ├── main.rs           # Entry point
+│   │   ├── websocket.rs      # WebSocket server
+│   │   ├── handlers.rs       # Message handlers
+│   │   ├── db.rs             # SQLite operations
+│   │   └── ...
+│   └── Cargo.toml
+│
+├── client/                    # Tauri (Rust + React + TypeScript)
+│   ├── src/                  # React frontend
+│   │   ├── App.tsx           # Main app (gestión multi-servidor)
+│   │   ├── components/       # UI components
+│   │   └── lib/              # WebSocket client, server manager
+│   ├── src-tauri/            # Tauri backend (Rust)
+│   │   └── src/main.rs       # Commands (launch server, etc.)
+│   └── package.json
+│
+└── readme.md                  # Documentación principal
+```
+
+---
+
+## ✅ Estado Actual
+
+| Feature               | Estado                                        |
+| --------------------- | --------------------------------------------- |
+| WebSocket chat        | ✅ Funcional                                  |
+| Multi-servidor        | ✅ Funcional                                  |
+| Canales (text)        | ✅ Funcional                                  |
+| Roles (owner/member)  | ✅ Funcional                                  |
+| Persistencia SQLite   | ✅ Funcional                                  |
+| Lanzar servidor local | ✅ UI lista, binario pendiente                |
+| Audio (voz)           | ⏳ Estructura lista, implementación pendiente |
+
+---
+
+## 🎯 Próximos Pasos
+
+- [ ] Implementar captura/reproducción de audio
+- [ ] Completar UDP voice forwarding
+- [ ] Empaquetar servidor con el cliente
+- [ ] Testing multi-usuario
+- [ ] Build macOS
+
+---
+
+**Documentación completa:** [readme.md](readme.md)  
+**Decisiones técnicas:** [agent_decisions.md](agent_decisions.md)  
+**Tareas pendientes:** [todo.md](todo.md)

@@ -36,13 +36,7 @@ pub async fn run_udp_server(
 
                 // Extract session ID
                 let session_id_bytes: [u8; 16] = buf[1..17].try_into().unwrap();
-                let session_id = match Uuid::from_bytes(session_id_bytes) {
-                    Ok(id) => id,
-                    Err(_) => {
-                        warn!("Invalid session ID in packet from {}", src_addr);
-                        continue;
-                    }
-                };
+                let session_id = Uuid::from_bytes(session_id_bytes);
 
                 // Verify session exists
                 let user_id = match session_manager.get_session_by_id(session_id) {

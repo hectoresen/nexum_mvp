@@ -118,13 +118,17 @@ pub enum ClientMessage {
     #[serde(rename = "LEAVE_VOICE")]
     LeaveVoice(LeaveVoicePayload),
     
+    #[serde(rename = "AUTHENTICATE_ADMIN")]
+    AuthenticateAdmin(AuthenticateAdminPayload),
+    
     #[serde(rename = "PING")]
     Ping,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectPayload {
-    pub username: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub username: Option<String>,
     pub client_version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resume_session_id: Option<Uuid>,
@@ -167,6 +171,11 @@ pub struct LeaveVoicePayload {
     pub channel_id: Uuid,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthenticateAdminPayload {
+    pub password: String,
+}
+
 // ============================================================================
 // Server Messages
 // ============================================================================
@@ -194,6 +203,12 @@ pub enum ServerMessage {
     
     #[serde(rename = "MESSAGE")]
     Message(MessagePayload),
+    
+    #[serde(rename = "MESSAGE_HISTORY")]
+    MessageHistory(MessageHistoryPayload),
+    
+    #[serde(rename = "ADMIN_AUTHENTICATED")]
+    AdminAuthenticated(AdminAuthenticatedPayload),
     
     #[serde(rename = "VOICE_JOINED")]
     VoiceJoined(VoiceJoinedPayload),
@@ -226,6 +241,7 @@ pub enum ErrorCode {
     VersionMismatch,
     ServerFull,
     InvalidPayload,
+    InvalidRequest,
     Unauthorized,
     ChannelNotFound,
     UserNotFound,
@@ -260,6 +276,18 @@ pub struct UserLeftPayload {
 pub struct MessagePayload {
     pub message: Message,
     pub username: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MessageHistoryPayload {
+    pub channel_id: Uuid,
+    pub messages: Vec<MessagePayload>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdminAuthenticatedPayload {
+    pub user_id: Uuid,
+    pub new_role: UserRole,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

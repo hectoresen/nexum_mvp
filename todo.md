@@ -1,5 +1,104 @@
 # TODO List - Voice MVP
 
+## 🚧 Phase 0.5: Client-Server Integration (IN PROGRESS)
+
+**Priority: HIGH - Current Focus**
+
+This phase integrates the CLI server with the client for a unified user experience.
+
+### 0.5.1 Installation Architecture 🚧
+- [ ] Design unified installation structure
+  - Client and server in same directory
+  - Shared resources folder
+  - Single data directory for local server
+- [ ] Update build scripts to bundle both executables
+- [ ] Configure Tauri bundle to include server binary
+- [ ] Test installation on clean Windows system
+
+### 0.5.2 Server Detection 🚧
+- [ ] Create `server_manager.rs` module in client backend
+- [ ] Implement `detect_local_server()` function
+- [ ] Implement `get_server_path()` function
+- [ ] Add Tauri command `is_server_installed()`
+- [ ] Test detection logic with various installation paths
+
+### 0.5.3 Server Control 🚧
+- [ ] Implement `start_local_server()` command
+  - Launch server process with `--non-interactive`
+  - Track process handle in AppState
+  - Monitor process status
+- [ ] Implement `stop_local_server()` command
+  - Graceful shutdown with kill signal
+  - Clean up process handle
+- [ ] Implement `get_server_status()` command
+- [ ] Add process crash detection and recovery
+
+### 0.5.4 Initial Setup Flow 🚧
+- [ ] Create `ServerSetupModal` component
+  - Password input field
+  - Generate random password button
+  - Show/hide password toggle
+  - Validation (min 8 chars)
+- [ ] Implement first-run detection
+  - Check if `server.toml` exists
+  - Show setup modal if not configured
+- [ ] Call server with `--admin-password` on first setup
+- [ ] Save password securely in client storage
+
+### 0.5.5 UI Components 🚧
+- [ ] Create `LocalServerPanel` component
+  - Server status indicator (running/stopped/error)
+  - Start/Stop buttons
+  - Current address display (localhost:8080)
+  - Quick reconnect button
+- [ ] Integrate panel into `ConnectView`
+- [ ] Add "Local Server" vs "Remote Server" tabs
+- [ ] Update styling for new components
+
+### 0.5.6 Auto-Connection 🚧
+- [ ] Auto-connect to localhost after starting server
+- [ ] Use saved admin password for authentication
+- [ ] Handle connection failures gracefully
+- [ ] Add retry logic with backoff
+
+### 0.5.7 Configuration Management 🚧
+- [ ] Add "Local Server Settings" to Settings modal
+  - Change admin password
+  - Change server ports
+  - Toggle auto-start on client launch
+  - View server logs
+- [ ] Implement config file editing
+- [ ] Restart server when config changes
+- [ ] Validate configuration before applying
+
+### 0.5.8 Setup Wizard 🚧
+- [ ] Create first-launch wizard component
+  - Welcome screen
+  - "Host local" vs "Connect remote" choice
+  - Server configuration (if hosting)
+  - Connection test
+- [ ] Save wizard completion state
+- [ ] Skip wizard on subsequent launches
+
+### 0.5.9 Build & Distribution 🚧
+- [ ] Create unified build script
+  - Build server binary first
+  - Build client with bundled server
+  - Generate installer (.msi)
+- [ ] Test installer on clean machine
+- [ ] Verify both client and server are installed
+- [ ] Test uninstallation (clean removal)
+
+### 0.5.10 Documentation 🚧
+- [ ] Update README with new installation process
+- [ ] Create user guide for local server mode
+- [ ] Document troubleshooting steps
+- [ ] Add FAQ for common issues
+
+**Reference:** See [CLIENT_SERVER_INTEGRATION.md](CLIENT_SERVER_INTEGRATION.md) for detailed design.
+
+---
+
 ## ✅ Phase 0: Project Setup (COMPLETED)
 
 - [x] Create documentation structure

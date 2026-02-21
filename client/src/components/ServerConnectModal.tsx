@@ -1,0 +1,108 @@
+import { useState } from 'react'
+
+interface ServerConnectModalProps {
+  serverName: string
+  serverAddress: string
+  lastUsername?: string
+  onConnect: (username: string) => void
+  onCancel: () => void
+  connecting: boolean
+  error: string | null
+}
+
+export default function ServerConnectModal({ serverName, serverAddress, lastUsername, onConnect, onCancel, connecting, error }: ServerConnectModalProps) {
+  const [username, setUsername] = useState(lastUsername || '')
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (username.trim()) {
+      onConnect(username.trim())
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between p-6 border-b border-gray-700">
+          <div>
+            <h2 className="text-xl font-semibold text-white">Connect to Server</h2>
+            <p className="text-sm text-gray-400 mt-1">{serverName}</p>
+          </div>
+          {!connecting && (
+            <button onClick={onCancel} className="text-gray-400 hover:text-white transition-colors">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="bg-gray-700/50 rounded-lg p-4 mb-4">
+            <p className="text-sm text-gray-300 flex items-center gap-2">
+              <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+                />
+              </svg>
+              <span className="font-mono text-xs">{serverAddress}</span>
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="username" className="block text-sm font-medium text-gray-300 mb-2">
+              Username
+            </label>
+            <input
+              id="username"
+              type="text"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              placeholder="Enter your username"
+              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={connecting}
+              required
+              minLength={1}
+              maxLength={32}
+              autoFocus
+            />
+            <p className="text-xs text-gray-400 mt-1">This username is local to this server only</p>
+          </div>
+
+          {error && (
+            <div className="p-4 bg-red-900/50 border border-red-700 rounded-md">
+              <p className="text-sm text-red-200">{error}</p>
+            </div>
+          )}
+
+          <div className="flex items-center gap-3 pt-4">
+            <button
+              type="submit"
+              disabled={connecting || !username.trim()}
+              className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-md transition-colors flex items-center justify-center gap-2">
+              {connecting ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Connecting...</span>
+                </>
+              ) : (
+                'Connect'
+              )}
+            </button>
+            {!connecting && (
+              <button type="button" onClick={onCancel} className="px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-md transition-colors">
+                Cancel
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use tracing::{info, error};
 use tracing_subscriber;
+use clap::Parser;
 
 mod config;
 mod db;
@@ -14,8 +15,24 @@ use config::Config;
 use db::Database;
 use session::SessionManager;
 
+#[derive(Parser, Debug)]
+#[command(name = "voice-server")]
+#[command(about = "Self-hosted voice and chat server", long_about = None)]
+struct Args {
+    /// Run in non-interactive mode (for GUI launcher)
+    #[arg(long)]
+    non_interactive: bool,
+    
+    /// Set admin password directly (skips interactive prompt)
+    #[arg(long)]
+    admin_password: Option<String>,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Parse command line arguments
+    let args = Args::parse();
+    
     // Initialize tracing
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -27,7 +44,7 @@ async fn main() -> Result<()> {
     info!("🚀 Voice Server starting...");
 
     // Load configuration
-    let config = Config::load()?;
+    let config = Config::load(args.non_interactive, args.admin_password)?;
     info!("📋 Configuration loaded");
     info!("   WebSocket: {}:{}", config.server.host, config.server.ws_port);
     info!("   UDP: {}:{}", config.server.host, config.server.udp_port);

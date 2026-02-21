@@ -45,6 +45,7 @@ pub async fn handle_message(
                 ClientMessage::SendMessage(p) => handle_send_message(sid, p, state, tx).await,
                 ClientMessage::JoinVoice(p) => handle_join_voice(sid, p, state, tx).await,
                 ClientMessage::LeaveVoice(p) => handle_leave_voice(sid, p, state, tx).await,
+                ClientMessage::AuthenticateAdmin(p) => handle_authenticate_admin(sid, p, state, tx).await,
                 ClientMessage::Ping => handle_ping(tx).await,
                 _ => unreachable!(),
             }?;
@@ -79,17 +80,44 @@ async fn handle_connect(
         bail!("Server full");
     }
 
-    // Determine if this is the first user (becomes owner)
-    let is_first = state.db.is_first_user()?;
-    let role = if is_first {
-        UserRole::Owner
+    // Determine user: resume existing session or create new user
+    let user = if let Some(resume_id) = payload.resume_session_id {
+        // Client is trying to resume with existing user ID
+        match state.db.get_user(resume_id)? {
+            Some(existing_user) => {
+                info!("User resumed: {} ({}) as {:?}", existing_user.username, existing_user.id, existing_user.role);
+                existing_user
+            }
+            None => {
+                send_error(tx, ErrorCode::InvalidRequest, "Invalid user ID")?;
+                bail!("User ID not found");
+            }
+        }
     } else {
-        UserRole::Member
-    };
+        // New connection: username is required
+        let username = match payload.username {
+            Some(name) => name,
+            None => {
+                send_error(tx, ErrorCode::InvalidPayload, "Username is required for new connections")?;
+                bail!("Username missing");
+            }
+        };
 
-    // Create user in database
-    let user = state.db.create_user(&payload.username, role)?;
-    info!("New user created: {} ({}) as {:?}", user.username, user.id, user.role);
+        // Check if username is available
+        if let Some(_existing) = state.db.get_user_by_username(&username)? {
+            send_error(tx, ErrorCode::InvalidRequest, "Username already in use")?;
+            bail!("Username already taken");
+        }
+
+        // All new users start as Member
+        // They must authenticate with admin password to become Owner
+        let role = UserRole::Member;
+
+        // Create new user in database
+        let new_user = state.db.create_user(&username, role)?;
+        info!("New user created: {} ({}) as {:?}", new_user.username, new_user.id, new_user.role);
+        new_user
+    };
 
     // Create session
     let session_id = state.session_manager.create_session(user.clone(), tx.clone());
@@ -178,7 +206,7 @@ async fn handle_join_channel(
     session_id: Uuid,
     payload: JoinChannelPayload,
     state: &Arc<AppState>,
-    _tx: &mpsc::UnboundedSender<Message>,
+    tx: &mpsc::UnboundedSender<Message>,
 ) -> Result<()> {
     let user_id = state.session_manager.get_session(session_id)
         .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
@@ -193,6 +221,21 @@ async fn handle_join_channel(
     // Get user info
     let user = state.db.get_user(user_id)?
         .ok_or_else(|| anyhow::anyhow!("User not found"))?;
+
+    // Load message history (last 50 messages)
+    let history = state.db.get_message_history(payload.channel_id, 50)?;
+    let message_payloads: Vec<MessagePayload> = history.into_iter()
+        .map(|(message, username)| MessagePayload { message, username })
+        .collect();
+
+    // Send history to the user who joined
+    if !message_payloads.is_empty() {
+        let history_msg = ServerMessage::MessageHistory(MessageHistoryPayload {
+            channel_id: payload.channel_id,
+            messages: message_payloads,
+        });
+        send_message(tx, &history_msg)?;
+    }
 
     // Notify channel members
     let msg = ServerMessage::UserJoined(UserJoinedPayload {
@@ -327,6 +370,49 @@ async fn handle_leave_voice(
     });
 
     broadcast_to_channel(&state.session_manager, payload.channel_id, &msg);
+
+    Ok(())
+}
+
+async fn handle_authenticate_admin(
+    session_id: Uuid,
+    payload: AuthenticateAdminPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let user_id = state.session_manager.get_session(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    // Get current user
+    let user = state.db.get_user(user_id)?
+        .ok_or_else(|| anyhow::anyhow!("User not found"))?;
+
+    // Check if already owner
+    if user.role == UserRole::Owner {
+        send_error(tx, ErrorCode::InvalidRequest, "You are already an owner")?;
+        return Ok(());
+    }
+
+    // Verify password
+    if payload.password != state.config.server.admin_password {
+        send_error(tx, ErrorCode::Unauthorized, "Invalid admin password")?;
+        return Ok(());
+    }
+
+    // Promote to owner
+    state.db.update_user_role(user_id, UserRole::Owner)?;
+    
+    // Update session role
+    state.session_manager.update_user_role(session_id, UserRole::Owner);
+
+    info!("User {} authenticated as admin", user.username);
+
+    // Send confirmation
+    let msg = ServerMessage::AdminAuthenticated(AdminAuthenticatedPayload {
+        user_id,
+        new_role: UserRole::Owner,
+    });
+    send_message(tx, &msg)?;
 
     Ok(())
 }

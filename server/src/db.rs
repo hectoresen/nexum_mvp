@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, params, OptionalExtension};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
@@ -124,11 +124,38 @@ impl Database {
         Ok(user)
     }
 
+    pub fn get_user_by_username(&self, username: &str) -> Result<Option<User>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, username, role, created_at FROM users WHERE username = ?1"
+        )?;
+
+        let user = stmt.query_row(params![username], |row| {
+            Ok(User {
+                id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                username: row.get(1)?,
+                role: UserRole::from_string(&row.get::<_, String>(2)?),
+                created_at: row.get::<_, String>(3)?.parse().unwrap(),
+            })
+        }).optional()?;
+
+        Ok(user)
+    }
+
     pub fn update_username(&self, user_id: Uuid, new_username: &str) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
             "UPDATE users SET username = ?1 WHERE id = ?2",
             params![new_username, user_id.to_string()],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_user_role(&self, user_id: Uuid, role: UserRole) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE users SET role = ?1 WHERE id = ?2",
+            params![role.to_string(), user_id.to_string()],
         )?;
         Ok(())
     }
@@ -273,5 +300,32 @@ impl Database {
         .collect::<Result<Vec<_>, _>>()?;
 
         Ok(messages)
+    }
+
+    pub fn get_message_history(&self, channel_id: Uuid, limit: usize) -> Result<Vec<(Message, String)>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT m.id, m.channel_id, m.user_id, m.content, m.created_at, u.username
+             FROM messages m
+             JOIN users u ON m.user_id = u.id
+             WHERE m.channel_id = ?1 
+             ORDER BY m.created_at ASC 
+             LIMIT ?2"
+        )?;
+
+        let rows = stmt.query_map(params![channel_id.to_string(), limit as i64], |row| {
+            let message = Message {
+                id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                channel_id: Uuid::parse_str(&row.get::<_, String>(1)?).unwrap(),
+                user_id: Uuid::parse_str(&row.get::<_, String>(2)?).unwrap(),
+                content: row.get(3)?,
+                created_at: row.get::<_, String>(4)?.parse().unwrap(),
+            };
+            let username: String = row.get(5)?;
+            Ok((message, username))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(rows)
     }
 }

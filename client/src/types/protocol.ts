@@ -26,6 +26,7 @@ export interface Message {
   user_id: string;
   content: string;
   created_at: string;
+  username?: string; // Optional: populated from MessagePayload
 }
 
 // ============================================================================
@@ -41,10 +42,11 @@ export type ClientMessage =
   | { type: 'SEND_MESSAGE'; payload: SendMessagePayload }
   | { type: 'JOIN_VOICE'; payload: JoinVoicePayload }
   | { type: 'LEAVE_VOICE'; payload: LeaveVoicePayload }
+  | { type: 'AUTHENTICATE_ADMIN'; payload: AuthenticateAdminPayload }
   | { type: 'PING' };
 
 export interface ConnectPayload {
-  username: string;
+  username?: string; // Optional when resuming with resume_session_id
   client_version: string;
   resume_session_id?: string;
 }
@@ -79,6 +81,10 @@ export interface LeaveVoicePayload {
   channel_id: string;
 }
 
+export interface AuthenticateAdminPayload {
+  password: string;
+}
+
 // ============================================================================
 // Server Messages
 // ============================================================================
@@ -91,6 +97,8 @@ export type ServerMessage =
   | { type: 'USER_JOINED'; payload: UserJoinedPayload }
   | { type: 'USER_LEFT'; payload: UserLeftPayload }
   | { type: 'MESSAGE'; payload: MessagePayload }
+  | { type: 'MESSAGE_HISTORY'; payload: MessageHistoryPayload }
+  | { type: 'ADMIN_AUTHENTICATED'; payload: AdminAuthenticatedPayload }
   | { type: 'VOICE_JOINED'; payload: VoiceJoinedPayload }
   | { type: 'VOICE_LEFT'; payload: VoiceLeftPayload }
   | { type: 'PONG' };
@@ -140,6 +148,16 @@ export interface UserLeftPayload {
 export interface MessagePayload {
   message: Message;
   username: string;
+}
+
+export interface MessageHistoryPayload {
+  channel_id: string;
+  messages: MessagePayload[];
+}
+
+export interface AdminAuthenticatedPayload {
+  user_id: string;
+  new_role: UserRole;
 }
 
 export interface VoiceJoinedPayload {
