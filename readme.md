@@ -181,8 +181,11 @@ npm install             # Install dependencies
 npm run dev             # Vite dev server only
 npm run tauri dev       # Full Tauri app (recommended)
 npm run build           # Build frontend
-npm run tauri build     # Build app bundles (.msi/.dmg)
+npm run tauri build     # Build app bundles
 ```
+
+> **Windows Installer:** Para generar el instalador `.msi` de Windows, debes compilar desde Windows nativo. Ver [windows_build_guide.md](windows_build_guide.md) para instrucciones completas.  
+> **Linux Bundles:** Compilar en Linux genera `.deb`, `.rpm`, y `.AppImage`.
 
 ---
 

@@ -12,7 +12,7 @@ export class WebSocketClient {
   private reconnectDelay = 1000; // Start with 1 second
   private shouldReconnect = true;
   private serverUrl: string = '';
-  
+
   public status: ConnectionStatus = 'disconnected';
   public onStatusChange?: (status: ConnectionStatus) => void;
 
@@ -51,11 +51,11 @@ export class WebSocketClient {
         this.ws.onclose = () => {
           console.log('WebSocket closed');
           this.setStatus('disconnected');
-          
+
           if (this.shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
             console.log(`Reconnecting... attempt ${this.reconnectAttempts}`);
-            
+
             setTimeout(() => {
               this.connect(this.serverUrl).catch(console.error);
             }, this.reconnectDelay);

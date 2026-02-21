@@ -1,267 +1,269 @@
 # TODO List - Voice MVP
 
-## Phase 0: Project Setup ✅ (In Progress)
+## ✅ Phase 0: Project Setup (COMPLETED)
 
 - [x] Create documentation structure
 - [x] Define technology stack
-- [ ] Create server project with Cargo.toml
-- [ ] Create client project with Tauri
-- [ ] Create protocol types definition
+- [x] Create server project with Cargo.toml
+- [x] Create client project with Tauri
+- [x] Create protocol types definition
 
 ---
 
-## Phase 1: Server Core
+## ✅ Phase 1: Server Core (COMPLETED)
 
-### 1.1 Project Structure
-- [ ] Initialize Cargo project in `server/`
-- [ ] Set up folder structure:
-  - [ ] `src/main.rs`
-  - [ ] `src/config.rs`
-  - [ ] `src/db.rs`
-  - [ ] `src/websocket.rs`
-  - [ ] `src/udp.rs`
-  - [ ] `src/models.rs`
-  - [ ] `src/handlers.rs`
-- [ ] Add all dependencies to Cargo.toml
+### 1.1 Project Structure ✅
+- [x] Initialize Cargo project in `server/`
+- [x] Set up folder structure (all files created)
+- [x] Add all dependencies to Cargo.toml
 
-**Questions:**
-- Should we use structopt/clap for CLI args or just env vars?
-- Default port for WebSocket (8080?) and UDP (9000?)?
+**Decisions Made:**
+- Using env vars and TOML config (no CLI args for MVP)
+- Default ports: WebSocket (8080), UDP (9000)
 
-### 1.2 Configuration
-- [ ] Create `server.toml` example
-- [ ] Implement config loader with serde
-- [ ] Add default values
-- [ ] Support environment variable overrides
+### 1.2 Configuration ✅
+- [x] Create `server.toml` example
+- [x] Implement config loader with serde
+- [x] Add default values
+- [x] Support environment variable overrides
 
-**Questions:**
-- Store config in same folder as binary or in ~/AppName/?
-- Should maxUsers be runtime changeable or restart required?
+**Decisions Made:**
+- Config in `./server.toml` (same folder)
+- maxUsers requires restart to change
 
-### 1.3 Database Setup
-- [ ] Define SQL schema (users, channels, messages, call_history, server_config)
-- [ ] Create `schema.sql` migration file
-- [ ] Implement SQLite connection pool
-- [ ] Write init_db() function
-- [ ] Add basic CRUD for users table
+### 1.3 Database Setup ✅
+- [x] Define SQL schema (users, channels, messages, call_history, server_config)
+- [x] Implement SQLite connection (Arc<Mutex<Connection>>)
+- [x] Write init_db() function
+- [x] Add CRUD for users, channels, messages
 
-**Questions:**
-- Use connection pool or single connection for MVP?
-- Should we implement soft deletes or hard deletes?
+**Decisions Made:**
+- Single connection wrapped in Arc<Mutex> (sufficient for MVP)
+- Hard deletes (no soft delete for MVP)
 
-### 1.4 WebSocket Server
-- [ ] Set up Axum router
-- [ ] Implement WebSocket upgrade handler
-- [ ] Create session manager (HashMap)
-- [ ] Implement CONNECT handshake
-- [ ] Implement WELCOME response
-- [ ] Implement ERROR responses
-- [ ] Add ping/pong keepalive
+### 1.4 WebSocket Server ✅
+- [x] Set up Axum router
+- [x] Implement WebSocket upgrade handler
+- [x] Create session manager (HashMap)
+- [x] Implement CONNECT handshake
+- [x] Implement WELCOME response
+- [x] Implement ERROR responses
+- [x] Add ping/pong keepalive
 
-**Questions:**
-- Should we validate username characters/length?
-- Max concurrent connections per IP?
+**Decisions Made:**
+- No username validation (accepts any string 1-32 chars)
+- No per-IP connection limit for MVP
 
 ---
 
-## Phase 2: Domain Logic
+## ✅ Phase 2: Domain Logic (COMPLETED)
 
-### 2.1 User Management
-- [ ] Create user on first connect
-- [ ] Assign userId (UUID)
-- [ ] Store in database
-- [ ] Handle username changes
-- [ ] Implement role assignment (owner vs member)
+### 2.1 User Management ✅
+- [x] Create user on first connect
+- [x] Assign userId (UUID)
+- [x] Store in database
+- [x] Handle username changes (DB method exists)
+- [x] Implement role assignment (owner vs member)
 
-**Questions:**
-- First user is always owner?
-- Can owner role be transferred?
+**Decisions Made:**
+- First user is always owner
+- Owner role transfer not implemented in MVP
 
-### 2.2 Channel Management
-- [ ] CREATE_CHANNEL message handler
-- [ ] DELETE_CHANNEL message handler
-- [ ] LIST_CHANNELS message handler
-- [ ] JOIN_CHANNEL logic
-- [ ] LEAVE_CHANNEL logic
-- [ ] Enforce max_users per channel
+### 2.2 Channel Management ✅
+- [x] CREATE_CHANNEL message handler
+- [x] DELETE_CHANNEL message handler
+- [x] LIST_CHANNELS (sent on WELCOME)
+- [x] JOIN_CHANNEL logic
+- [x] LEAVE_CHANNEL logic
+- [x] Enforce max_users per channel
 
-**Questions:**
-- Should channels have descriptions?
-- Allow channel renaming?
+**Decisions Made:**
+- No channel descriptions for MVP
+- No channel renaming for MVP
 
-### 2.3 Text Messaging
-- [ ] SEND_MESSAGE handler
-- [ ] Validate message size (2000 chars)
-- [ ] Store in database
-- [ ] Broadcast to channel members
-- [ ] Implement rate limiting (basic counter)
+### 2.3 Text Messaging ✅
+- [x] SEND_MESSAGE handler
+- [x] Validate message size (2000 chars)
+- [x] Store in database
+- [x] Broadcast to channel members
+- [x] Rate limiting (basic structure, not enforced)
 
-**Questions:**
-- Rate limit: messages per minute per user?
-- Should empty messages be allowed?
+**Decisions Made:**
+- Rate limit: 60 messages/minute (configured, not enforced yet)
+- Empty messages blocked by UI
 
-### 2.4 Role Enforcement
-- [ ] Check permissions for channel creation
-- [ ] Check permissions for channel deletion
-- [ ] Check permissions for kick actions
-- [ ] Return ERROR on unauthorized actions
-
----
-
-## Phase 3: Voice Integration
-
-### 3.1 UDP Server
-- [ ] Bind UDP socket
-- [ ] Parse incoming packets (version + sessionId + opus)
-- [ ] Validate session exists
-- [ ] Identify user's current voice channel
-- [ ] Forward packet to all other channel members
-- [ ] Handle errors gracefully (no crash on bad packets)
-
-**Questions:**
-- Should we validate Opus frame structure?
-- Drop packets from non-authenticated sessions?
-
-### 3.2 Voice Channel State
-- [ ] Track active voice connections per channel
-- [ ] JOIN_VOICE handler
-- [ ] LEAVE_VOICE handler
-- [ ] Notify channel members on join/leave
-- [ ] Enforce max_users_per_voice_channel
-
-**Questions:**
-- Auto-leave voice on disconnect?
-- Should we track "speaking" state?
-
-### 3.3 Call History
-- [ ] Log call start time
-- [ ] Log call end time
-- [ ] Calculate duration
-- [ ] Store in call_history table
+### 2.4 Role Enforcement ✅
+- [x] Check permissions for channel creation
+- [x] Check permissions for channel deletion
+- [x] Return ERROR on unauthorized actions
+- [ ] Kick actions (deferred to future)
 
 ---
 
-## Phase 4: Client
+## ⚠️ Phase 3: Voice Integration (PARTIAL)
 
-### 4.1 Project Setup
-- [ ] Initialize Tauri project
-- [ ] Set up React + TypeScript
-- [ ] Configure Tailwind CSS
-- [ ] Create basic app layout
-- [ ] Set up routing (if needed)
+### 3.1 UDP Server ⚠️
+- [x] Bind UDP socket
+- [x] Parse incoming packets (version + sessionId + opus)
+- [x] Validate session exists
+- [x] Identify user's current voice channel
+- [ ] 🚧 **Forward packet to all other channel members** (needs UDP address tracking)
+- [x] Handle errors gracefully (no crash on bad packets)
 
-### 4.2 Connection UI
-- [ ] Username input field
-- [ ] Server address input (IP:PORT)
-- [ ] Connect button
-- [ ] Connection status indicator
-- [ ] Error message display
+**Known Issue:** UDP address registration per session not implemented
 
-**Questions:**
-- Remember last username in localStorage?
-- Validate username before connecting?
+**Decisions Made:**
+- Validate packet structure, drop invalid
+- Drop packets from non-authenticated sessions
 
-### 4.3 WebSocket Client
-- [ ] Implement WebSocket connection
-- [ ] Send CONNECT message
-- [ ] Handle WELCOME response
-- [ ] Handle ERROR response
-- [ ] Implement auto-reconnect logic
-- [ ] Send ping/pong
+### 3.2 Voice Channel State ✅
+- [x] Track active voice connections per channel
+- [x] JOIN_VOICE handler
+- [x] LEAVE_VOICE handler
+- [x] Notify channel members on join/leave
+- [x] Enforce max_users_per_voice_channel
 
-**Questions:**
-- Reconnect backoff strategy? (immediate, 1s, 2s, 4s, max 10s?)
-- Show reconnection attempts to user?
+**Decisions Made:**
+- Auto-leave voice on disconnect (yes)
+- No "speaking" state tracking for MVP
 
-### 4.4 Main UI
-- [ ] Channel list sidebar
-- [ ] Text chat area
-- [ ] Message input
-- [ ] User list
-- [ ] Voice controls (mute, deafen, disconnect)
-
-**Questions:**
-- Should UI be collapsible/resizable?
-- Show timestamps on messages?
-
-### 4.5 Audio Capture
-- [ ] Request microphone permission
-- [ ] Capture audio with Web Audio API
-- [ ] Encode to Opus
-- [ ] Send via UDP
-- [ ] Implement push-to-talk or voice activation?
-
-**Questions:**
-- Default to push-to-talk or always-on with voice activation?
-- Show volume meter?
-
-### 4.6 Audio Playback
-- [ ] Receive UDP packets
-- [ ] Decode Opus frames
-- [ ] Mix multiple speakers
-- [ ] Play through AudioContext
-- [ ] Handle packet loss gracefully
-
-**Questions:**
-- Buffer size for jitter handling?
-- Show speaking indicator for each user?
+### 3.3 Call History ❌
+- [ ] Log call start time (deferred)
+- [ ] Log call end time (deferred)
+- [ ] Calculate duration (deferred)
+- [ ] Store in call_history table (schema exists, not used)
 
 ---
 
-## Phase 5: Packaging
+## ✅ Phase 4: Client (MOSTLY COMPLETE)
+
+### 4.1 Project Setup ✅
+- [x] Initialize Tauri project
+- [x] Set up React + TypeScript
+- [x] Configure Tailwind CSS
+- [x] Create basic app layout
+- [x] No routing needed (single view app)
+
+### 4.2 Connection UI ✅
+- [x] Username input field
+- [x] Server address input (IP:PORT)
+- [x] Connect button
+- [x] Connection status indicator
+- [x] Error message display
+
+**Decisions Made:**
+- No localStorage for username (fresh each time)
+- No pre-connect validation (server validates)
+
+### 4.3 WebSocket Client ✅
+- [x] Implement WebSocket connection
+- [x] Send CONNECT message
+- [x] Handle WELCOME response
+- [x] Handle ERROR response
+- [x] Implement auto-reconnect logic
+- [x] Ping/pong handling
+
+**Decisions Made:**
+- Reconnect backoff: 1s, 2s, 4s, 8s, max 10s (exponential)
+- Show reconnection in connection status (not separate UI)
+
+### 4.4 Main UI ✅
+- [x] Channel list sidebar
+- [x] Text chat area
+- [x] Message input
+- [x] Voice controls UI (non-functional)
+- [ ] User list per channel (deferred)
+
+**Decisions Made:**
+- Fixed layout (no resizing for MVP)
+- Show timestamps on messages (yes)
+
+### 4.5 Audio Capture ❌ (NOT IMPLEMENTED)
+- [ ] 🚧 Request microphone permission
+- [ ] 🚧 Capture audio with Web Audio API
+- [ ] 🚧 Encode to Opus (need WASM library)
+- [ ] 🚧 Send via UDP
+- [ ] 🚧 Implement push-to-talk
+
+**Blocker:** Requires audio engineering expertise and Opus WASM library
+
+### 4.6 Audio Playback ❌ (NOT IMPLEMENTED)
+- [ ] 🚧 Receive UDP packets (need Tauri UDP bridge)
+- [ ] 🚧 Decode Opus frames
+- [ ] 🚧 Mix multiple speakers
+- [ ] 🚧 Play through AudioContext
+- [ ] 🚧 Handle packet loss
+
+**Blocker:** Requires audio implementation + UDP in Tauri
+
+---
+
+## 🎯 Phase 5: Packaging (CURRENT FOCUS)
 
 ### 5.1 Server Binary
 - [ ] Cross-compile for Windows x64
 - [ ] Cross-compile for macOS (Intel + ARM)
 - [ ] Test binary standalone
-- [ ] Create default config file
+- [x] Create default config structure (creates server.example.toml)
 
-### 5.2 Client Bundling
+### 5.2 Client Bundling (DEFERRED)
 - [ ] Embed server binary in Tauri resources
 - [ ] Implement "Start Local Server" button
 - [ ] Spawn server process from client
 - [ ] Display server logs in UI (optional)
 - [ ] Handle server process lifecycle
 
-**Questions:**
-- Should client auto-start embedded server on launch?
-- Where to store server data when launched from client?
+**Decisions:**
+- Defer server embedding for MVP
+- Focus on standalone client installer first
 
-### 5.3 Installers
-- [ ] Build Windows .msi with Tauri
-- [ ] Build macOS .dmg with Tauri
-- [ ] Add app icon
-- [ ] Add proper app metadata
-- [ ] Test installation flow
+### 5.3 Installers ✅ **LINUX COMPLETE, WINDOWS DOCUMENTED**
+- [x] 🎯 **Verify client compiles successfully**
+- [x] 🎯 **Create app icons (PNG, ICO, ICNS)** - Generated via Tauri CLI from SVG
+- [x] 🎯 **Configure bundle metadata in tauri.conf.json**
+- [x] 🎯 **Build Linux bundles with Tauri** - Generated `.deb`, `.rpm`, `.AppImage`
+- [ ] 🎯 **Build Windows .msi with Tauri** - Requires compilation on Windows (see [windows_build_guide.md](windows_build_guide.md))
+- [ ] 🎯 **Test installation on Windows** - Pending Windows build
+- [ ] Build macOS .dmg with Tauri (later)
+- [ ] Test installation flow on macOS (later)
+
+**Status:**
+- ✅ Linux builds successful (3.8 MB `.deb`, 74 MB `.AppImage`)
+- 📝 Windows build guide created with complete instructions
+- ⚠️ Windows `.msi` requires native Windows compilation (not WSL)
+- 📦 Build artifacts: `client/src-tauri/target/release/bundle/`
 
 ---
 
-## Phase 6: Polish
+## Phase 6: Polish (DEFERRED)
 
 ### 6.1 Error Handling
-- [ ] User-friendly error messages
-- [ ] Handle network failures gracefully
-- [ ] Show connection state clearly
-- [ ] Add retry mechanisms
+- [x] User-friendly error messages (basic)
+- [x] Handle network failures gracefully
+- [x] Show connection state clearly
+- [x] Auto-reconnect mechanism
+- [ ] Better error details (can improve)
 
 ### 6.2 UX Improvements
-- [ ] Loading states
-- [ ] Empty states (no channels, no messages)
+- [ ] Loading states (basic spinners)
+- [x] Empty states (no channels, no messages)
 - [ ] Keyboard shortcuts
-- [ ] Sound notifications (optional)
+- [ ] Sound notifications
 
 ### 6.3 Testing
 - [ ] Manual test full flow
-- [ ] Test with 2+ clients
-- [ ] Test voice with multiple users
-- [ ] Test reconnection scenarios
+- [ ] Test with 2+ clients simultaneously
+- [ ] Test voice with multiple users (when audio implemented)
+- [x] Test reconnection scenarios (basic)
 - [ ] Test server restart scenarios
 
 ---
 
-## Non-MVP (Deferred)
+## ❌ Non-MVP (Explicitly Deferred)
 
-- [ ] TLS support
+All features below are OUT OF SCOPE for initial release:
+
+- [ ] TLS support (use reverse proxy)
 - [ ] Message history pagination
 - [ ] Message search
 - [ ] User profile pictures
@@ -274,17 +276,36 @@
 - [ ] Multi-server support in single client
 - [ ] Server discovery/browser
 - [ ] Invite links
+- [ ] Message editing
+- [ ] Message deletion
 
 ---
 
-## Known Blockers/Risks
+## 🚨 Current Blockers & Next Steps
 
-1. **Opus encoding in browser**: Need to test browser support, may need WASM library
-2. **UDP in Tauri**: Verify Node UDP or Rust UDP through Tauri commands
-3. **Audio mixing complexity**: May need audio engineering expertise
-4. **Cross-platform testing**: Need access to both Windows and macOS
-5. **NAT traversal**: Users may need port forwarding for voice (acceptable for MVP)
+### Immediate (This Session)
+1. ✅ **Update todo.md** - DONE
+2. ✅ **Verify client builds** - DONE (Linux bundles successful)
+3. ✅ **Create app icons** - DONE (generated from SVG)
+4. 📝 **Build Windows installer** - DOCUMENTED (requires Windows OS)
+
+### Windows Build Next Steps
+- Transfer project to Windows machine or WSL2 with Windows access
+- Follow [windows_build_guide.md](windows_build_guide.md) instructions
+- Install Visual Studio Build Tools + Rust + Node.js on Windows
+- Run `npm run tauri build` to generate `.msi` installer
+
+### Known Blockers
+1. **Audio implementation:** Requires Web Audio API + Opus WASM + UDP bridge
+2. **UDP address tracking:** Server can't send UDP packets to clients yet
+3. **Windows builds:** Only possible from Windows OS (not Linux/WSL)
+
+### Technical Debt
+- No rate limiting enforcement (structure exists)
+- No call history tracking (table exists, unused)
+- Message pagination (loads all messages)
+- No user list per channel UI
 
 ---
 
-*Last updated: 2026-02-21*
+*Last updated: 2026-02-21 (reflecting actual implementation state)*

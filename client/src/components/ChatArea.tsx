@@ -11,7 +11,6 @@ interface ChatAreaProps {
 export default function ChatArea({ 
   channel, 
   messages, 
-  currentUserId, 
   onSendMessage 
 }: ChatAreaProps) {
   const [input, setInput] = useState('');
