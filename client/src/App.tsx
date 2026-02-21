@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { WebSocketClient } from './lib/websocket'
 import { ServerManager } from './lib/serverManager'
-import { Channel, Message as ProtocolMessage, ServerMessage, UserRole } from './types/protocol'
+import { Channel, Message as ProtocolMessage, ServerMessage, UserRole, User, ServerSettingsPayload } from './types/protocol'
 import { SavedServer, LocalServerStatus } from './types/server'
 import ServerListView from './components/ServerListView'
 import ServerConnectModal from './components/ServerConnectModal'
@@ -10,6 +10,7 @@ import AddServerModal from './components/AddServerModal'
 import MainView from './components/MainView'
 import AdminAuthModal from './components/AdminAuthModal'
 import ServerSettingsModal from './components/ServerSettingsModal'
+import UserListModal from './components/UserListModal'
 
 const CLIENT_VERSION = '1.0.0'
 
@@ -39,6 +40,8 @@ interface ActiveConnection {
   messages: Map<string, ProtocolMessage[]>
   currentChannelId: string | null
   error: string | null
+  serverSettings: ServerSettingsPayload | null
+  serverUsers: User[] | null
 }
 
 type AppView = { type: 'server-list' } | { type: 'connected'; connection: ActiveConnection }
@@ -52,6 +55,7 @@ function App() {
   const [isConnecting, setIsConnecting] = useState(false)
   const [showAdminAuthModal, setShowAdminAuthModal] = useState(false)
   const [showServerSettingsModal, setShowServerSettingsModal] = useState(false)
+  const [showUserListModal, setShowUserListModal] = useState(false)
   const [localServerStatus, setLocalServerStatus] = useState<LocalServerStatus>({
     installed: false,
     running: false,
@@ -127,10 +131,27 @@ function App() {
         messages: new Map(),
         currentChannelId: null,
         error: null,
+        serverSettings: null,
+        serverUsers: null,
       }
 
       // Set up handlers
+      let hasReceivedWelcome = false
       wsClient.onMessage((message: ServerMessage) => {
+        // Handle pre-auth errors (e.g., invalid user ID when resuming)
+        if (message.type === 'ERROR' && !hasReceivedWelcome) {
+          // Resume session failed - clear stored userId and fall back to username prompt
+          ServerManager.updateServer(server.id, { lastUserId: undefined })
+          wsClient.disconnect()
+          setView({ type: 'server-list' })
+          setConnectingServer(server)
+          setConnectionError(message.payload.message)
+          setIsConnecting(false)
+          return
+        }
+        if (message.type === 'WELCOME') {
+          hasReceivedWelcome = true
+        }
         setView(prev => {
           if (prev.type !== 'connected') return prev
           return {
@@ -201,6 +222,8 @@ function App() {
         messages: new Map(),
         currentChannelId: null,
         error: null,
+        serverSettings: null,
+        serverUsers: null,
       }
 
       // Set up message handler
@@ -259,9 +282,10 @@ function App() {
 
     switch (message.type) {
       case 'WELCOME':
-        // Save user ID to localStorage for future reconnections
+        // Save user ID and username to localStorage for future reconnections
         if (connection.server) {
           ServerManager.updateLastUserId(connection.server.id, message.payload.user_id)
+          ServerManager.updateLastUsername(connection.server.id, message.payload.username)
         }
 
         return {
@@ -269,6 +293,7 @@ function App() {
           connected: true,
           sessionId: message.payload.session_id,
           userId: message.payload.user_id,
+          username: message.payload.username,
           role: message.payload.role,
           channels: message.payload.channels,
           error: null,
@@ -291,6 +316,28 @@ function App() {
           ...connection,
           channels: connection.channels.filter(ch => ch.id !== message.payload.channel_id),
           currentChannelId: connection.currentChannelId === message.payload.channel_id ? null : connection.currentChannelId,
+        }
+
+      case 'CHANNEL_RENAMED':
+        return {
+          ...connection,
+          channels: connection.channels.map(ch =>
+            ch.id === message.payload.channel_id
+              ? { ...ch, name: message.payload.new_name }
+              : ch
+          ),
+        }
+
+      case 'SERVER_SETTINGS':
+        return {
+          ...connection,
+          serverSettings: message.payload,
+        }
+
+      case 'SERVER_USERS':
+        return {
+          ...connection,
+          serverUsers: message.payload.users,
         }
 
       case 'MESSAGE':
@@ -405,6 +452,47 @@ function App() {
     })
   }
 
+  const handleDeleteChannel = (channelId: string) => {
+    if (view.type !== 'connected') return
+
+    view.connection.client.send({
+      type: 'DELETE_CHANNEL',
+      payload: { channel_id: channelId },
+    })
+  }
+
+  const handleRenameChannel = (channelId: string, newName: string) => {
+    if (view.type !== 'connected') return
+
+    view.connection.client.send({
+      type: 'RENAME_CHANNEL',
+      payload: { channel_id: channelId, new_name: newName },
+    })
+  }
+
+  const handleGetServerSettings = () => {
+    if (view.type !== 'connected') return
+
+    view.connection.client.send({ type: 'GET_SERVER_SETTINGS' })
+    setShowServerSettingsModal(true)
+  }
+
+  const handleUpdateServerSettings = (settings: { name?: string; admin_password?: string; max_users?: number; max_users_per_voice_channel?: number; max_message_size?: number }) => {
+    if (view.type !== 'connected') return
+
+    view.connection.client.send({
+      type: 'UPDATE_SERVER_SETTINGS',
+      payload: settings,
+    })
+  }
+
+  const handleGetUsers = () => {
+    if (view.type !== 'connected') return
+
+    view.connection.client.send({ type: 'GET_USERS' })
+    setShowUserListModal(true)
+  }
+
   const handleLaunchLocalServer = async () => {
     if (!localServerStatus.installed) {
       // Open download page
@@ -498,12 +586,29 @@ function App() {
         onJoinChannel={handleJoinChannel}
         onSendMessage={handleSendMessage}
         onAuthenticateAdmin={() => setShowAdminAuthModal(true)}
-        onOpenServerSettings={() => setShowServerSettingsModal(true)}
+        onOpenServerSettings={handleGetServerSettings}
+        onRenameChannel={handleRenameChannel}
+        onDeleteChannel={handleDeleteChannel}
+        onViewUsers={handleGetUsers}
       />
 
       {showAdminAuthModal && <AdminAuthModal onClose={() => setShowAdminAuthModal(false)} onAuthenticate={handleAuthenticateAdmin} />}
 
-      {showServerSettingsModal && <ServerSettingsModal serverName={conn.server.name} onClose={() => setShowServerSettingsModal(false)} />}
+      {showServerSettingsModal && (
+        <ServerSettingsModal
+          serverName={conn.server.name}
+          settings={conn.serverSettings}
+          onClose={() => setShowServerSettingsModal(false)}
+          onSave={handleUpdateServerSettings}
+        />
+      )}
+
+      {showUserListModal && (
+        <UserListModal
+          users={conn.serverUsers}
+          onClose={() => setShowUserListModal(false)}
+        />
+      )}
     </>
   )
 }

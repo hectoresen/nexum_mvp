@@ -75,7 +75,7 @@ pub fn detect_local_server() -> bool {
         .parent()
         .unwrap()
         .join("voice-server.exe");
-    
+
     server_path.exists()
 }
 
@@ -85,7 +85,7 @@ pub fn get_server_path() -> Option<PathBuf> {
         .parent()
         .unwrap()
         .join("voice-server.exe");
-    
+
     if server_path.exists() {
         Some(server_path)
     } else {
@@ -110,30 +110,26 @@ fn is_server_installed() -> bool {
 ```tsx
 // Modal de configuración primera vez
 function ServerSetupModal() {
-  const [password, setPassword] = useState('');
-  
+  const [password, setPassword] = useState('')
+
   const generatePassword = () => {
     // Genera contraseña aleatoria 16 chars
-  };
-  
+  }
+
   const saveConfig = async () => {
-    await invoke('setup_local_server', { 
-      adminPassword: password 
-    });
-  };
-  
+    await invoke('setup_local_server', {
+      adminPassword: password,
+    })
+  }
+
   return (
     <Modal>
       <h2>Configure Local Server</h2>
-      <input 
-        type="password" 
-        value={password}
-        onChange={e => setPassword(e.target.value)}
-      />
+      <input type="password" value={password} onChange={e => setPassword(e.target.value)} />
       <button onClick={generatePassword}>Generate</button>
       <button onClick={saveConfig}>Save & Start</button>
     </Modal>
-  );
+  )
 }
 ```
 
@@ -144,16 +140,16 @@ function ServerSetupModal() {
 async fn setup_local_server(admin_password: String) -> Result<(), String> {
     let server_path = get_server_path()
         .ok_or("Server not found")?;
-    
+
     // Ejecutar servidor con contraseña para crear server.toml
     let output = Command::new(server_path)
         .args(&["--non-interactive", "--admin-password", &admin_password])
         .output()
         .map_err(|e| e.to_string())?;
-    
+
     // Matar el proceso después de que cree la config
     // (se lanzará de nuevo cuando el usuario haga "Start")
-    
+
     Ok(())
 }
 ```
@@ -183,29 +179,29 @@ enum ServerStatus {
 #[tauri::command]
 async fn start_local_server(state: State<'_, AppState>) -> Result<(), String> {
     let mut process = state.server_process.lock().unwrap();
-    
+
     if process.is_some() {
         return Err("Server already running".to_string());
     }
-    
+
     let server_path = get_server_path()
         .ok_or("Server not installed")?;
-    
+
     let child = Command::new(server_path)
         .args(&["--non-interactive"])  // Usa config existente
         .spawn()
         .map_err(|e| e.to_string())?;
-    
+
     *process = Some(child);
     *state.server_status.lock().unwrap() = ServerStatus::Running;
-    
+
     Ok(())
 }
 
 #[tauri::command]
 async fn stop_local_server(state: State<'_, AppState>) -> Result<(), String> {
     let mut process = state.server_process.lock().unwrap();
-    
+
     if let Some(mut child) = process.take() {
         child.kill().map_err(|e| e.to_string())?;
         *state.server_status.lock().unwrap() = ServerStatus::Stopped;
@@ -228,55 +224,49 @@ fn get_server_status(state: State<'_, AppState>) -> String {
 
 ```tsx
 function LocalServerPanel() {
-  const [status, setStatus] = useState('stopped');
-  const [password, setPassword] = useState('');
-  
+  const [status, setStatus] = useState('stopped')
+  const [password, setPassword] = useState('')
+
   useEffect(() => {
     // Polling del estado
     const interval = setInterval(async () => {
-      const s = await invoke('get_server_status');
-      setStatus(s);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-  
+      const s = await invoke('get_server_status')
+      setStatus(s)
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [])
+
   const handleStart = async () => {
     try {
-      await invoke('start_local_server');
+      await invoke('start_local_server')
       // Auto-conectar a localhost:8080
-      handleConnect('127.0.0.1:8080', password);
+      handleConnect('127.0.0.1:8080', password)
     } catch (err) {
-      console.error(err);
+      console.error(err)
     }
-  };
-  
+  }
+
   const handleStop = async () => {
-    await invoke('stop_local_server');
-  };
-  
+    await invoke('stop_local_server')
+  }
+
   return (
     <div className="local-server-panel">
       <h3>🖥️ Local Server</h3>
       <div className="status">
         Status: <span className={status}>{status}</span>
       </div>
-      
-      {status === 'stopped' && (
-        <button onClick={handleStart}>
-          Start Local Server
-        </button>
-      )}
-      
+
+      {status === 'stopped' && <button onClick={handleStart}>Start Local Server</button>}
+
       {status === 'running' && (
         <>
           <button onClick={handleStop}>Stop Server</button>
-          <div className="info">
-            Running on localhost:8080
-          </div>
+          <div className="info">Running on localhost:8080</div>
         </>
       )}
     </div>
-  );
+  )
 }
 ```
 
@@ -287,12 +277,8 @@ function LocalServerPanel() {
 ```json
 {
   "bundle": {
-    "resources": [
-      "../server/target/release/voice-server.exe"
-    ],
-    "externalBin": [
-      "../server/target/release/voice-server"
-    ]
+    "resources": ["../server/target/release/voice-server.exe"],
+    "externalBin": ["../server/target/release/voice-server"]
   }
 }
 ```
@@ -318,6 +304,7 @@ Write-Host "Installer: client/src-tauri/target/release/bundle/msi/Voice MVP_x.x.
 ## 🔐 Gestión de Contraseñas
 
 ### Primera vez:
+
 1. Cliente detecta que no existe `server.toml`
 2. Muestra modal de setup
 3. Usuario ingresa o genera contraseña
@@ -326,11 +313,13 @@ Write-Host "Installer: client/src-tauri/target/release/bundle/msi/Voice MVP_x.x.
 6. Cliente guarda la contraseña en keychain local (seguro)
 
 ### Reconexión:
+
 1. Cliente lee contraseña de keychain
 2. Lanza servidor: `voice-server.exe --non-interactive`
 3. Auto-conecta a `localhost:8080` con contraseña guardada
 
 ### Cambio de contraseña:
+
 1. Usuario va a Settings → Local Server
 2. Edita contraseña
 3. Cliente actualiza `server.toml`
@@ -369,6 +358,7 @@ Write-Host "Installer: client/src-tauri/target/release/bundle/msi/Voice MVP_x.x.
 ## 📦 Instalador
 
 ### Características:
+
 - ✅ Instalador único `.msi` que incluye cliente + servidor
 - ✅ Crea acceso directo al cliente
 - ✅ Servidor se instala en la misma carpeta que el cliente
@@ -411,41 +401,48 @@ Cliente Iniciado
 ## ✅ Checklist de Implementación
 
 ### Fase 1: Infraestructura
+
 - [ ] Crear `server_manager.rs` en cliente
 - [ ] Implementar `detect_local_server()`
 - [ ] Implementar `get_server_path()`
 - [ ] Agregar comandos Tauri básicos
 
 ### Fase 2: UI Básica
+
 - [ ] Crear `LocalServerPanel` component
 - [ ] Agregar indicador de estado del servidor
 - [ ] Botones Start/Stop
 - [ ] Integrar en `ConnectView`
 
 ### Fase 3: Configuración
+
 - [ ] Modal de setup primera vez
 - [ ] Generador de contraseñas
 - [ ] Guardar config en `server.toml`
 - [ ] Almacenamiento seguro de contraseña
 
 ### Fase 4: Control de Procesos
+
 - [ ] Lanzar servidor como proceso hijo
 - [ ] Monitoreo de estado del proceso
 - [ ] Manejo de cierre limpio
 - [ ] Auto-reconexión si servidor se cae
 
 ### Fase 5: Auto-Conexión
+
 - [ ] Conectar automáticamente a localhost después de start
 - [ ] Usar contraseña guardada
 - [ ] Manejo de errores de conexión
 
 ### Fase 6: Empaquetado
+
 - [ ] Configurar bundle con servidor incluido
 - [ ] Script de build unificado
 - [ ] Crear instalador `.msi`
 - [ ] Testing de instalación completa
 
 ### Fase 7: Pulido
+
 - [ ] Wizard de primera ejecución
 - [ ] Settings para servidor local
 - [ ] Opciones de auto-start
@@ -463,6 +460,7 @@ Cliente Iniciado
 ## 🔮 Futuro: GUI Server
 
 El servidor con GUI será una opción **alternativa** para:
+
 - Usuarios que quieren un servidor dedicado
 - Administradores que gestionan múltiples servidores
 - Casos donde se necesita configuración avanzada

@@ -1,9 +1,49 @@
+import { useState, useEffect } from 'react'
+import { ServerSettingsPayload } from '../types/protocol'
+
 interface ServerSettingsModalProps {
   serverName: string
+  settings: ServerSettingsPayload | null
   onClose: () => void
+  onSave: (settings: {
+    name?: string
+    admin_password?: string
+    max_users?: number
+    max_users_per_voice_channel?: number
+    max_message_size?: number
+  }) => void
 }
 
-export default function ServerSettingsModal({ serverName, onClose }: ServerSettingsModalProps) {
+export default function ServerSettingsModal({ serverName, settings, onClose, onSave }: ServerSettingsModalProps) {
+  const [name, setName] = useState(settings?.name ?? serverName)
+  const [adminPassword, setAdminPassword] = useState('')
+  const [maxUsers, setMaxUsers] = useState(settings?.max_users ?? 200)
+  const [maxVoice, setMaxVoice] = useState(settings?.max_users_per_voice_channel ?? 100)
+  const [maxMsg, setMaxMsg] = useState(settings?.max_message_size ?? 2000)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    if (settings) {
+      setName(settings.name)
+      setMaxUsers(settings.max_users)
+      setMaxVoice(settings.max_users_per_voice_channel)
+      setMaxMsg(settings.max_message_size)
+    }
+  }, [settings])
+
+  const handleSave = () => {
+    onSave({
+      name: name.trim() || undefined,
+      admin_password: adminPassword.trim() || undefined,
+      max_users: maxUsers,
+      max_users_per_voice_channel: maxVoice,
+      max_message_size: maxMsg,
+    })
+    setAdminPassword('')
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-gray-800 rounded-lg p-6 w-[600px] max-h-[80vh] overflow-y-auto shadow-xl">
@@ -27,60 +67,112 @@ export default function ServerSettingsModal({ serverName, onClose }: ServerSetti
           </button>
         </div>
 
-        <div className="space-y-6">
-          {/* General Settings */}
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-3 border-b border-gray-700 pb-2">General</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Server Name</label>
-                <input type="text" value={serverName} disabled className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white opacity-60 cursor-not-allowed" />
-                <p className="text-xs text-gray-500 mt-1">Editing coming soon</p>
-              </div>
+        {!settings && (
+          <div className="text-center py-8 text-gray-400">
+            <svg className="w-8 h-8 mx-auto mb-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Loading settings...
+          </div>
+        )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Admin Password</label>
-                <input type="password" value="••••••••" disabled className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white opacity-60 cursor-not-allowed" />
-                <p className="text-xs text-gray-500 mt-1">Editing coming soon</p>
+        {settings && (
+          <div className="space-y-6">
+            {/* General Settings */}
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-3 border-b border-gray-700 pb-2">General</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Server Name</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">New Admin Password</label>
+                  <input
+                    type="password"
+                    value={adminPassword}
+                    onChange={e => setAdminPassword(e.target.value)}
+                    placeholder="Leave blank to keep current password"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-blue-500 placeholder-gray-500"
+                  />
+                </div>
+
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-300 mb-1">WebSocket Port</label>
+                    <input type="number" value={settings.ws_port} disabled className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-400 cursor-not-allowed" />
+                    <p className="text-xs text-gray-500 mt-1">Requires server restart to change</p>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-300 mb-1">UDP Port</label>
+                    <input type="number" value={settings.udp_port} disabled className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-400 cursor-not-allowed" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Limits */}
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-3 border-b border-gray-700 pb-2">Limits</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Max Users</label>
+                  <input
+                    type="number"
+                    value={maxUsers}
+                    min={1}
+                    max={10000}
+                    onChange={e => setMaxUsers(parseInt(e.target.value) || 1)}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Max Users per Voice Channel</label>
+                  <input
+                    type="number"
+                    value={maxVoice}
+                    min={1}
+                    max={1000}
+                    onChange={e => setMaxVoice(parseInt(e.target.value) || 1)}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Max Message Size (characters)</label>
+                  <input
+                    type="number"
+                    value={maxMsg}
+                    min={1}
+                    max={100000}
+                    onChange={e => setMaxMsg(parseInt(e.target.value) || 1)}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
               </div>
             </div>
           </div>
+        )}
 
-          {/* Limits */}
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-3 border-b border-gray-700 pb-2">Limits</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Max Users</label>
-                <input type="number" value="200" disabled className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white opacity-60 cursor-not-allowed" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Max Users per Voice Channel</label>
-                <input type="number" value="100" disabled className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white opacity-60 cursor-not-allowed" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Max Message Size (characters)</label>
-                <input type="number" value="2000" disabled className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white opacity-60 cursor-not-allowed" />
-              </div>
-            </div>
-          </div>
-
-          {/* Banned Users (Coming soon) */}
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-3 border-b border-gray-700 pb-2">Banned Users</h3>
-            <div className="bg-gray-700 rounded-md p-4 text-center">
-              <p className="text-gray-400 text-sm">No banned users</p>
-              <p className="text-xs text-gray-500 mt-1">Ban system coming soon</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex justify-end gap-3">
           <button onClick={onClose} className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors">
             Close
           </button>
+          {settings && (
+            <button
+              onClick={handleSave}
+              className={`px-6 py-2 rounded-md transition-colors text-white ${saved ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'}`}
+            >
+              {saved ? '✓ Saved' : 'Save Changes'}
+            </button>
+          )}
         </div>
       </div>
     </div>

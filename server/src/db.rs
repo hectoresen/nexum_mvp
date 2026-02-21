@@ -174,6 +174,23 @@ impl Database {
         Ok(self.count_users()? == 0)
     }
 
+    pub fn list_users(&self) -> Result<Vec<User>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, username, role, created_at FROM users ORDER BY created_at"
+        )?;
+        let users = stmt.query_map([], |row| {
+            Ok(User {
+                id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                username: row.get(1)?,
+                role: UserRole::from_string(&row.get::<_, String>(2)?),
+                created_at: row.get::<_, String>(3)?.parse().unwrap(),
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+        Ok(users)
+    }
+
     // ========================================================================
     // Channel Operations
     // ========================================================================
@@ -248,6 +265,27 @@ impl Database {
             params![channel_id.to_string()],
         )?;
         Ok(())
+    }
+
+    pub fn rename_channel(&self, channel_id: Uuid, new_name: &str) -> Result<Channel> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE channels SET name = ?1 WHERE id = ?2",
+            params![new_name, channel_id.to_string()],
+        )?;
+        let mut stmt = conn.prepare(
+            "SELECT id, name, type, max_users, created_at FROM channels WHERE id = ?1"
+        )?;
+        let channel = stmt.query_row(params![channel_id.to_string()], |row| {
+            Ok(Channel {
+                id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                name: row.get(1)?,
+                channel_type: ChannelType::from_string(&row.get::<_, String>(2)?),
+                max_users: row.get::<_, Option<i64>>(3)?.map(|u| u as usize),
+                created_at: row.get::<_, String>(4)?.parse().unwrap(),
+            })
+        })?;
+        Ok(channel)
     }
 
     // ========================================================================

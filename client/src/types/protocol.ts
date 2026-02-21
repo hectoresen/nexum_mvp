@@ -37,12 +37,16 @@ export type ClientMessage =
   | { type: 'CONNECT'; payload: ConnectPayload }
   | { type: 'CREATE_CHANNEL'; payload: CreateChannelPayload }
   | { type: 'DELETE_CHANNEL'; payload: DeleteChannelPayload }
+  | { type: 'RENAME_CHANNEL'; payload: RenameChannelPayload }
   | { type: 'JOIN_CHANNEL'; payload: JoinChannelPayload }
   | { type: 'LEAVE_CHANNEL'; payload: LeaveChannelPayload }
   | { type: 'SEND_MESSAGE'; payload: SendMessagePayload }
   | { type: 'JOIN_VOICE'; payload: JoinVoicePayload }
   | { type: 'LEAVE_VOICE'; payload: LeaveVoicePayload }
   | { type: 'AUTHENTICATE_ADMIN'; payload: AuthenticateAdminPayload }
+  | { type: 'GET_SERVER_SETTINGS' }
+  | { type: 'UPDATE_SERVER_SETTINGS'; payload: UpdateServerSettingsPayload }
+  | { type: 'GET_USERS' }
   | { type: 'PING' };
 
 export interface ConnectPayload {
@@ -85,6 +89,19 @@ export interface AuthenticateAdminPayload {
   password: string;
 }
 
+export interface RenameChannelPayload {
+  channel_id: string;
+  new_name: string;
+}
+
+export interface UpdateServerSettingsPayload {
+  name?: string;
+  admin_password?: string;
+  max_users?: number;
+  max_users_per_voice_channel?: number;
+  max_message_size?: number;
+}
+
 // ============================================================================
 // Server Messages
 // ============================================================================
@@ -94,6 +111,7 @@ export type ServerMessage =
   | { type: 'ERROR'; payload: ErrorPayload }
   | { type: 'CHANNEL_CREATED'; payload: ChannelCreatedPayload }
   | { type: 'CHANNEL_DELETED'; payload: ChannelDeletedPayload }
+  | { type: 'CHANNEL_RENAMED'; payload: ChannelRenamedPayload }
   | { type: 'USER_JOINED'; payload: UserJoinedPayload }
   | { type: 'USER_LEFT'; payload: UserLeftPayload }
   | { type: 'MESSAGE'; payload: MessagePayload }
@@ -101,11 +119,14 @@ export type ServerMessage =
   | { type: 'ADMIN_AUTHENTICATED'; payload: AdminAuthenticatedPayload }
   | { type: 'VOICE_JOINED'; payload: VoiceJoinedPayload }
   | { type: 'VOICE_LEFT'; payload: VoiceLeftPayload }
+  | { type: 'SERVER_SETTINGS'; payload: ServerSettingsPayload }
+  | { type: 'SERVER_USERS'; payload: ServerUsersPayload }
   | { type: 'PONG' };
 
 export interface WelcomePayload {
   session_id: string;
   user_id: string;
+  username: string;
   server_version: string;
   role: UserRole;
   channels: Channel[];
@@ -120,6 +141,7 @@ export type ErrorCode =
   | 'VERSION_MISMATCH'
   | 'SERVER_FULL'
   | 'INVALID_PAYLOAD'
+  | 'INVALID_REQUEST'
   | 'UNAUTHORIZED'
   | 'CHANNEL_NOT_FOUND'
   | 'USER_NOT_FOUND'
@@ -168,4 +190,22 @@ export interface VoiceJoinedPayload {
 export interface VoiceLeftPayload {
   channel_id: string;
   user_id: string;
+}
+
+export interface ChannelRenamedPayload {
+  channel_id: string;
+  new_name: string;
+}
+
+export interface ServerSettingsPayload {
+  name: string;
+  ws_port: number;
+  udp_port: number;
+  max_users: number;
+  max_users_per_voice_channel: number;
+  max_message_size: number;
+}
+
+export interface ServerUsersPayload {
+  users: User[];
 }

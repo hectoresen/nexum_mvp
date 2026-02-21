@@ -6,90 +6,104 @@
 
 This phase integrates the CLI server with the client for a unified user experience.
 
-### 0.5.1 Installation Architecture 🚧
-- [ ] Design unified installation structure
-  - Client and server in same directory
-  - Shared resources folder
-  - Single data directory for local server
-- [ ] Update build scripts to bundle both executables
-- [ ] Configure Tauri bundle to include server binary
+### 0.5.0 Admin Features & UX Polish ✅
+
+- [x] **Username persistence** — server sends username back in `WELCOME`, saved to localStorage; no more username prompts on reconnect
+- [x] **Pre-WELCOME error guard** — if server rejects `resume_session_id` (e.g. DB wiped), clear stored userId and redirect to username modal gracefully
+- [x] **Channel rename from UI** — owners hover channel row to reveal pencil icon; inline edit commits on Enter/blur, cancels on Escape; broadcasts `CHANNEL_RENAMED` to all clients
+- [x] **Channel delete from UI** — owners hover channel row to reveal trash icon; delete sends `DELETE_CHANNEL` with confirm dialog
+- [x] **Editable server settings panel** — `ServerSettingsModal` is now fully editable (name, admin password, max users, max voice users, max message size); WS/UDP ports shown read-only; saves to `server.toml` live via `Config::save()`
+- [x] **Server user list** — owners can open `UserListModal` from sidebar "View Users" button; shows all registered users with role, join date, avatar initial
+- [x] **`AppState.config` → `RwLock<Config>`** — server settings can be updated live without restart
+- [x] **`WelcomePayload.username`** — server now includes username in WELCOME response
+
+### 0.5.1 Installation Architecture ✅
+
+- [x] Design unified installation structure (client + server same directory)
+- [x] Configure Tauri bundle to include server binary (`tauri.conf.json` → resources)
+- [x] Create unified build script (`build.ps1` with `-Release`, `-Bundle`, `-ServerOnly` flags)
 - [ ] Test installation on clean Windows system
 
-### 0.5.2 Server Detection 🚧
-- [ ] Create `server_manager.rs` module in client backend
-- [ ] Implement `detect_local_server()` function
-- [ ] Implement `get_server_path()` function
-- [ ] Add Tauri command `is_server_installed()`
-- [ ] Test detection logic with various installation paths
+### 0.5.2 Server Detection ✅
 
-### 0.5.3 Server Control 🚧
-- [ ] Implement `start_local_server()` command
-  - Launch server process with `--non-interactive`
-  - Track process handle in AppState
-  - Monitor process status
-- [ ] Implement `stop_local_server()` command
-  - Graceful shutdown with kill signal
-  - Clean up process handle
-- [ ] Implement `get_server_status()` command
-- [ ] Add process crash detection and recovery
+- [x] Create `server_manager.rs` module in client backend
+- [x] Implement `detect_server()` function (searches ~7 common install paths)
+- [x] Implement `get_server_path()` logic inside detect
+- [x] Add Tauri command `detect_local_server()`
+- [x] Unit tests passing (3/3)
 
-### 0.5.4 Initial Setup Flow 🚧
-- [ ] Create `ServerSetupModal` component
-  - Password input field
-  - Generate random password button
-  - Show/hide password toggle
-  - Validation (min 8 chars)
-- [ ] Implement first-run detection
-  - Check if `server.toml` exists
-  - Show setup modal if not configured
-- [ ] Call server with `--admin-password` on first setup
-- [ ] Save password securely in client storage
+### 0.5.3 Server Control ✅
 
-### 0.5.5 UI Components 🚧
-- [ ] Create `LocalServerPanel` component
-  - Server status indicator (running/stopped/error)
-  - Start/Stop buttons
-  - Current address display (localhost:8080)
-  - Quick reconnect button
-- [ ] Integrate panel into `ConnectView`
-- [ ] Add "Local Server" vs "Remote Server" tabs
-- [ ] Update styling for new components
+- [x] Implement `start_local_server()` command
+  - [x] Launch server process with `--non-interactive`
+  - [x] Track process handle in AppState (Arc<Mutex<Option<Child>>>)
+  - [x] Status tracking (NotInstalled/Stopped/Starting/Running/Error)
+- [x] Implement `stop_local_server()` command (kill + wait)
+- [x] Implement `get_server_status()` command
+- [x] Implement `check_server_health()` - detects crashed processes
+
+### 0.5.4 Initial Setup Flow ✅
+
+- [x] Create first-run detection (`is_server_configured()` → checks server.toml)
+- [x] Password input integrated in `LocalServerPanel`
+  - [x] Password input field
+  - [x] "Generate" button (16-char random)
+  - [x] Only shown on first setup (no server.toml)
+- [x] Pass `--admin-password` on first start
+- [ ] Persist password securely in system keychain
+
+### 0.5.5 UI Components ✅
+
+- [x] Create `LocalServerPanel` component
+  - [x] Server status indicator with animated pulse
+  - [x] Start/Stop buttons with loading states
+  - [x] Port info display (WS + UDP)
+  - [x] PID display when running
+  - [x] Refresh button (🔄)
+  - [x] Error display area
+  - [x] Binary path display for troubleshooting
+- [x] Integrate `LocalServerPanel` into `ConnectView`
+- [ ] Collapse/expand panel option
+- [ ] "Connect to Local" quick button after server starts
 
 ### 0.5.6 Auto-Connection 🚧
-- [ ] Auto-connect to localhost after starting server
-- [ ] Use saved admin password for authentication
+
+- [ ] Auto-fill `localhost:8080` on server start (✅ basic version done)
+- [ ] Auto-trigger Connect after server starts with saved username
 - [ ] Handle connection failures gracefully
-- [ ] Add retry logic with backoff
+- [ ] Add retry logic with exponential backoff
 
 ### 0.5.7 Configuration Management 🚧
+
 - [ ] Add "Local Server Settings" to Settings modal
-  - Change admin password
-  - Change server ports
-  - Toggle auto-start on client launch
-  - View server logs
-- [ ] Implement config file editing
+  - [ ] Change admin password
+  - [ ] Change server ports (WS / UDP)
+  - [ ] Toggle auto-start on client launch
+  - [ ] View last server log lines
+- [ ] Implement config file editing from client
 - [ ] Restart server when config changes
 - [ ] Validate configuration before applying
 
 ### 0.5.8 Setup Wizard 🚧
+
 - [ ] Create first-launch wizard component
-  - Welcome screen
-  - "Host local" vs "Connect remote" choice
-  - Server configuration (if hosting)
-  - Connection test
-- [ ] Save wizard completion state
+  - [ ] Welcome screen
+  - [ ] "Host local server" vs "Connect to remote" choice
+  - [ ] Password setup step (if hosting)
+  - [ ] Connection test / confirmation
+- [ ] Save wizard completion state (localStorage)
 - [ ] Skip wizard on subsequent launches
 
-### 0.5.9 Build & Distribution 🚧
-- [ ] Create unified build script
-  - Build server binary first
-  - Build client with bundled server
-  - Generate installer (.msi)
+### 0.5.9 Build & Distribution ✅
+
+- [x] Create unified build script (`build.ps1`)
+- [x] Bundle server binary with client in installer
 - [ ] Test installer on clean machine
-- [ ] Verify both client and server are installed
+- [ ] Verify both client and server are installed together
 - [ ] Test uninstallation (clean removal)
 
 ### 0.5.10 Documentation 🚧
+
 - [ ] Update README with new installation process
 - [ ] Create user guide for local server mode
 - [ ] Document troubleshooting steps
@@ -112,35 +126,42 @@ This phase integrates the CLI server with the client for a unified user experien
 ## ✅ Phase 1: Server Core (COMPLETED)
 
 ### 1.1 Project Structure ✅
+
 - [x] Initialize Cargo project in `server/`
 - [x] Set up folder structure (all files created)
 - [x] Add all dependencies to Cargo.toml
 
 **Decisions Made:**
+
 - Using env vars and TOML config (no CLI args for MVP)
 - Default ports: WebSocket (8080), UDP (9000)
 
 ### 1.2 Configuration ✅
+
 - [x] Create `server.toml` example
 - [x] Implement config loader with serde
 - [x] Add default values
 - [x] Support environment variable overrides
 
 **Decisions Made:**
+
 - Config in `./server.toml` (same folder)
 - maxUsers requires restart to change
 
 ### 1.3 Database Setup ✅
+
 - [x] Define SQL schema (users, channels, messages, call_history, server_config)
 - [x] Implement SQLite connection (Arc<Mutex<Connection>>)
 - [x] Write init_db() function
 - [x] Add CRUD for users, channels, messages
 
 **Decisions Made:**
+
 - Single connection wrapped in Arc<Mutex> (sufficient for MVP)
 - Hard deletes (no soft delete for MVP)
 
 ### 1.4 WebSocket Server ✅
+
 - [x] Set up Axum router
 - [x] Implement WebSocket upgrade handler
 - [x] Create session manager (HashMap)
@@ -150,6 +171,7 @@ This phase integrates the CLI server with the client for a unified user experien
 - [x] Add ping/pong keepalive
 
 **Decisions Made:**
+
 - No username validation (accepts any string 1-32 chars)
 - No per-IP connection limit for MVP
 
@@ -158,6 +180,7 @@ This phase integrates the CLI server with the client for a unified user experien
 ## ✅ Phase 2: Domain Logic (COMPLETED)
 
 ### 2.1 User Management ✅
+
 - [x] Create user on first connect
 - [x] Assign userId (UUID)
 - [x] Store in database
@@ -165,10 +188,12 @@ This phase integrates the CLI server with the client for a unified user experien
 - [x] Implement role assignment (owner vs member)
 
 **Decisions Made:**
+
 - First user is always owner
 - Owner role transfer not implemented in MVP
 
 ### 2.2 Channel Management ✅
+
 - [x] CREATE_CHANNEL message handler
 - [x] DELETE_CHANNEL message handler
 - [x] LIST_CHANNELS (sent on WELCOME)
@@ -177,10 +202,12 @@ This phase integrates the CLI server with the client for a unified user experien
 - [x] Enforce max_users per channel
 
 **Decisions Made:**
+
 - No channel descriptions for MVP
 - No channel renaming for MVP
 
 ### 2.3 Text Messaging ✅
+
 - [x] SEND_MESSAGE handler
 - [x] Validate message size (2000 chars)
 - [x] Store in database
@@ -188,10 +215,12 @@ This phase integrates the CLI server with the client for a unified user experien
 - [x] Rate limiting (basic structure, not enforced)
 
 **Decisions Made:**
+
 - Rate limit: 60 messages/minute (configured, not enforced yet)
 - Empty messages blocked by UI
 
 ### 2.4 Role Enforcement ✅
+
 - [x] Check permissions for channel creation
 - [x] Check permissions for channel deletion
 - [x] Return ERROR on unauthorized actions
@@ -202,6 +231,7 @@ This phase integrates the CLI server with the client for a unified user experien
 ## ⚠️ Phase 3: Voice Integration (PARTIAL)
 
 ### 3.1 UDP Server ⚠️
+
 - [x] Bind UDP socket
 - [x] Parse incoming packets (version + sessionId + opus)
 - [x] Validate session exists
@@ -212,10 +242,12 @@ This phase integrates the CLI server with the client for a unified user experien
 **Known Issue:** UDP address registration per session not implemented
 
 **Decisions Made:**
+
 - Validate packet structure, drop invalid
 - Drop packets from non-authenticated sessions
 
 ### 3.2 Voice Channel State ✅
+
 - [x] Track active voice connections per channel
 - [x] JOIN_VOICE handler
 - [x] LEAVE_VOICE handler
@@ -223,10 +255,12 @@ This phase integrates the CLI server with the client for a unified user experien
 - [x] Enforce max_users_per_voice_channel
 
 **Decisions Made:**
+
 - Auto-leave voice on disconnect (yes)
 - No "speaking" state tracking for MVP
 
 ### 3.3 Call History ❌
+
 - [ ] Log call start time (deferred)
 - [ ] Log call end time (deferred)
 - [ ] Calculate duration (deferred)
@@ -237,6 +271,7 @@ This phase integrates the CLI server with the client for a unified user experien
 ## ✅ Phase 4: Client (MOSTLY COMPLETE)
 
 ### 4.1 Project Setup ✅
+
 - [x] Initialize Tauri project
 - [x] Set up React + TypeScript
 - [x] Configure Tailwind CSS
@@ -244,6 +279,7 @@ This phase integrates the CLI server with the client for a unified user experien
 - [x] No routing needed (single view app)
 
 ### 4.2 Connection UI ✅
+
 - [x] Username input field
 - [x] Server address input (IP:PORT)
 - [x] Connect button
@@ -251,10 +287,12 @@ This phase integrates the CLI server with the client for a unified user experien
 - [x] Error message display
 
 **Decisions Made:**
+
 - No localStorage for username (fresh each time)
 - No pre-connect validation (server validates)
 
 ### 4.3 WebSocket Client ✅
+
 - [x] Implement WebSocket connection
 - [x] Send CONNECT message
 - [x] Handle WELCOME response
@@ -263,10 +301,12 @@ This phase integrates the CLI server with the client for a unified user experien
 - [x] Ping/pong handling
 
 **Decisions Made:**
+
 - Reconnect backoff: 1s, 2s, 4s, 8s, max 10s (exponential)
 - Show reconnection in connection status (not separate UI)
 
 ### 4.4 Main UI ✅
+
 - [x] Channel list sidebar
 - [x] Text chat area
 - [x] Message input
@@ -274,10 +314,12 @@ This phase integrates the CLI server with the client for a unified user experien
 - [ ] User list per channel (deferred)
 
 **Decisions Made:**
+
 - Fixed layout (no resizing for MVP)
 - Show timestamps on messages (yes)
 
 ### 4.5 Audio Capture ❌ (NOT IMPLEMENTED)
+
 - [ ] 🚧 Request microphone permission
 - [ ] 🚧 Capture audio with Web Audio API
 - [ ] 🚧 Encode to Opus (need WASM library)
@@ -287,6 +329,7 @@ This phase integrates the CLI server with the client for a unified user experien
 **Blocker:** Requires audio engineering expertise and Opus WASM library
 
 ### 4.6 Audio Playback ❌ (NOT IMPLEMENTED)
+
 - [ ] 🚧 Receive UDP packets (need Tauri UDP bridge)
 - [ ] 🚧 Decode Opus frames
 - [ ] 🚧 Mix multiple speakers
@@ -300,12 +343,14 @@ This phase integrates the CLI server with the client for a unified user experien
 ## 🎯 Phase 5: Packaging (CURRENT FOCUS)
 
 ### 5.1 Server Binary
+
 - [ ] Cross-compile for Windows x64
 - [ ] Cross-compile for macOS (Intel + ARM)
 - [ ] Test binary standalone
 - [x] Create default config structure (creates server.example.toml)
 
 ### 5.2 Client Bundling (DEFERRED)
+
 - [ ] Embed server binary in Tauri resources
 - [ ] Implement "Start Local Server" button
 - [ ] Spawn server process from client
@@ -313,10 +358,12 @@ This phase integrates the CLI server with the client for a unified user experien
 - [ ] Handle server process lifecycle
 
 **Decisions:**
+
 - Defer server embedding for MVP
 - Focus on standalone client installer first
 
 ### 5.3 Installers ✅ **LINUX COMPLETE, WINDOWS DOCUMENTED**
+
 - [x] 🎯 **Verify client compiles successfully**
 - [x] 🎯 **Create app icons (PNG, ICO, ICNS)** - Generated via Tauri CLI from SVG
 - [x] 🎯 **Configure bundle metadata in tauri.conf.json**
@@ -327,6 +374,7 @@ This phase integrates the CLI server with the client for a unified user experien
 - [ ] Test installation flow on macOS (later)
 
 **Status:**
+
 - ✅ Linux builds successful (3.8 MB `.deb`, 74 MB `.AppImage`)
 - 📝 Windows build guide created with complete instructions
 - ⚠️ Windows `.msi` requires native Windows compilation (not WSL)
@@ -337,6 +385,7 @@ This phase integrates the CLI server with the client for a unified user experien
 ## Phase 6: Polish (DEFERRED)
 
 ### 6.1 Error Handling
+
 - [x] User-friendly error messages (basic)
 - [x] Handle network failures gracefully
 - [x] Show connection state clearly
@@ -344,12 +393,14 @@ This phase integrates the CLI server with the client for a unified user experien
 - [ ] Better error details (can improve)
 
 ### 6.2 UX Improvements
+
 - [ ] Loading states (basic spinners)
 - [x] Empty states (no channels, no messages)
 - [ ] Keyboard shortcuts
 - [ ] Sound notifications
 
 ### 6.3 Testing
+
 - [ ] Manual test full flow
 - [ ] Test with 2+ clients simultaneously
 - [ ] Test voice with multiple users (when audio implemented)
@@ -383,23 +434,28 @@ All features below are OUT OF SCOPE for initial release:
 ## 🚨 Current Blockers & Next Steps
 
 ### Immediate (This Session)
+
 1. ✅ **Update todo.md** - DONE
 2. ✅ **Verify client builds** - DONE (Linux bundles successful)
 3. ✅ **Create app icons** - DONE (generated from SVG)
 4. 📝 **Build Windows installer** - DOCUMENTED (requires Windows OS)
 
 ### Windows Build Next Steps
+
 - Transfer project to Windows machine or WSL2 with Windows access
 - Follow [windows_build_guide.md](windows_build_guide.md) instructions
 - Install Visual Studio Build Tools + Rust + Node.js on Windows
 - Run `npm run tauri build` to generate `.msi` installer
 
 ### Known Blockers
+
 1. **Audio implementation:** Requires Web Audio API + Opus WASM + UDP bridge
 2. **UDP address tracking:** Server can't send UDP packets to clients yet
 3. **Windows builds:** Only possible from Windows OS (not Linux/WSL)
+4. **Unit tests missing for new features:** `RENAME_CHANNEL`, `UPDATE_SERVER_SETTINGS`, `GET_USERS` handlers, `db.list_users()`, `db.rename_channel()` — required by Definition of Done before final release
 
 ### Technical Debt
+
 - No rate limiting enforcement (structure exists)
 - No call history tracking (table exists, unused)
 - Message pagination (loads all messages)
@@ -407,4 +463,4 @@ All features below are OUT OF SCOPE for initial release:
 
 ---
 
-*Last updated: 2026-02-21 (reflecting actual implementation state)*
+_Last updated: 2026-02-21 (Phase 0.5 Extension — admin features + UX polish completed)_

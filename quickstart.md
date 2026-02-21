@@ -11,6 +11,7 @@
 We're currently integrating the CLI server with the client for a unified experience. See [CLIENT_SERVER_INTEGRATION.md](CLIENT_SERVER_INTEGRATION.md) for details.
 
 **Status:**
+
 - ✅ Server CLI with interactive setup
 - ✅ Client application working
 - 🚧 Integration in progress (server detection, control from client)

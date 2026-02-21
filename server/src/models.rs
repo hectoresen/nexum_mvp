@@ -121,6 +121,18 @@ pub enum ClientMessage {
     #[serde(rename = "AUTHENTICATE_ADMIN")]
     AuthenticateAdmin(AuthenticateAdminPayload),
     
+    #[serde(rename = "RENAME_CHANNEL")]
+    RenameChannel(RenameChannelPayload),
+    
+    #[serde(rename = "GET_SERVER_SETTINGS")]
+    GetServerSettings,
+    
+    #[serde(rename = "UPDATE_SERVER_SETTINGS")]
+    UpdateServerSettings(UpdateServerSettingsPayload),
+    
+    #[serde(rename = "GET_USERS")]
+    GetUsers,
+    
     #[serde(rename = "PING")]
     Ping,
 }
@@ -176,6 +188,26 @@ pub struct AuthenticateAdminPayload {
     pub password: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RenameChannelPayload {
+    pub channel_id: Uuid,
+    pub new_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateServerSettingsPayload {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub admin_password: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_users: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_users_per_voice_channel: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_message_size: Option<usize>,
+}
+
 // ============================================================================
 // Server Messages
 // ============================================================================
@@ -216,6 +248,15 @@ pub enum ServerMessage {
     #[serde(rename = "VOICE_LEFT")]
     VoiceLeft(VoiceLeftPayload),
     
+    #[serde(rename = "CHANNEL_RENAMED")]
+    ChannelRenamed(ChannelRenamedPayload),
+    
+    #[serde(rename = "SERVER_SETTINGS")]
+    ServerSettings(ServerSettingsPayload),
+    
+    #[serde(rename = "SERVER_USERS")]
+    ServerUsers(ServerUsersPayload),
+    
     #[serde(rename = "PONG")]
     Pong,
 }
@@ -224,6 +265,7 @@ pub enum ServerMessage {
 pub struct WelcomePayload {
     pub session_id: Uuid,
     pub user_id: Uuid,
+    pub username: String,
     pub server_version: String,
     pub role: UserRole,
     pub channels: Vec<Channel>,
@@ -300,4 +342,25 @@ pub struct VoiceJoinedPayload {
 pub struct VoiceLeftPayload {
     pub channel_id: Uuid,
     pub user_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChannelRenamedPayload {
+    pub channel_id: Uuid,
+    pub new_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServerSettingsPayload {
+    pub name: String,
+    pub ws_port: u16,
+    pub udp_port: u16,
+    pub max_users: usize,
+    pub max_users_per_voice_channel: usize,
+    pub max_message_size: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServerUsersPayload {
+    pub users: Vec<User>,
 }

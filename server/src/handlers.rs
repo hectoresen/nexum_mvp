@@ -40,12 +40,16 @@ pub async fn handle_message(
             match client_msg {
                 ClientMessage::CreateChannel(p) => handle_create_channel(sid, p, state, tx).await,
                 ClientMessage::DeleteChannel(p) => handle_delete_channel(sid, p, state, tx).await,
+                ClientMessage::RenameChannel(p) => handle_rename_channel(sid, p, state, tx).await,
                 ClientMessage::JoinChannel(p) => handle_join_channel(sid, p, state, tx).await,
                 ClientMessage::LeaveChannel(p) => handle_leave_channel(sid, p, state, tx).await,
                 ClientMessage::SendMessage(p) => handle_send_message(sid, p, state, tx).await,
                 ClientMessage::JoinVoice(p) => handle_join_voice(sid, p, state, tx).await,
                 ClientMessage::LeaveVoice(p) => handle_leave_voice(sid, p, state, tx).await,
                 ClientMessage::AuthenticateAdmin(p) => handle_authenticate_admin(sid, p, state, tx).await,
+                ClientMessage::GetServerSettings => handle_get_server_settings(sid, state, tx).await,
+                ClientMessage::UpdateServerSettings(p) => handle_update_server_settings(sid, p, state, tx).await,
+                ClientMessage::GetUsers => handle_get_users(sid, state, tx).await,
                 ClientMessage::Ping => handle_ping(tx).await,
                 _ => unreachable!(),
             }?;
@@ -75,7 +79,7 @@ async fn handle_connect(
     }
 
     // Check if server is full
-    if state.session_manager.count_active_sessions() >= state.config.limits.max_users {
+    if state.session_manager.count_active_sessions() >= state.config.read().unwrap().limits.max_users {
         send_error(tx, ErrorCode::ServerFull, "Server is at maximum capacity")?;
         bail!("Server full");
     }
@@ -129,6 +133,7 @@ async fn handle_connect(
     let welcome = ServerMessage::Welcome(WelcomePayload {
         session_id,
         user_id: user.id,
+        username: user.username.clone(),
         server_version: SERVER_VERSION.to_string(),
         role: user.role,
         channels,
@@ -281,11 +286,11 @@ async fn handle_send_message(
         .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
 
     // Validate message size
-    if payload.content.len() > state.config.limits.max_message_size {
+    if payload.content.len() > state.config.read().unwrap().limits.max_message_size {
         send_error(
             tx,
             ErrorCode::MessageTooLarge,
-            &format!("Message exceeds {} characters", state.config.limits.max_message_size)
+            &format!("Message exceeds {} characters", state.config.read().unwrap().limits.max_message_size)
         )?;
         return Ok(());
     }
@@ -332,7 +337,7 @@ async fn handle_join_voice(
 
     // Check channel capacity
     let current_members = state.session_manager.get_voice_channel_members(payload.channel_id);
-    if current_members.len() >= state.config.limits.max_users_per_voice_channel {
+    if current_members.len() >= state.config.read().unwrap().limits.max_users_per_voice_channel {
         send_error(tx, ErrorCode::ServerFull, "Voice channel is full")?;
         return Ok(());
     }
@@ -394,7 +399,7 @@ async fn handle_authenticate_admin(
     }
 
     // Verify password
-    if payload.password != state.config.server.admin_password {
+    if payload.password != state.config.read().unwrap().server.admin_password {
         send_error(tx, ErrorCode::Unauthorized, "Invalid admin password")?;
         return Ok(());
     }
@@ -420,6 +425,139 @@ async fn handle_authenticate_admin(
 async fn handle_ping(tx: &mpsc::UnboundedSender<Message>) -> Result<()> {
     let msg = ServerMessage::Pong;
     send_message(tx, &msg)?;
+    Ok(())
+}
+
+async fn handle_rename_channel(
+    session_id: Uuid,
+    payload: RenameChannelPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can rename channels")?;
+        return Ok(());
+    }
+
+    let channel = state.db.rename_channel(payload.channel_id, &payload.new_name)?;
+    info!("Channel renamed: {} -> {} ({})", payload.channel_id, payload.new_name, channel.id);
+
+    let msg = ServerMessage::ChannelRenamed(ChannelRenamedPayload {
+        channel_id: payload.channel_id,
+        new_name: payload.new_name,
+    });
+    broadcast_message(&state.session_manager, &msg);
+
+    Ok(())
+}
+
+async fn handle_get_server_settings(
+    session_id: Uuid,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can view server settings")?;
+        return Ok(());
+    }
+
+    let cfg = state.config.read().unwrap();
+    let msg = ServerMessage::ServerSettings(ServerSettingsPayload {
+        name: cfg.server.name.clone(),
+        ws_port: cfg.server.ws_port,
+        udp_port: cfg.server.udp_port,
+        max_users: cfg.limits.max_users,
+        max_users_per_voice_channel: cfg.limits.max_users_per_voice_channel,
+        max_message_size: cfg.limits.max_message_size,
+    });
+    drop(cfg);
+    send_message(tx, &msg)?;
+
+    Ok(())
+}
+
+async fn handle_update_server_settings(
+    session_id: Uuid,
+    payload: UpdateServerSettingsPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can update server settings")?;
+        return Ok(());
+    }
+
+    {
+        let mut cfg = state.config.write().unwrap();
+        if let Some(name) = payload.name {
+            cfg.server.name = name;
+        }
+        if let Some(pwd) = payload.admin_password {
+            if !pwd.is_empty() {
+                cfg.server.admin_password = pwd;
+            }
+        }
+        if let Some(max) = payload.max_users {
+            cfg.limits.max_users = max;
+        }
+        if let Some(max_voice) = payload.max_users_per_voice_channel {
+            cfg.limits.max_users_per_voice_channel = max_voice;
+        }
+        if let Some(max_msg) = payload.max_message_size {
+            cfg.limits.max_message_size = max_msg;
+        }
+    }
+
+    // Persist to disk
+    let cfg_snapshot = state.config.read().unwrap().clone();
+    if let Err(e) = cfg_snapshot.save(&state.config_path) {
+        warn!("Failed to save config: {}", e);
+    } else {
+        info!("Server settings updated and saved");
+    }
+
+    // Send updated settings back
+    let cfg = state.config.read().unwrap();
+    let msg = ServerMessage::ServerSettings(ServerSettingsPayload {
+        name: cfg.server.name.clone(),
+        ws_port: cfg.server.ws_port,
+        udp_port: cfg.server.udp_port,
+        max_users: cfg.limits.max_users,
+        max_users_per_voice_channel: cfg.limits.max_users_per_voice_channel,
+        max_message_size: cfg.limits.max_message_size,
+    });
+    drop(cfg);
+    send_message(tx, &msg)?;
+
+    Ok(())
+}
+
+async fn handle_get_users(
+    session_id: Uuid,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can view user list")?;
+        return Ok(());
+    }
+
+    let users = state.db.list_users()?;
+    let msg = ServerMessage::ServerUsers(ServerUsersPayload { users });
+    send_message(tx, &msg)?;
+
     Ok(())
 }
 

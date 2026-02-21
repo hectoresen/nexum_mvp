@@ -20,8 +20,13 @@ The next release will include a **single installer** that bundles both client an
 - **Choice of modes** - Run local server or connect to remote
 
 **Current Development Status:**
+
 - ✅ Client application (Tauri + React)
 - ✅ Server CLI with interactive setup
+- ✅ Admin authentication & channel management (create, rename, delete)
+- ✅ Editable server settings panel (live config update, persists to server.toml)
+- ✅ Server user list view (admin-only)
+- ✅ Username persistence (no repeated prompts on reconnect)
 - 🚧 Client-Server integration (in progress)
 - 📋 Unified installer (planned)
 

@@ -1,5 +1,12 @@
 # Build Script - Voice MVP Unified
 # Compila servidor CLI + cliente con servidor integrado
+#
+# Usage:
+#   .\build.ps1                  # Dev build (server + frontend check)
+#   .\build.ps1 -Release         # Release build
+#   .\build.ps1 -Bundle          # Create installer (requires -Release server first)
+#   .\build.ps1 -ServerOnly      # Only compile server
+#   .\build.ps1 -ServerOnly -Release
 
 param(
     [switch]$Release,
@@ -7,6 +14,132 @@ param(
     [switch]$ClientOnly,
     [switch]$Bundle
 )
+
+$ErrorActionPreference = "Stop"
+
+Write-Host "======================================" -ForegroundColor Cyan
+Write-Host "Voice MVP - Unified Build Script" -ForegroundColor Cyan
+Write-Host "======================================" -ForegroundColor Cyan
+Write-Host ""
+
+# Configurar PATH de Cargo
+$env:PATH += ";$env:USERPROFILE\.cargo\bin"
+
+$buildMode = if ($Release) { "release" } else { "debug" }
+
+# ====================================
+# 1. Build Server
+# ====================================
+
+if (-not $ClientOnly) {
+    Write-Host "📦 Building Server ($buildMode mode)..." -ForegroundColor Yellow
+    Write-Host ""
+    
+    Push-Location server
+    
+    try {
+        if ($Release) {
+            cargo build --release
+        } else {
+            cargo build
+        }
+        
+        if ($LASTEXITCODE -ne 0) {
+            throw "Server build failed"
+        }
+        
+        $serverBinary = "target\$buildMode\voice-server.exe"
+        Write-Host "✅ Server built: server\$serverBinary" -ForegroundColor Green
+        Write-Host ""
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+# ====================================
+# 2. Build Client
+# ====================================
+
+if (-not $ServerOnly) {
+    Write-Host "📦 Building Client..." -ForegroundColor Yellow
+    Write-Host ""
+    
+    Push-Location client
+    
+    try {
+        # Instalar dependencias si es necesario
+        if (-not (Test-Path "node_modules")) {
+            Write-Host "📥 Installing npm dependencies..." -ForegroundColor Cyan
+            npm install
+            if ($LASTEXITCODE -ne 0) { throw "npm install failed" }
+            Write-Host ""
+        }
+
+        # Verificar servidor si se va a hacer bundle
+        if ($Bundle) {
+            $serverExe = "..\server\target\release\voice-server.exe"
+            if (-not (Test-Path $serverExe)) {
+                Write-Host "❌ Server binary not found for bundling." -ForegroundColor Red
+                Write-Host "   Run: .\build.ps1 -ServerOnly -Release" -ForegroundColor Yellow
+                throw "Server binary required for bundle"
+            }
+            
+            Write-Host "📦 Creating installer bundle (this may take a while)..." -ForegroundColor Cyan
+            npm run tauri build
+            if ($LASTEXITCODE -ne 0) { throw "Tauri build failed" }
+            
+            Write-Host ""
+            Write-Host "✅ Installer created:" -ForegroundColor Green
+            
+            $msiPath = "src-tauri\target\release\bundle\msi"
+            $nsisPath = "src-tauri\target\release\bundle\nsis"
+            
+            if (Test-Path $msiPath) {
+                $msiFile = Get-ChildItem $msiPath -Filter "*.msi" | Select-Object -First 1
+                Write-Host "   MSI:  client\$msiPath\$($msiFile.Name)" -ForegroundColor Gray
+            }
+            if (Test-Path $nsisPath) {
+                $exeFile = Get-ChildItem $nsisPath -Filter "*-setup.exe" | Select-Object -First 1
+                Write-Host "   NSIS: client\$nsisPath\$($exeFile.Name)" -ForegroundColor Gray
+            }
+        }
+        else {
+            Write-Host "🔨 Building frontend..." -ForegroundColor Cyan
+            npm run build
+            if ($LASTEXITCODE -ne 0) { throw "Frontend build failed" }
+            
+            Write-Host "✅ Frontend built. Run 'npm run tauri dev' to test." -ForegroundColor Green
+        }
+        
+        Write-Host ""
+    }
+    catch {
+        Write-Host "❌ Client build failed: $_" -ForegroundColor Red
+        exit 1
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+# ====================================
+# Summary
+# ====================================
+
+Write-Host "======================================" -ForegroundColor Cyan
+Write-Host "Build Complete!" -ForegroundColor Green
+Write-Host "======================================" -ForegroundColor Cyan
+Write-Host ""
+
+if (-not $ClientOnly) {
+    Write-Host "🖥️  Server: server\target\$buildMode\voice-server.exe" -ForegroundColor White
+}
+if (-not $ServerOnly -and $Bundle) {
+    Write-Host "📦 Installer: client\src-tauri\target\release\bundle\" -ForegroundColor White
+}
+Write-Host ""
+
 
 $ErrorActionPreference = "Stop"
 

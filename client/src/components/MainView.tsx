@@ -13,9 +13,12 @@ interface MainViewProps {
   onSendMessage: (content: string) => void
   onAuthenticateAdmin?: () => void
   onOpenServerSettings?: () => void
+  onRenameChannel?: (channelId: string, newName: string) => void
+  onDeleteChannel?: (channelId: string) => void
+  onViewUsers?: () => void
 }
 
-export default function MainView({ state, serverName = 'Voice Server', onDisconnect, onCreateChannel, onJoinChannel, onSendMessage, onAuthenticateAdmin, onOpenServerSettings }: MainViewProps) {
+export default function MainView({ state, serverName = 'Voice Server', onDisconnect, onCreateChannel, onJoinChannel, onSendMessage, onAuthenticateAdmin, onOpenServerSettings, onRenameChannel, onDeleteChannel, onViewUsers }: MainViewProps) {
   const [showCreateChannel, setShowCreateChannel] = useState(false)
   const [newChannelName, setNewChannelName] = useState('')
   const [newChannelType, setNewChannelType] = useState<'text' | 'voice'>('text')
@@ -67,6 +70,14 @@ export default function MainView({ state, serverName = 'Voice Server', onDisconn
                 Server Settings
               </button>
             )}
+            {state.role === 'owner' && onViewUsers && (
+              <button onClick={onViewUsers} className="w-full px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors flex items-center justify-center gap-2">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                View Users
+              </button>
+            )}
           </div>
         </div>
 
@@ -115,7 +126,14 @@ export default function MainView({ state, serverName = 'Voice Server', onDisconn
               </form>
             )}
 
-            <ChannelList channels={state.channels} currentChannelId={state.currentChannelId} onSelectChannel={onJoinChannel} />
+            <ChannelList
+              channels={state.channels}
+              currentChannelId={state.currentChannelId}
+              role={state.role}
+              onSelectChannel={onJoinChannel}
+              onRenameChannel={onRenameChannel}
+              onDeleteChannel={onDeleteChannel}
+            />
           </div>
         </div>
 

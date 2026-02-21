@@ -2,6 +2,125 @@
 
 All notable changes and completed tasks are documented here.
 
+## 2026-02-21 - Phase 0.5 Extension: Admin Features & UX Polish
+
+### ✅ Completed
+
+**Feature: Username Persistence (no more repeated prompts)**
+
+- `WelcomePayload` now includes `username` field — server sends back the stored username on every login
+- WELCOME handler saves both `userId` and `username` to localStorage via `ServerManager`
+- `connection.username` now always reflects the server's authoritative value (fixes stale display after reconnect)
+- Added pre-WELCOME error guard in `handleConnectWithUserId`: if server returns ERROR before WELCOME (e.g. wiped DB / invalid userId), stored `lastUserId` is cleared and user is redirected to username modal with `lastUsername` pre-filled
+
+**Feature: Admin Channel Management (rename + delete from UI)**
+
+- **Server — `server/src/models.rs`**: Added `RenameChannel(RenameChannelPayload)` ClientMessage, `ChannelRenamed(ChannelRenamedPayload)` ServerMessage
+- **Server — `server/src/db.rs`**: `rename_channel(channel_id, new_name)` — UPDATE + re-fetch channel row; `list_users()` — SELECT all users ordered by created_at
+- **Server — `server/src/handlers.rs`**: `handle_rename_channel` — checks owner role, calls DB, broadcasts `CHANNEL_RENAMED` to all sessions
+- **Client — `client/src/components/ChannelList.tsx`** (REWRITTEN): Hover row reveals pencil (rename) and trash (delete) icons for owners; inline edit field activated by pencil click — commit on Enter/blur, cancel on Escape; delete requires window.confirm
+- **Client — `client/src/types/protocol.ts`**: Added `RENAME_CHANNEL` client message, `CHANNEL_RENAMED` server message, `RenameChannelPayload`, `ChannelRenamedPayload`
+- **Client — `client/src/App.tsx`**: `handleRenameChannel`, `handleDeleteChannel` handlers + `CHANNEL_RENAMED` case in `handleServerMessage`
+
+**Feature: Editable Server Settings Panel**
+
+- **Server — `server/src/websocket.rs`**: `AppState.config` changed from `Config` to `RwLock<Config>`; added `config_path: String` field for disk persistence
+- **Server — `server/src/handlers.rs`**: `handle_get_server_settings` (owner-only, returns `ServerSettingsPayload`); `handle_update_server_settings` (owner-only, partial update via Option fields, live-writes `RwLock`, persists to `server.toml` via `Config::save()`)
+- **Server — `server/src/models.rs`**: Added `GetServerSettings`, `UpdateServerSettings(UpdateServerSettingsPayload)` ClientMessages; `ServerSettings(ServerSettingsPayload)` ServerMessage; `UpdateServerSettingsPayload` with all optional fields; `ServerSettingsPayload` with name, ws_port, udp_port, max_users, max_users_per_voice_channel, max_message_size
+- **Client — `client/src/components/ServerSettingsModal.tsx`** (REWRITTEN): Fully editable form — server name, new admin password (blank = keep current), max users, max voice users, max message size; WS/UDP ports shown read-only with "requires restart" note; "Save Changes" button turns green with ✓ on success; loading spinner while waiting for `SERVER_SETTINGS` response
+- **Client — `client/src/App.tsx`**: `handleGetServerSettings` (sends `GET_SERVER_SETTINGS`, opens modal), `handleUpdateServerSettings`; `SERVER_SETTINGS` case stores payload in `connection.serverSettings`; modal now receives `settings` + `onSave` props
+
+**Feature: Server User List (admin view)**
+
+- **Server — `server/src/handlers.rs`**: `handle_get_users` — owner-only, queries `db.list_users()`, sends `SERVER_USERS`
+- **Server — `server/src/models.rs`**: Added `GetUsers` ClientMessage; `ServerUsers(ServerUsersPayload)` ServerMessage; `ServerUsersPayload { users: Vec<User> }`
+- **Client — `client/src/components/UserListModal.tsx`** (NEW): Shows all registered users with avatar initial, username, join date, role badge (gold for owner, grey for member); loading spinner while waiting for response; user count in header
+- **Client — `client/src/App.tsx`**: `handleGetUsers` (sends `GET_USERS`, opens modal); `SERVER_USERS` case stores users in `connection.serverUsers`; `showUserListModal` state
+- **Client — `client/src/components/MainView.tsx`**: Added "View Users" button in sidebar (owner only, uses people icon)
+
+**Protocol additions — `client/src/types/protocol.ts`**
+
+- New ClientMessages: `RENAME_CHANNEL`, `GET_SERVER_SETTINGS`, `UPDATE_SERVER_SETTINGS`, `GET_USERS`
+- New ServerMessages: `CHANNEL_RENAMED`, `SERVER_SETTINGS`, `SERVER_USERS`
+- New payload interfaces: `RenameChannelPayload`, `UpdateServerSettingsPayload`, `ChannelRenamedPayload`, `ServerSettingsPayload`, `ServerUsersPayload`
+- Added `INVALID_REQUEST` to `ErrorCode` union
+- Added `username` to `WelcomePayload`
+- Added `ActiveConnection.serverSettings` and `ActiveConnection.serverUsers` state fields
+
+### ✅ Build Validation
+
+- `cargo check` (server): **PASS** — 5 warnings, 0 errors
+- `npm run build` (client): **PASS** — 44 modules, 0 errors
+- TypeScript strict mode: **PASS**
+
+### ⚠️ DoD Gap Noted
+
+- Unit/integration tests not written for new features (RENAME_CHANNEL, GET_SERVER_SETTINGS, UPDATE_SERVER_SETTINGS, GET_USERS handlers, db.list_users, db.rename_channel)
+- Existing tests (server_manager.rs × 3) continue to pass
+- Manual test required before final release sign-off
+
+---
+
+## 2026-02-21 - Phase 0.5: Client-Server Integration (IN PROGRESS)
+
+### ✅ Completed
+
+**Backend - `client/src-tauri/src/server_manager.rs` (NEW)**
+
+- `ServerManager` struct with process tracking (`Arc<Mutex<Option<Child>>>`)
+- `detect_server()` — scans 7+ candidate paths for `voice-server.exe`
+- `start_server(admin_password)` — spawns process with `--non-interactive`
+- `stop_server()` — kills process and waits for exit
+- `check_process_health()` — detects crashed server via `try_wait()`
+- `is_server_configured()` — checks for `server.toml` existence
+- `ServerStatus` enum: `NotInstalled | Stopped | Starting | Running | Error`
+- **3 unit tests passing**
+
+**Backend - `client/src-tauri/src/main.rs` (REWRITTEN)**
+
+- Replaced stub code with full AppState + Mutex<ServerManager>
+- 6 Tauri commands registered: `detect_local_server`, `get_server_status`, `start_local_server`, `stop_local_server`, `check_server_health`, `is_server_configured`
+
+**Backend - `client/src-tauri/Cargo.toml`**
+
+- Added `anyhow = "1.0"` and `tracing = "0.1"` dependencies
+
+**Frontend - `client/src/components/LocalServerPanel.tsx` (NEW)**
+
+- Status indicator with animated pulse when starting
+- Start/Stop buttons with loading states and spinner
+- Password input for first-time setup with "Generate" button
+- Port info, PID display, binary path for troubleshooting
+- Polls health every 2 seconds when server is installed
+- Error display area
+
+**Frontend - `client/src/components/ConnectView.tsx` (UPDATED)**
+
+- Integrated `LocalServerPanel` above connection form
+- Auto-fills `localhost:8080` when server starts
+- Wider layout (max-w-2xl) to accommodate panel
+
+**Bundle - `client/src-tauri/tauri.conf.json`**
+
+- Added `resources` key to bundle `voice-server.exe` alongside client in installer
+
+**Build - `build.ps1` (IMPROVED)**
+
+- `-Release`: builds both server + frontend
+- `-Bundle`: creates `.msi` / `.nsis` installer (requires server compiled first)
+- `-ServerOnly`: compile only Rust server
+- Validates server binary exists before attempting bundle
+
+### 🚧 Remaining in Phase 0.5
+
+- Auto-connection (connect to localhost automatically after starting)
+- Persist admin password in system keychain
+- Local Server Settings in Settings modal
+- Setup wizard for first launch
+- Test installer on clean machine
+
+---
+
 ## 2026-02-21 - Architecture Change: Client-Server Integration
 
 ### Strategy Shift

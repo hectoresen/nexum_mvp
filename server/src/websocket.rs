@@ -10,13 +10,15 @@ use tracing::{info, warn, error};
 use std::sync::Arc;
 use futures_util::{SinkExt, StreamExt};
 
+use std::sync::RwLock;
 use crate::config::Config;
 use crate::db::Database;
 use crate::session::SessionManager;
 use crate::handlers;
 
 pub struct AppState {
-    pub config: Config,
+    pub config: RwLock<Config>,
+    pub config_path: String,
     pub db: Database,
     pub session_manager: SessionManager,
 }
@@ -26,8 +28,12 @@ pub async fn run_ws_server(
     db: Database,
     session_manager: SessionManager,
 ) -> Result<()> {
+    let config_path = std::env::var("CONFIG_PATH")
+        .unwrap_or_else(|_| "server.toml".to_string());
+
     let state = Arc::new(AppState {
-        config: config.clone(),
+        config: RwLock::new(config.clone()),
+        config_path,
         db,
         session_manager,
     });
