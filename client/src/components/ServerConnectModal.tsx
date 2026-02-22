@@ -82,7 +82,7 @@ export default function ServerConnectModal({ serverName, serverAddress, lastUser
             <button
               type="submit"
               disabled={connecting || !username.trim()}
-              className="flex-1 px-4 py-3 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-md transition-colors flex items-center justify-center gap-2">
+              className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-md transition-colors flex items-center justify-center gap-2">
               {connecting ? (
                 <>
                   <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
@@ -96,7 +96,7 @@ export default function ServerConnectModal({ serverName, serverAddress, lastUser
               )}
             </button>
             {!connecting && (
-              <button type="button" onClick={onCancel} className="px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-md transition-colors">
+              <button type="button" onClick={onCancel} className="px-4 py-3 bg-gray-700 hover:bg-gray-600 text-gray-200 font-semibold rounded-md transition-colors">
                 Cancel
               </button>
             )}

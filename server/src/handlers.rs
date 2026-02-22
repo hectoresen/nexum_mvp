@@ -15,6 +15,7 @@ pub async fn handle_message(
     session_id: Option<Uuid>,
     state: &Arc<AppState>,
     tx: &mpsc::UnboundedSender<Message>,
+    client_ip: Option<&str>,
 ) -> Result<Uuid> {
     let client_msg: ClientMessage = match serde_json::from_str(text) {
         Ok(msg) => msg,
@@ -26,7 +27,7 @@ pub async fn handle_message(
 
     match client_msg {
         ClientMessage::Connect(payload) => {
-            handle_connect(payload, state, tx).await
+            handle_connect(payload, state, tx, client_ip).await
         }
         _ => {
             let sid = match session_id {
@@ -50,6 +51,7 @@ pub async fn handle_message(
                 ClientMessage::GetServerSettings => handle_get_server_settings(sid, state, tx).await,
                 ClientMessage::UpdateServerSettings(p) => handle_update_server_settings(sid, p, state, tx).await,
                 ClientMessage::GetUsers => handle_get_users(sid, state, tx).await,
+                ClientMessage::UpdateAvatar(p) => handle_update_avatar(sid, p, state, tx).await,
                 ClientMessage::Ping => handle_ping(tx).await,
                 _ => unreachable!(),
             }?;
@@ -63,6 +65,7 @@ async fn handle_connect(
     payload: ConnectPayload,
     state: &Arc<AppState>,
     tx: &mpsc::UnboundedSender<Message>,
+    client_ip: Option<&str>,
 ) -> Result<Uuid> {
     // Check version compatibility (major version must match)
     let client_major = payload.client_version.split('.').next().unwrap_or("0");
@@ -98,7 +101,20 @@ async fn handle_connect(
             }
         }
     } else {
-        // New connection: username is required
+        // New connection: check if this IP already has a user
+        if let Some(ip) = client_ip {
+            if let Some(existing_user) = state.db.get_user_by_ip(ip)? {
+                // This IP already has a user - reject with error message
+                send_error(
+                    tx, 
+                    ErrorCode::InvalidRequest, 
+                    &format!("This device already has an account with username '{}'. Please reconnect to resume your session.", existing_user.username)
+                )?;
+                bail!("IP already has a user");
+            }
+        }
+
+        // Username is required for new connections
         let username = match payload.username {
             Some(name) => name,
             None => {
@@ -117,9 +133,9 @@ async fn handle_connect(
         // They must authenticate with admin password to become Owner
         let role = UserRole::Member;
 
-        // Create new user in database
-        let new_user = state.db.create_user(&username, role)?;
-        info!("New user created: {} ({}) as {:?}", new_user.username, new_user.id, new_user.role);
+        // Create new user in database with IP address
+        let new_user = state.db.create_user(&username, role, client_ip.map(|s| s.to_string()))?;
+        info!("New user created: {} ({}) as {:?} from IP {:?}", new_user.username, new_user.id, new_user.role, client_ip);
         new_user
     };
 
@@ -129,12 +145,16 @@ async fn handle_connect(
     // Get all channels
     let channels = state.db.list_channels()?;
 
+    // Get server name from config
+    let server_name = state.config.read().unwrap().server.name.clone();
+
     // Send WELCOME message
     let welcome = ServerMessage::Welcome(WelcomePayload {
         session_id,
         user_id: user.id,
         username: user.username.clone(),
         server_version: SERVER_VERSION.to_string(),
+        server_name,
         role: user.role,
         channels,
     });
@@ -571,6 +591,32 @@ async fn handle_get_users(
     let users = state.db.list_users()?;
     let msg = ServerMessage::ServerUsers(ServerUsersPayload { users });
     send_message(tx, &msg)?;
+
+    Ok(())
+}
+
+async fn handle_update_avatar(
+    session_id: Uuid,
+    payload: UpdateAvatarPayload,
+    state: &Arc<AppState>,
+    _tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    // Get user ID from session
+    let user_id = state.session_manager.get_session(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    // Update avatar in database
+    state.db.update_user_avatar(user_id, payload.avatar_url.clone())?;
+
+    info!("User {} updated avatar", user_id);
+
+    // Broadcast avatar update to all connected clients
+    let msg = ServerMessage::UserAvatarUpdated(UserAvatarUpdatedPayload {
+        user_id,
+        avatar_url: payload.avatar_url,
+    });
+
+    broadcast_message(&state.session_manager, &msg);
 
     Ok(())
 }

@@ -10,6 +10,7 @@ mod websocket;
 mod udp;
 mod handlers;
 mod session;
+mod avatar;
 
 use config::Config;
 use db::Database;

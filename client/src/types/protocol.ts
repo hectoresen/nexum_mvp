@@ -9,6 +9,9 @@ export interface User {
   id: string;
   username: string;
   role: UserRole;
+  avatar_url?: string;
+  avatar_path?: string;
+  avatar_version?: number;
   created_at: string;
 }
 
@@ -47,6 +50,7 @@ export type ClientMessage =
   | { type: 'GET_SERVER_SETTINGS' }
   | { type: 'UPDATE_SERVER_SETTINGS'; payload: UpdateServerSettingsPayload }
   | { type: 'GET_USERS' }
+  | { type: 'UPDATE_AVATAR'; payload: UpdateAvatarPayload }
   | { type: 'PING' };
 
 export interface ConnectPayload {
@@ -122,6 +126,8 @@ export type ServerMessage =
   | { type: 'VOICE_LEFT'; payload: VoiceLeftPayload }
   | { type: 'SERVER_SETTINGS'; payload: ServerSettingsPayload }
   | { type: 'SERVER_USERS'; payload: ServerUsersPayload }
+  | { type: 'USER_AVATAR_UPDATED'; payload: UserAvatarUpdatedPayload }
+  | { type: 'USER_UPDATED'; payload: UserUpdatedPayload }
   | { type: 'PONG' };
 
 export interface WelcomePayload {
@@ -129,6 +135,7 @@ export interface WelcomePayload {
   user_id: string;
   username: string;
   server_version: string;
+  server_name: string;
   role: UserRole;
   channels: Channel[];
 }
@@ -209,4 +216,18 @@ export interface ServerSettingsPayload {
 
 export interface ServerUsersPayload {
   users: User[];
+}
+
+export interface UpdateAvatarPayload {
+  avatar_url: string | null;
+}
+
+export interface UserAvatarUpdatedPayload {
+  user_id: string;
+  avatar_url: string | null;
+}
+
+export interface UserUpdatedPayload {
+  user_id: string;
+  avatar_version: number;
 }

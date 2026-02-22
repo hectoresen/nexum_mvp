@@ -63,10 +63,10 @@ export default function AddServerModal({ onClose, onAdd }: AddServerModalProps) 
           </div>
 
           <div className="flex items-center gap-3 pt-4">
-            <button type="submit" className="flex-1 px-4 py-3 bg-gray-600 hover:bg-gray-500 text-white font-semibold rounded-md transition-colors">
+            <button type="submit" className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-md transition-colors">
               Add Server
             </button>
-            <button type="button" onClick={onClose} className="px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-md transition-colors">
+            <button type="button" onClick={onClose} className="px-4 py-3 bg-gray-700 hover:bg-gray-600 text-gray-200 font-semibold rounded-md transition-colors">
               Cancel
             </button>
           </div>

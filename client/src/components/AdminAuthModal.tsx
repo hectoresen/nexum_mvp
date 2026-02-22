@@ -61,10 +61,13 @@ export default function AdminAuthModal({ onClose, onAuthenticate, error }: Admin
           </div>
 
           <div className="flex gap-3">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors">
+            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-md transition-colors">
               Cancel
             </button>
-            <button type="submit" disabled={!password.trim()} className="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <button
+              type="submit"
+              disabled={!password.trim()}
+              className="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               Authenticate
             </button>
           </div>

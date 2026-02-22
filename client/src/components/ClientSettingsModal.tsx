@@ -133,10 +133,10 @@ export default function ClientSettingsModal({ onClose }: ClientSettingsModalProp
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
-          <button onClick={onClose} className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors">
-            Close
+          <button onClick={onClose} className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-md transition-colors">
+            Cancel
           </button>
-          <button onClick={handleSave} className="px-6 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-md transition-colors">
+          <button onClick={handleSave} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-md transition-colors">
             Save
           </button>
         </div>

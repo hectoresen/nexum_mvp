@@ -32,7 +32,25 @@ This phase integrates the CLI server with the client for a unified user experien
 - [x] Create unified build script (`build.ps1` with `-Release`, `-Bundle`, `-ServerOnly` flags)
 - [ ] Test installation on clean Windows system
 
-### 0.5.2 Server Detection ✅
+### 0.5.2 Avatar System & User UI ✅
+
+- [x] **Avatar file upload support** — server accepts image files up to 10MB (jpg, png, gif, webp)
+- [x] **Avatar URL support** — users can also provide direct image URLs
+- [x] **Avatar storage** — server stores files in `avatars/` directory, serves via `/avatars` endpoint
+- [x] **Avatar upload endpoint** — `/api/upload-avatar` accepts multipart/form-data
+- [x] **Avatar modal with tabs** — "Upload File" and "Use URL" tabs in client
+- [x] **Real-time avatar updates** — avatar appears in profile immediately after upload/save
+- [x] **User settings modal** — dropdown now has "User Settings" with "Change Avatar" option
+- [x] **Right sidebar user list** — displays all server users with avatars, roles, "(you)" indicator
+- [x] **Button styling consistency** — Cancel buttons are gray with gray text, Save buttons are blue
+
+### Future: Private Messaging & Encryption
+
+- [ ] Add private message functionality (click user in sidebar to DM)
+- [ ] Implement end-to-end encryption for private messages
+- [ ] Add encryption indicator in private chat UI
+
+### 0.5.3 Server Detection ✅
 
 - [x] Create `server_manager.rs` module in client backend
 - [x] Implement `detect_server()` function (searches ~7 common install paths)

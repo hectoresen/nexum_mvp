@@ -1,12 +1,15 @@
 import { useState, useRef, useEffect } from 'react'
 import { AppState } from '../App'
-import { Channel } from '../types/protocol'
+import { Channel, User } from '../types/protocol'
 import ChannelList from './ChannelList'
 import ChatArea from './ChatArea'
+import UserListPanel from './UserListPanel'
 
 interface MainViewProps {
   state: AppState
   serverName?: string // Optional server name to display
+  currentUserAvatar?: string | null // Current user's avatar URL
+  serverUsers: User[] | null // List of all server users
   onDisconnect: () => void
   onCreateChannel: (name: string, type: 'text' | 'voice') => void
   onJoinChannel: (channelId: string) => void
@@ -17,11 +20,14 @@ interface MainViewProps {
   onRenameChannel?: (channelId: string, newName: string) => void
   onDeleteChannel?: (channelId: string) => void
   onViewUsers?: () => void
+  onOpenUserSettings?: () => void
 }
 
 export default function MainView({
   state,
   serverName = 'Voice Server',
+  currentUserAvatar,
+  serverUsers,
   onDisconnect,
   onCreateChannel,
   onJoinChannel,
@@ -32,6 +38,7 @@ export default function MainView({
   onRenameChannel,
   onDeleteChannel,
   onViewUsers,
+  onOpenUserSettings,
 }: MainViewProps) {
   const [showCreateChannel, setShowCreateChannel] = useState(false)
   const [newChannelName, setNewChannelName] = useState('')
@@ -153,8 +160,12 @@ export default function MainView({
         <div className="p-3 border-t border-gray-700 relative" ref={dropdownRef}>
           <div className="flex items-center justify-between">
             <button onClick={() => setUserDropdownOpen(!userDropdownOpen)} className="flex items-center gap-2 hover:bg-gray-700 rounded px-2 py-1 transition-colors flex-1 min-w-0">
-              <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
-                <span className="text-sm font-semibold text-white">{state.username[0]?.toUpperCase()}</span>
+              <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                {currentUserAvatar ? (
+                  <img src={currentUserAvatar} alt={state.username} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-sm font-semibold text-white">{state.username[0]?.toUpperCase()}</span>
+                )}
               </div>
               <span className="text-sm text-white truncate flex-1 text-left">{state.username}</span>
               <svg className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${userDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -166,8 +177,32 @@ export default function MainView({
           {/* Dropdown Menu */}
           {userDropdownOpen && (
             <div className="absolute bottom-full left-0 right-0 mb-2 bg-gray-800 rounded-lg shadow-xl border border-gray-700 py-1">
+              {onOpenUserSettings && (
+                <button
+                  onClick={() => {
+                    onOpenUserSettings()
+                    setUserDropdownOpen(false)
+                  }}
+                  className="w-full px-3 py-2 text-sm text-left text-white hover:bg-gray-700 transition-colors flex items-center gap-2">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                    />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  User Settings
+                </button>
+              )}
               {state.role === 'member' && onAuthenticateAdmin && (
-                <button onClick={() => { onAuthenticateAdmin(); setUserDropdownOpen(false); }} className="w-full px-3 py-2 text-sm text-left text-white hover:bg-gray-700 transition-colors flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    onAuthenticateAdmin()
+                    setUserDropdownOpen(false)
+                  }}
+                  className="w-full px-3 py-2 text-sm text-left text-white hover:bg-gray-700 transition-colors flex items-center gap-2">
                   <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
@@ -175,14 +210,29 @@ export default function MainView({
                 </button>
               )}
               {onOpenClientSettings && (
-                <button onClick={() => { onOpenClientSettings(); setUserDropdownOpen(false); }} className="w-full px-3 py-2 text-sm text-left text-white hover:bg-gray-700 transition-colors flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    onOpenClientSettings()
+                    setUserDropdownOpen(false)
+                  }}
+                  className="w-full px-3 py-2 text-sm text-left text-white hover:bg-gray-700 transition-colors flex items-center gap-2">
                   <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+                    />
                   </svg>
                   Client Settings
                 </button>
               )}
-              <button onClick={() => { onDisconnect(); setUserDropdownOpen(false); }} className="w-full px-3 py-2 text-sm text-left text-red-400 hover:bg-gray-700 transition-colors flex items-center gap-2">
+              <button
+                onClick={() => {
+                  onDisconnect()
+                  setUserDropdownOpen(false)
+                }}
+                className="w-full px-3 py-2 text-sm text-left text-red-400 hover:bg-gray-700 transition-colors flex items-center gap-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                 </svg>
@@ -213,6 +263,9 @@ export default function MainView({
           </div>
         )}
       </div>
+
+      {/* Right sidebar - User list */}
+      <UserListPanel users={serverUsers} currentUserId={state.userId} />
     </div>
   )
 }

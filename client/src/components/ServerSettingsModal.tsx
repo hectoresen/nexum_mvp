@@ -5,15 +5,12 @@ interface ServerSettingsModalProps {
   serverName: string
   settings: ServerSettingsPayload | null
   onClose: () => void
-  onSave: (settings: { name?: string; current_admin_password?: string; admin_password?: string; max_users?: number; max_users_per_voice_channel?: number; max_message_size?: number }) => void
+  onSave: (settings: { name?: string; max_users?: number; max_users_per_voice_channel?: number; max_message_size?: number }) => void
+  onChangePassword: () => void
 }
 
-export default function ServerSettingsModal({ serverName, settings, onClose, onSave }: ServerSettingsModalProps) {
+export default function ServerSettingsModal({ serverName, settings, onClose, onSave, onChangePassword }: ServerSettingsModalProps) {
   const [name, setName] = useState(settings?.name ?? serverName)
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [passwordError, setPasswordError] = useState('')
   const [maxUsers, setMaxUsers] = useState(settings?.max_users ?? 200)
   const [maxVoice, setMaxVoice] = useState(settings?.max_users_per_voice_channel ?? 100)
   const [maxMsg, setMaxMsg] = useState(settings?.max_message_size ?? 2000)
@@ -29,40 +26,13 @@ export default function ServerSettingsModal({ serverName, settings, onClose, onS
   }, [settings])
 
   const handleSave = () => {
-    // Validate password change if attempting to change
-    if (currentPassword || newPassword || confirmPassword) {
-      if (!currentPassword) {
-        setPasswordError('Current password is required to change password')
-        return
-      }
-      if (!newPassword) {
-        setPasswordError('New password cannot be empty')
-        return
-      }
-      if (newPassword !== confirmPassword) {
-        setPasswordError('New passwords do not match')
-        return
-      }
-      if (newPassword.length < 4) {
-        setPasswordError('New password must be at least 4 characters')
-        return
-      }
-    }
-
-    setPasswordError('')
-
     onSave({
       name: name.trim() || undefined,
-      current_admin_password: currentPassword.trim() || undefined,
-      admin_password: newPassword.trim() || undefined,
       max_users: maxUsers,
       max_users_per_voice_channel: maxVoice,
       max_message_size: maxMsg,
     })
 
-    setCurrentPassword('')
-    setNewPassword('')
-    setConfirmPassword('')
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -111,61 +81,13 @@ export default function ServerSettingsModal({ serverName, settings, onClose, onS
                 </div>
 
                 <div className="pt-3 border-t border-gray-700">
-                  <h4 className="text-sm font-semibold text-gray-300 mb-3">Change Admin Password</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Current Admin Password</label>
-                      <input
-                        type="password"
-                        value={currentPassword}
-                        onChange={e => {
-                          setCurrentPassword(e.target.value)
-                          setPasswordError('')
-                        }}
-                        placeholder="Enter current password"
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-gray-500 placeholder-gray-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">New Admin Password</label>
-                      <input
-                        type="password"
-                        value={newPassword}
-                        onChange={e => {
-                          setNewPassword(e.target.value)
-                          setPasswordError('')
-                        }}
-                        placeholder="Enter new password"
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-gray-500 placeholder-gray-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Confirm New Password</label>
-                      <input
-                        type="password"
-                        value={confirmPassword}
-                        onChange={e => {
-                          setConfirmPassword(e.target.value)
-                          setPasswordError('')
-                        }}
-                        placeholder="Re-enter new password"
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-gray-500 placeholder-gray-500"
-                      />
-                    </div>
-
-                    {passwordError && (
-                      <p className="text-sm text-red-400 flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                        {passwordError}
-                      </p>
-                    )}
-
-                    <p className="text-xs text-gray-500">Leave all fields blank to keep current password</p>
-                  </div>
+                  <h4 className="text-sm font-semibold text-gray-300 mb-2">Security</h4>
+                  <button onClick={onChangePassword} className="w-full px-4 py-2 bg-amber-700 hover:bg-amber-600 text-white rounded-md transition-colors flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                    Change Admin Password
+                  </button>
                 </div>
 
                 <div className="flex gap-4">
@@ -227,11 +149,11 @@ export default function ServerSettingsModal({ serverName, settings, onClose, onS
         )}
 
         <div className="mt-6 flex justify-end gap-3">
-          <button onClick={onClose} className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors">
+          <button onClick={onClose} className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-md transition-colors">
             Close
           </button>
           {settings && (
-            <button onClick={handleSave} className={`px-6 py-2 rounded-md transition-colors text-white ${saved ? 'bg-green-600' : 'bg-gray-600 hover:bg-gray-500'}`}>
+            <button onClick={handleSave} className={`px-6 py-2 rounded-md transition-colors text-white font-medium ${saved ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-500'}`}>
               {saved ? '✓ Saved' : 'Save Changes'}
             </button>
           )}

@@ -11,6 +11,12 @@ pub struct User {
     pub id: Uuid,
     pub username: String,
     pub role: UserRole,
+    #[serde(skip_serializing)]
+    pub ip_address: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
+    pub avatar_path: Option<String>,
+    pub avatar_version: i32,
     pub created_at: DateTime<Utc>,
 }
 
@@ -133,6 +139,9 @@ pub enum ClientMessage {
     #[serde(rename = "GET_USERS")]
     GetUsers,
     
+    #[serde(rename = "UPDATE_AVATAR")]
+    UpdateAvatar(UpdateAvatarPayload),
+    
     #[serde(rename = "PING")]
     Ping,
 }
@@ -210,6 +219,11 @@ pub struct UpdateServerSettingsPayload {
     pub max_message_size: Option<usize>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateAvatarPayload {
+    pub avatar_url: Option<String>,
+}
+
 // ============================================================================
 // Server Messages
 // ============================================================================
@@ -259,6 +273,12 @@ pub enum ServerMessage {
     #[serde(rename = "SERVER_USERS")]
     ServerUsers(ServerUsersPayload),
     
+    #[serde(rename = "USER_AVATAR_UPDATED")]
+    UserAvatarUpdated(UserAvatarUpdatedPayload),
+    
+    #[serde(rename = "USER_UPDATED")]
+    UserUpdated(UserUpdatedPayload),
+    
     #[serde(rename = "PONG")]
     Pong,
 }
@@ -269,6 +289,7 @@ pub struct WelcomePayload {
     pub user_id: Uuid,
     pub username: String,
     pub server_version: String,
+    pub server_name: String,
     pub role: UserRole,
     pub channels: Vec<Channel>,
 }
@@ -365,4 +386,16 @@ pub struct ServerSettingsPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerUsersPayload {
     pub users: Vec<User>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserAvatarUpdatedPayload {
+    pub user_id: Uuid,
+    pub avatar_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserUpdatedPayload {
+    pub user_id: Uuid,
+    pub avatar_version: i32,
 }

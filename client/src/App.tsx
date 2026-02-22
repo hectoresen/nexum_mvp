@@ -12,6 +12,9 @@ import AdminAuthModal from './components/AdminAuthModal'
 import ServerSettingsModal from './components/ServerSettingsModal'
 import UserListModal from './components/UserListModal'
 import ClientSettingsModal from './components/ClientSettingsModal'
+import ChangePasswordModal from './components/ChangePasswordModal'
+import AvatarModal from './components/AvatarModal'
+import UserSettingsModal from './components/UserSettingsModal'
 
 const CLIENT_VERSION = '1.0.0'
 
@@ -37,6 +40,7 @@ interface ActiveConnection {
   userId: string | null
   username: string
   role: UserRole | null
+  serverName: string
   channels: Channel[]
   messages: Map<string, ProtocolMessage[]>
   currentChannelId: string | null
@@ -59,6 +63,10 @@ function App() {
   const [showServerSettingsModal, setShowServerSettingsModal] = useState(false)
   const [showUserListModal, setShowUserListModal] = useState(false)
   const [showClientSettingsModal, setShowClientSettingsModal] = useState(false)
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false)
+  const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null)
+  const [showUserSettingsModal, setShowUserSettingsModal] = useState(false)
+  const [showAvatarModal, setShowAvatarModal] = useState(false)
   const [localServerStatus, setLocalServerStatus] = useState<LocalServerStatus>({
     installed: false,
     running: false,
@@ -130,6 +138,7 @@ function App() {
         userId: null,
         username: server.lastUsername || 'User',
         role: null,
+        serverName: 'Connecting...',
         channels: [],
         messages: new Map(),
         currentChannelId: null,
@@ -159,6 +168,18 @@ function App() {
         }
         if (message.type === 'WELCOME') {
           hasReceivedWelcome = true
+          // Request user list after successful connection
+          wsClient.send({ type: 'GET_USERS' })
+        }
+        // Handle admin auth errors specifically
+        if (message.type === 'ERROR' && message.payload.code === 'UNAUTHORIZED' && showAdminAuthModal) {
+          setAdminAuthError(message.payload.message)
+          return
+        }
+        // Handle password change errors specifically
+        if (message.type === 'ERROR' && showChangePasswordModal) {
+          setPasswordChangeError(message.payload.message)
+          return
         }
         setView(prev => {
           if (prev.type !== 'connected') return prev
@@ -226,6 +247,7 @@ function App() {
         userId: null,
         username,
         role: null,
+        serverName: 'Connecting...',
         channels: [],
         messages: new Map(),
         currentChannelId: null,
@@ -236,6 +258,20 @@ function App() {
 
       // Set up message handler
       wsClient.onMessage((message: ServerMessage) => {
+        // Request user list after successful connection
+        if (message.type === 'WELCOME') {
+          wsClient.send({ type: 'GET_USERS' })
+        }
+        // Handle admin auth errors specifically
+        if (message.type === 'ERROR' && message.payload.code === 'UNAUTHORIZED' && showAdminAuthModal) {
+          setAdminAuthError(message.payload.message)
+          return
+        }
+        // Handle password change errors specifically
+        if (message.type === 'ERROR' && showChangePasswordModal) {
+          setPasswordChangeError(message.payload.message)
+          return
+        }
         setView(prev => {
           if (prev.type !== 'connected') return prev
           return {
@@ -303,16 +339,12 @@ function App() {
           userId: message.payload.user_id,
           username: message.payload.username,
           role: message.payload.role,
+          serverName: message.payload.server_name,
           channels: message.payload.channels,
           error: null,
         }
 
       case 'ERROR':
-        // If admin auth modal is open, show error there instead of connection error
-        if (showAdminAuthModal && message.payload.code === 'UNAUTHORIZED') {
-          setAdminAuthError(message.payload.message)
-          return connection
-        }
         return {
           ...connection,
           error: message.payload.message,
@@ -338,8 +370,14 @@ function App() {
         }
 
       case 'SERVER_SETTINGS':
+        // If password change modal is open, close it on success
+        if (showChangePasswordModal) {
+          setShowChangePasswordModal(false)
+          setPasswordChangeError(null)
+        }
         return {
           ...connection,
+          serverName: message.payload.name,
           serverSettings: message.payload,
         }
 
@@ -385,6 +423,28 @@ function App() {
           role: message.payload.new_role,
         }
 
+      case 'USER_AVATAR_UPDATED':
+        // Update avatar in user list if available
+        const updatedUsers = connection.serverUsers?.map(u => (u.id === message.payload.user_id ? { ...u, avatar_url: message.payload.avatar_url ?? undefined } : u)) || null
+        // After updating, force re-request to ensure sync
+        if (message.payload.user_id === connection.userId) {
+          // It's our avatar - request fresh user list
+          setTimeout(() => {
+            connection.client.send({ type: 'GET_USERS' })
+          }, 100)
+        }
+        return {
+          ...connection,
+          serverUsers: updatedUsers,
+        }
+
+      case 'USER_UPDATED':
+        // New avatar version notification - refresh user list to get updated data
+        setTimeout(() => {
+          connection.client.send({ type: 'GET_USERS' })
+        }, 100)
+        return connection
+
       case 'USER_JOINED':
       case 'USER_LEFT':
       case 'VOICE_JOINED':
@@ -403,7 +463,15 @@ function App() {
     if (view.type === 'connected') {
       view.connection.client.disconnect()
     }
+    // Clear admin authentication state
+    setShowAdminAuthModal(false)
+    setAdminAuthError(null)
+    // Clear password change modal if open
+    setShowChangePasswordModal(false)
+    setPasswordChangeError(null)
     setView({ type: 'server-list' })
+    // Reload servers from localStorage to get updated lastUserId/lastUsername
+    setServers(ServerManager.loadServers())
   }
 
   const handleCreateChannel = (name: string, type: 'text' | 'voice') => {
@@ -488,13 +556,34 @@ function App() {
     setShowServerSettingsModal(true)
   }
 
-  const handleUpdateServerSettings = (settings: { name?: string; current_admin_password?: string; admin_password?: string; max_users?: number; max_users_per_voice_channel?: number; max_message_size?: number }) => {
+  const handleUpdateServerSettings = (settings: { name?: string; max_users?: number; max_users_per_voice_channel?: number; max_message_size?: number }) => {
     if (view.type !== 'connected') return
 
     view.connection.client.send({
       type: 'UPDATE_SERVER_SETTINGS',
       payload: settings,
     })
+  }
+
+  const handleChangePassword = (currentPassword: string, newPassword: string) => {
+    if (view.type !== 'connected') return
+
+    setPasswordChangeError(null)
+
+    view.connection.client.send({
+      type: 'UPDATE_SERVER_SETTINGS',
+      payload: {
+        current_admin_password: currentPassword,
+        admin_password: newPassword,
+      },
+    })
+
+    // Close modal on success (will be handled when SERVER_SETTINGS arrives without error)
+    setTimeout(() => {
+      if (!passwordChangeError) {
+        setShowChangePasswordModal(false)
+      }
+    }, 500)
   }
 
   const handleGetUsers = () => {
@@ -544,6 +633,17 @@ function App() {
     }
   }
 
+  const handleUpdateAvatar = (avatarUrl: string | null) => {
+    if (view.type !== 'connected') return
+
+    view.connection.client.send({
+      type: 'UPDATE_AVATAR',
+      payload: {
+        avatar_url: avatarUrl,
+      },
+    })
+  }
+
   // Render based on current view
   if (view.type === 'server-list') {
     return (
@@ -554,6 +654,7 @@ function App() {
           onAddServer={() => setShowAddServerModal(true)}
           onDeleteServer={handleDeleteServer}
           onLaunchLocalServer={handleLaunchLocalServer}
+          onOpenClientSettings={() => setShowClientSettingsModal(true)}
           localServerStatus={localServerStatus}
         />
 
@@ -570,12 +671,18 @@ function App() {
             error={connectionError}
           />
         )}
+
+        {showClientSettingsModal && <ClientSettingsModal onClose={() => setShowClientSettingsModal(false)} />}
       </>
     )
   }
 
   // Connected view
   const conn = view.connection
+  // Get current user avatar from user list
+  const currentUser = conn.serverUsers?.find(u => u.id === conn.userId)
+  const currentUserAvatar = currentUser?.avatar_url || null
+
   return (
     <>
       <MainView
@@ -591,7 +698,9 @@ function App() {
           currentChannelId: conn.currentChannelId,
           error: conn.error,
         }}
-        serverName={conn.server.name}
+        serverName={conn.serverName}
+        currentUserAvatar={currentUserAvatar}
+        serverUsers={conn.serverUsers}
         onDisconnect={handleDisconnect}
         onCreateChannel={handleCreateChannel}
         onJoinChannel={handleJoinChannel}
@@ -602,6 +711,7 @@ function App() {
         onRenameChannel={handleRenameChannel}
         onDeleteChannel={handleDeleteChannel}
         onViewUsers={handleGetUsers}
+        onOpenUserSettings={() => setShowUserSettingsModal(true)}
       />
 
       {showAdminAuthModal && (
@@ -615,11 +725,43 @@ function App() {
         />
       )}
 
-      {showServerSettingsModal && <ServerSettingsModal serverName={conn.server.name} settings={conn.serverSettings} onClose={() => setShowServerSettingsModal(false)} onSave={handleUpdateServerSettings} />}
+      {showServerSettingsModal && (
+        <ServerSettingsModal
+          serverName={conn.server.name}
+          settings={conn.serverSettings}
+          onClose={() => setShowServerSettingsModal(false)}
+          onSave={handleUpdateServerSettings}
+          onChangePassword={() => setShowChangePasswordModal(true)}
+        />
+      )}
 
       {showUserListModal && <UserListModal users={conn.serverUsers} onClose={() => setShowUserListModal(false)} />}
 
       {showClientSettingsModal && <ClientSettingsModal onClose={() => setShowClientSettingsModal(false)} />}
+
+      {showChangePasswordModal && (
+        <ChangePasswordModal
+          onClose={() => {
+            setShowChangePasswordModal(false)
+            setPasswordChangeError(null)
+          }}
+          onSave={handleChangePassword}
+          error={passwordChangeError}
+        />
+      )}
+
+      {showUserSettingsModal && <UserSettingsModal onClose={() => setShowUserSettingsModal(false)} onChangeAvatar={() => setShowAvatarModal(true)} />}
+
+      {showAvatarModal && conn.sessionId && conn.userId && (
+        <AvatarModal 
+          currentAvatar={currentUserAvatar} 
+          serverAddress={conn.server.address} 
+          sessionId={conn.sessionId}
+          userId={conn.userId}
+          onClose={() => setShowAvatarModal(false)} 
+          onSave={handleUpdateAvatar} 
+        />
+      )}
     </>
   )
 }

@@ -2,6 +2,79 @@
 
 All notable changes and completed tasks are documented here.
 
+## 2026-02-22 - Avatar System & User UI Enhancements (9 improvements)
+
+### ✅ Completed
+
+**1. Avatar File Upload System**
+
+- **Server — `server/Cargo.toml`**: Added `multipart` feature to axum, `fs` feature to tower-http for file serving
+- **Server — `server/src/avatar.rs`** (NEW): Created avatar upload handler with multipart/form-data support; validates file type (jpg/png/gif/webp), size (max 10MB); generates UUID filenames; stores in `avatars/` directory; returns relative URL path
+- **Server — `server/src/websocket.rs`**: Added POST route `/api/upload-avatar`; added static file serving via `ServeDir` at `/avatars`; creates avatars directory on startup
+- **Server — `server/src/main.rs`**: Added `mod avatar` declaration
+
+**2. Avatar Database & Protocol**
+
+- **Server — `server/src/db.rs`**: Added `avatar_url TEXT` column to users table; updated all user queries (create_user, get_user, get_user_by_username, list_users, get_user_by_ip) to SELECT and parse avatar_url; added `update_user_avatar(user_id, avatar_url)` method
+- **Server — `server/src/models.rs`**: Added `avatar_url: Option<String>` to User struct; added `UPDATE_AVATAR(UpdateAvatarPayload)` ClientMessage; added `USER_AVATAR_UPDATED(UserAvatarUpdatedPayload)` ServerMessage; added corresponding payload structs
+- **Server — `server/src/handlers.rs`**: Added `handle_update_avatar` — updates database, broadcasts USER_AVATAR_UPDATED to all connected clients; wired into main message router
+- **Client — `client/src/types/protocol.ts`**: Added `avatar_url?: string` to User interface; added UPDATE_AVATAR and USER_AVATAR_UPDATED message types with payloads
+
+**3. Avatar Modal with File Upload + URL Support**
+
+- **Client — `client/src/components/AvatarModal.tsx`** (REWRITTEN): Dual-tab system ("Upload File", "Use URL"); drag-and-drop file upload area; file type and size validation; live preview for both files and URLs; uploads to `/api/upload-avatar` endpoint; error handling with red alerts; 10MB size limit enforced client-side
+- **Client — `client/src/App.tsx`**: Modified `handleUpdateAvatar` to accept avatar URLs; added USER_AVATAR_UPDATED handler to update serverUsers list; passes `serverAddress` to AvatarModal for upload endpoint
+- **Build result**: Server builds successfully, client builds successfully
+
+**4. User Settings Modal (replaces direct avatar change)**
+
+- **Client — `client/src/components/UserSettingsModal.tsx`** (NEW): Dedicated settings modal with "Change Avatar" option (opens avatar modal on click); placeholder for future settings; clean card-style UI
+- **Client — `client/src/components/MainView.tsx`**: Removed direct avatar click handler; replaced "Change Avatar" dropdown option with "User Settings"; avatar display now simplified (no hover ring, no click handler on avatar itself)
+- **Client — `client/src/App.tsx`**: Added `showUserSettingsModal` state; wired UserSettingsModal → AvatarModal chain; modal opens avatar modal via callback
+
+**5. Button Styling Consistency**
+
+- **Client — 6 modal files updated**: Standardized button colors across all modals:
+  - Cancel buttons: `bg-gray-700 hover:bg-gray-600 text-gray-200` (neutral, less prominent)
+  - Save/Submit buttons: `bg-blue-600 hover:bg-blue-500 text-white font-medium` (clear primary action)
+  - Special buttons (Authenticate): `bg-amber-600 hover:bg-amber-700` (maintained for emphasis)
+- Files affected: `AddServerModal.tsx`, `ServerConnectModal.tsx`, `ClientSettingsModal.tsx`, `ServerSettingsModal.tsx`, `AdminAuthModal.tsx`, `ChangePasswordModal.tsx`, `AvatarModal.tsx`
+- Result: Clear visual hierarchy — users can immediately identify primary vs secondary actions
+
+**6. Right Sidebar User List**
+
+- **Client — `client/src/components/UserListPanel.tsx`** (NEW): 224px-wide sidebar showing all server members; grouped by role (Owners, Members); displays avatar images or initials; "(you)" indicator for current user; gold star for owners; "Click user for private messages (coming soon)" footer hint; auto-loads on connection
+- **Client — `client/src/components/MainView.tsx`**: Added `serverUsers` prop; rendered UserListPanel at right edge; imports User type from protocol
+- **Client — `client/src/App.tsx`**: Sends GET_USERS immediately after WELCOME in both connection flows; passes `serverUsers` to MainView; auto-populates user list on connection
+
+**7. Real-time Avatar Updates**
+
+- **Client — `client/src/App.tsx`**: USER_AVATAR_UPDATED handler updates both serverUsers array and avatar preview; avatar changes reflect immediately in user list sidebar and profile footer without reconnection; uses null coalescing to handle optional avatar_url
+- **Server broadcast**: handle_update_avatar sends USER_AVATAR_UPDATED to ALL sessions, ensuring everyone sees avatar changes
+
+**8. CORS & Web Browser Support**
+
+- **Server — `server/src/websocket.rs`**: Added permissive CorsLayer (allow_origin(Any), allow_methods(Any), allow_headers(Any)) to enable WebSocket connections from web browsers (localhost:5173); applies to all routes including WebSocket upgrade and avatar upload
+
+**9. Server Name Display Fix**
+
+- **Server — `server/src/handlers.rs`**: `handle_connect` now includes `server_name` from config in WELCOME message
+- **Client — `client/src/App.tsx`**: WELCOME handler stores server_name in ActiveConnection.serverName; SERVER_SETTINGS handler updates serverName when settings change
+- **Client — `client/src/components/MainView.tsx`**: Header displays conn.serverName instead of client-provided alias
+
+### 📦 Build Status
+
+- **Server**: ✅ Built successfully (45.45s) — 6 warnings (dead code, unused imports), 0 errors
+- **Client**: ✅ Built successfully (901ms) — 49 modules, 0 errors
+- **Protocol alignment**: ✅ No type mismatches
+
+### 🎯 Future Work Added to TODO
+
+- **Private messaging**: Click user in sidebar to open DM (placeholder added to UserListPanel)
+- **End-to-end encryption**: Encrypt private messages (not general channel messages)
+
+---
+
 ## 2026-02-21 - UX Polish & Security Hardening (8 improvements)
 
 ### ✅ Completed
