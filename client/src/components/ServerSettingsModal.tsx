@@ -5,18 +5,15 @@ interface ServerSettingsModalProps {
   serverName: string
   settings: ServerSettingsPayload | null
   onClose: () => void
-  onSave: (settings: {
-    name?: string
-    admin_password?: string
-    max_users?: number
-    max_users_per_voice_channel?: number
-    max_message_size?: number
-  }) => void
+  onSave: (settings: { name?: string; current_admin_password?: string; admin_password?: string; max_users?: number; max_users_per_voice_channel?: number; max_message_size?: number }) => void
 }
 
 export default function ServerSettingsModal({ serverName, settings, onClose, onSave }: ServerSettingsModalProps) {
   const [name, setName] = useState(settings?.name ?? serverName)
-  const [adminPassword, setAdminPassword] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordError, setPasswordError] = useState('')
   const [maxUsers, setMaxUsers] = useState(settings?.max_users ?? 200)
   const [maxVoice, setMaxVoice] = useState(settings?.max_users_per_voice_channel ?? 100)
   const [maxMsg, setMaxMsg] = useState(settings?.max_message_size ?? 2000)
@@ -32,14 +29,40 @@ export default function ServerSettingsModal({ serverName, settings, onClose, onS
   }, [settings])
 
   const handleSave = () => {
+    // Validate password change if attempting to change
+    if (currentPassword || newPassword || confirmPassword) {
+      if (!currentPassword) {
+        setPasswordError('Current password is required to change password')
+        return
+      }
+      if (!newPassword) {
+        setPasswordError('New password cannot be empty')
+        return
+      }
+      if (newPassword !== confirmPassword) {
+        setPasswordError('New passwords do not match')
+        return
+      }
+      if (newPassword.length < 4) {
+        setPasswordError('New password must be at least 4 characters')
+        return
+      }
+    }
+
+    setPasswordError('')
+
     onSave({
       name: name.trim() || undefined,
-      admin_password: adminPassword.trim() || undefined,
+      current_admin_password: currentPassword.trim() || undefined,
+      admin_password: newPassword.trim() || undefined,
       max_users: maxUsers,
       max_users_per_voice_channel: maxVoice,
       max_message_size: maxMsg,
     })
-    setAdminPassword('')
+
+    setCurrentPassword('')
+    setNewPassword('')
+    setConfirmPassword('')
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -49,7 +72,7 @@ export default function ServerSettingsModal({ serverName, settings, onClose, onS
       <div className="bg-gray-800 rounded-lg p-6 w-[600px] max-h-[80vh] overflow-y-auto shadow-xl">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-            <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -84,23 +107,65 @@ export default function ServerSettingsModal({ serverName, settings, onClose, onS
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">Server Name</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-blue-500"
-                  />
+                  <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-gray-500" />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">New Admin Password</label>
-                  <input
-                    type="password"
-                    value={adminPassword}
-                    onChange={e => setAdminPassword(e.target.value)}
-                    placeholder="Leave blank to keep current password"
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-blue-500 placeholder-gray-500"
-                  />
+                <div className="pt-3 border-t border-gray-700">
+                  <h4 className="text-sm font-semibold text-gray-300 mb-3">Change Admin Password</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Current Admin Password</label>
+                      <input
+                        type="password"
+                        value={currentPassword}
+                        onChange={e => {
+                          setCurrentPassword(e.target.value)
+                          setPasswordError('')
+                        }}
+                        placeholder="Enter current password"
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-gray-500 placeholder-gray-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">New Admin Password</label>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={e => {
+                          setNewPassword(e.target.value)
+                          setPasswordError('')
+                        }}
+                        placeholder="Enter new password"
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-gray-500 placeholder-gray-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Confirm New Password</label>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={e => {
+                          setConfirmPassword(e.target.value)
+                          setPasswordError('')
+                        }}
+                        placeholder="Re-enter new password"
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-gray-500 placeholder-gray-500"
+                      />
+                    </div>
+
+                    {passwordError && (
+                      <p className="text-sm text-red-400 flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        {passwordError}
+                      </p>
+                    )}
+
+                    <p className="text-xs text-gray-500">Leave all fields blank to keep current password</p>
+                  </div>
                 </div>
 
                 <div className="flex gap-4">
@@ -129,7 +194,7 @@ export default function ServerSettingsModal({ serverName, settings, onClose, onS
                     min={1}
                     max={10000}
                     onChange={e => setMaxUsers(parseInt(e.target.value) || 1)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-gray-500"
                   />
                 </div>
 
@@ -141,7 +206,7 @@ export default function ServerSettingsModal({ serverName, settings, onClose, onS
                     min={1}
                     max={1000}
                     onChange={e => setMaxVoice(parseInt(e.target.value) || 1)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-gray-500"
                   />
                 </div>
 
@@ -153,7 +218,7 @@ export default function ServerSettingsModal({ serverName, settings, onClose, onS
                     min={1}
                     max={100000}
                     onChange={e => setMaxMsg(parseInt(e.target.value) || 1)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-gray-500"
                   />
                 </div>
               </div>
@@ -166,10 +231,7 @@ export default function ServerSettingsModal({ serverName, settings, onClose, onS
             Close
           </button>
           {settings && (
-            <button
-              onClick={handleSave}
-              className={`px-6 py-2 rounded-md transition-colors text-white ${saved ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'}`}
-            >
+            <button onClick={handleSave} className={`px-6 py-2 rounded-md transition-colors text-white ${saved ? 'bg-green-600' : 'bg-gray-600 hover:bg-gray-500'}`}>
               {saved ? '✓ Saved' : 'Save Changes'}
             </button>
           )}

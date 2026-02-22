@@ -96,6 +96,7 @@ export interface RenameChannelPayload {
 
 export interface UpdateServerSettingsPayload {
   name?: string;
+  current_admin_password?: string;
   admin_password?: string;
   max_users?: number;
   max_users_per_voice_channel?: number;

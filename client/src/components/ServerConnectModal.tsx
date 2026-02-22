@@ -40,7 +40,7 @@ export default function ServerConnectModal({ serverName, serverAddress, lastUser
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="bg-gray-700/50 rounded-lg p-4 mb-4">
             <p className="text-sm text-gray-300 flex items-center gap-2">
-              <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -62,7 +62,7 @@ export default function ServerConnectModal({ serverName, serverAddress, lastUser
               value={username}
               onChange={e => setUsername(e.target.value)}
               placeholder="Enter your username"
-              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
               disabled={connecting}
               required
               minLength={1}
@@ -82,7 +82,7 @@ export default function ServerConnectModal({ serverName, serverAddress, lastUser
             <button
               type="submit"
               disabled={connecting || !username.trim()}
-              className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-md transition-colors flex items-center justify-center gap-2">
+              className="flex-1 px-4 py-3 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-md transition-colors flex items-center justify-center gap-2">
               {connecting ? (
                 <>
                   <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">

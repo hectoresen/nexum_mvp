@@ -19,7 +19,7 @@ export default function ServerListView({ servers, onSelectServer, onAddServer, o
       <div className="flex items-center justify-between p-6 bg-gray-800 border-b border-gray-700">
         <div>
           <h1 className="text-2xl font-bold text-white">Voice MVP</h1>
-          <p className="text-sm text-gray-400 mt-1">Manage your servers</p>
+          <p className="text-sm text-gray-400 mt-1">Secure voice and text communication</p>
         </div>
       </div>
 
@@ -42,7 +42,7 @@ export default function ServerListView({ servers, onSelectServer, onAddServer, o
               <button
                 onClick={onLaunchLocalServer}
                 className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                  localServerStatus.installed ? (localServerStatus.running ? 'bg-yellow-600 hover:bg-yellow-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white') : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  localServerStatus.installed ? (localServerStatus.running ? 'bg-yellow-600 hover:bg-yellow-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white') : 'bg-gray-600 hover:bg-gray-500 text-white'
                 }`}>
                 {localServerStatus.installed ? (localServerStatus.running ? 'Configure' : 'Launch Server') : 'Download Server'}
               </button>
@@ -53,7 +53,7 @@ export default function ServerListView({ servers, onSelectServer, onAddServer, o
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-white">Your Servers</h2>
-              <button onClick={onAddServer} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors flex items-center gap-2">
+              <button onClick={onAddServer} className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white font-medium rounded-md transition-colors flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
@@ -102,7 +102,7 @@ export default function ServerListView({ servers, onSelectServer, onAddServer, o
                       </div>
 
                       <div className="flex items-center gap-2 ml-4">
-                        <button onClick={() => onSelectServer(server)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors">
+                        <button onClick={() => onSelectServer(server)} className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white font-medium rounded-md transition-colors">
                           Connect
                         </button>
 

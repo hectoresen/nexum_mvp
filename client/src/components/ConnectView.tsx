@@ -49,7 +49,7 @@ export default function ConnectView({ onConnect, connecting, error }: ConnectVie
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   placeholder="Enter your username"
-                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                   disabled={connecting}
                   required
                   minLength={1}
@@ -67,7 +67,7 @@ export default function ConnectView({ onConnect, connecting, error }: ConnectVie
                   value={serverAddress}
                   onChange={e => setServerAddress(e.target.value)}
                   placeholder="localhost:8080"
-                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                   disabled={connecting}
                   required
                 />
@@ -83,7 +83,7 @@ export default function ConnectView({ onConnect, connecting, error }: ConnectVie
               <button
                 type="submit"
                 disabled={connecting || !username.trim() || !serverAddress.trim()}
-                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800">
+                className="w-full py-3 px-4 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-gray-800">
                 {connecting ? (
                   <span className="flex items-center justify-center">
                     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

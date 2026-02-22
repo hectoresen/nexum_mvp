@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { AppState } from '../App'
 import { Channel } from '../types/protocol'
 import ChannelList from './ChannelList'
@@ -13,15 +13,42 @@ interface MainViewProps {
   onSendMessage: (content: string) => void
   onAuthenticateAdmin?: () => void
   onOpenServerSettings?: () => void
+  onOpenClientSettings?: () => void
   onRenameChannel?: (channelId: string, newName: string) => void
   onDeleteChannel?: (channelId: string) => void
   onViewUsers?: () => void
 }
 
-export default function MainView({ state, serverName = 'Voice Server', onDisconnect, onCreateChannel, onJoinChannel, onSendMessage, onAuthenticateAdmin, onOpenServerSettings, onRenameChannel, onDeleteChannel, onViewUsers }: MainViewProps) {
+export default function MainView({
+  state,
+  serverName = 'Voice Server',
+  onDisconnect,
+  onCreateChannel,
+  onJoinChannel,
+  onSendMessage,
+  onAuthenticateAdmin,
+  onOpenServerSettings,
+  onOpenClientSettings,
+  onRenameChannel,
+  onDeleteChannel,
+  onViewUsers,
+}: MainViewProps) {
   const [showCreateChannel, setShowCreateChannel] = useState(false)
   const [newChannelName, setNewChannelName] = useState('')
   const [newChannelType, setNewChannelType] = useState<'text' | 'voice'>('text')
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setUserDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const handleCreateChannel = (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,16 +73,8 @@ export default function MainView({ state, serverName = 'Voice Server', onDisconn
             {state.username} • {state.role}
           </p>
 
-          {/* Admin controls */}
+          {/* Server Settings - only for owners */}
           <div className="mt-2 space-y-1">
-            {state.role === 'member' && onAuthenticateAdmin && (
-              <button onClick={onAuthenticateAdmin} className="w-full px-3 py-1.5 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded transition-colors flex items-center justify-center gap-2">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-                Authenticate as Admin
-              </button>
-            )}
             {state.role === 'owner' && onOpenServerSettings && (
               <button onClick={onOpenServerSettings} className="w-full px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors flex items-center justify-center gap-2">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -116,7 +135,7 @@ export default function MainView({ state, serverName = 'Voice Server', onDisconn
                   </label>
                 </div>
                 <div className="flex gap-2">
-                  <button type="submit" className="flex-1 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded">
+                  <button type="submit" className="flex-1 px-2 py-1 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded">
                     Create
                   </button>
                   <button type="button" onClick={() => setShowCreateChannel(false)} className="flex-1 px-2 py-1 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded">
@@ -126,32 +145,51 @@ export default function MainView({ state, serverName = 'Voice Server', onDisconn
               </form>
             )}
 
-            <ChannelList
-              channels={state.channels}
-              currentChannelId={state.currentChannelId}
-              role={state.role}
-              onSelectChannel={onJoinChannel}
-              onRenameChannel={onRenameChannel}
-              onDeleteChannel={onDeleteChannel}
-            />
+            <ChannelList channels={state.channels} currentChannelId={state.currentChannelId} role={state.role} onSelectChannel={onJoinChannel} onRenameChannel={onRenameChannel} onDeleteChannel={onDeleteChannel} />
           </div>
         </div>
 
-        {/* User info footer */}
-        <div className="p-3 border-t border-gray-700">
+        {/* User info footer with dropdown */}
+        <div className="p-3 border-t border-gray-700 relative" ref={dropdownRef}>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+            <button onClick={() => setUserDropdownOpen(!userDropdownOpen)} className="flex items-center gap-2 hover:bg-gray-700 rounded px-2 py-1 transition-colors flex-1 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
                 <span className="text-sm font-semibold text-white">{state.username[0]?.toUpperCase()}</span>
               </div>
-              <span className="text-sm text-white truncate max-w-[120px]">{state.username}</span>
-            </div>
-            <button onClick={onDisconnect} className="p-1 text-gray-400 hover:text-red-400 transition-colors" title="Disconnect">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              <span className="text-sm text-white truncate flex-1 text-left">{state.username}</span>
+              <svg className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${userDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
           </div>
+
+          {/* Dropdown Menu */}
+          {userDropdownOpen && (
+            <div className="absolute bottom-full left-0 right-0 mb-2 bg-gray-800 rounded-lg shadow-xl border border-gray-700 py-1">
+              {state.role === 'member' && onAuthenticateAdmin && (
+                <button onClick={() => { onAuthenticateAdmin(); setUserDropdownOpen(false); }} className="w-full px-3 py-2 text-sm text-left text-white hover:bg-gray-700 transition-colors flex items-center gap-2">
+                  <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  Authenticate as Admin
+                </button>
+              )}
+              {onOpenClientSettings && (
+                <button onClick={() => { onOpenClientSettings(); setUserDropdownOpen(false); }} className="w-full px-3 py-2 text-sm text-left text-white hover:bg-gray-700 transition-colors flex items-center gap-2">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                  </svg>
+                  Client Settings
+                </button>
+              )}
+              <button onClick={() => { onDisconnect(); setUserDropdownOpen(false); }} className="w-full px-3 py-2 text-sm text-left text-red-400 hover:bg-gray-700 transition-colors flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Disconnect
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

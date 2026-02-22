@@ -16,6 +16,14 @@ This phase integrates the CLI server with the client for a unified user experien
 - [x] **Server user list** — owners can open `UserListModal` from sidebar "View Users" button; shows all registered users with role, join date, avatar initial
 - [x] **`AppState.config` → `RwLock<Config>`** — server settings can be updated live without restart
 - [x] **`WelcomePayload.username`** — server now includes username in WELCOME response
+- [x] **Admin auth error feedback** — incorrect password shows red error message below input field
+- [x] **Admin auth moved to dropdown** — removed standalone button, added to user avatar dropdown menu
+- [x] **Secure password change** — requires current password verification + double entry validation
+- [x] **Username persistence bug fix** — reload server from localStorage after clearing invalid userId
+- [x] **Dark mode color update** — replaced all blue accents with gray (31 replacements across 10 files)
+- [x] **App tagline change** — "Secure voice and text communication" instead of "Manage your servers"
+- [x] **Client settings panel** — modal with placeholders for auto-start, language, theme, audio devices
+- [x] **Documentation reorganization** — moved 10 .md files into `docs/` folder
 
 ### 0.5.1 Installation Architecture ✅
 

@@ -40,7 +40,7 @@ export default function AddServerModal({ onClose, onAdd }: AddServerModalProps) 
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="My Server"
-              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
               autoFocus
               required
             />
@@ -56,14 +56,14 @@ export default function AddServerModal({ onClose, onAdd }: AddServerModalProps) 
               value={address}
               onChange={e => setAddress(e.target.value)}
               placeholder="localhost:8080 or 192.168.1.10:8080"
-              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
               required
             />
             <p className="text-xs text-gray-400 mt-1">Format: host:port</p>
           </div>
 
           <div className="flex items-center gap-3 pt-4">
-            <button type="submit" className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors">
+            <button type="submit" className="flex-1 px-4 py-3 bg-gray-600 hover:bg-gray-500 text-white font-semibold rounded-md transition-colors">
               Add Server
             </button>
             <button type="button" onClick={onClose} className="px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-md transition-colors">

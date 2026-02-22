@@ -146,7 +146,7 @@ export default function LocalServerPanel({ onServerStarted, onServerStopped }: L
     return (
       <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
         <div className="flex items-center justify-center">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-500"></div>
           <span className="ml-3 text-slate-300">Detecting server...</span>
         </div>
       </div>
@@ -218,10 +218,10 @@ export default function LocalServerPanel({ onServerStarted, onServerStopped }: L
               value={adminPassword}
               onChange={e => setAdminPassword(e.target.value)}
               placeholder="Enter admin password"
-              className="flex-1 bg-slate-700 text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 bg-slate-700 text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
               disabled={loading}
             />
-            <button onClick={generatePassword} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm font-medium transition disabled:opacity-50" disabled={loading}>
+            <button onClick={generatePassword} className="bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 rounded text-sm font-medium transition disabled:opacity-50" disabled={loading}>
               Generate
             </button>
           </div>

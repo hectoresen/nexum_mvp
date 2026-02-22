@@ -501,11 +501,25 @@ async fn handle_update_server_settings(
         if let Some(name) = payload.name {
             cfg.server.name = name;
         }
-        if let Some(pwd) = payload.admin_password {
-            if !pwd.is_empty() {
-                cfg.server.admin_password = pwd;
+        
+        // Password change requires current password verification
+        if let Some(new_pwd) = payload.admin_password {
+            if !new_pwd.is_empty() {
+                // Verify current password if provided
+                if let Some(current_pwd) = payload.current_admin_password {
+                    if current_pwd != cfg.server.admin_password {
+                        send_error(tx, ErrorCode::Unauthorized, "Current admin password is incorrect")?;
+                        return Ok(());
+                    }
+                    cfg.server.admin_password = new_pwd;
+                } else {
+                    // Require current password for password change
+                    send_error(tx, ErrorCode::InvalidRequest, "Current admin password is required to change password")?;
+                    return Ok(());
+                }
             }
         }
+        
         if let Some(max) = payload.max_users {
             cfg.limits.max_users = max;
         }

@@ -2,6 +2,60 @@
 
 All notable changes and completed tasks are documented here.
 
+## 2026-02-21 - UX Polish & Security Hardening (8 improvements)
+
+### ✅ Completed
+
+**1. Admin Authentication Error Feedback**
+
+- **Client — `client/src/App.tsx`**: Added `adminAuthError` state to capture UNAUTHORIZED errors during admin auth; modified ERROR handler to conditionally set `adminAuthError` instead of generic `connection.error` when admin modal is open; auto-closes modal and clears error on successful ADMIN_AUTHENTICATED
+- **Client — `client/src/components/AdminAuthModal.tsx`**: Added `error` prop to interface and UI; displays red error message with icon below password input; clears error on password input change; removed premature `onClose()` from submit handler (now waits for server response)
+
+**2. Admin Authentication Moved to User Dropdown**
+
+- **Client — `client/src/components/MainView.tsx`**: Removed standalone "Authenticate as Admin" button from sidebar; converted user footer into clickable dropdown menu with chevron rotation animation; added dropdown with "Authenticate as Admin" (member only), "Client Settings", and "Disconnect" options; implemented click-outside-to-close behavior with `useRef` and `useEffect`
+
+**3. Secure Password Change with Verification**
+
+- **Server — `server/src/models.rs`**: Added `current_admin_password` field to `UpdateServerSettingsPayload`
+- **Server — `server/src/handlers.rs`**: Modified `handle_update_server_settings` to require current password verification before allowing new password; returns UNAUTHORIZED error if current password is incorrect or missing when attempting password change
+- **Client — `client/src/types/protocol.ts`**: Added `current_admin_password` optional field to `UpdateServerSettingsPayload`
+- **Client — `client/src/components/ServerSettingsModal.tsx`**: Rewrote password section with three fields (current password, new password, confirm password); validates that passwords match, new password is at least 4 characters, and current password is provided; shows inline error messages; clears password fields on save
+
+**4. Username Persistence Bug Fix**
+
+- **Client — `client/src/App.tsx`**: Modified `handleConnectWithUserId` to reload server data from localStorage after clearing invalid `lastUserId`; calls `setServers(ServerManager.loadServers())` to ensure fresh server list reflects updated state; passes updated server object to `setConnectingServer` to show correct `lastUsername` in reconnection modal
+
+**5. Dark Mode Color Update (Blue → Gray)**
+
+- **Client — 10 component files modified** (31 total replacements):
+  - Replaced `bg-blue-600` → `bg-gray-600`
+  - Replaced `bg-blue-700` / `hover:bg-blue-700` → `bg-gray-500` / `hover:bg-gray-500`
+  - Replaced `text-blue-400` → `text-gray-400`
+  - Replaced `text-blue-500` → `text-gray-300`
+  - Replaced `border-blue-500` → `border-gray-500`
+  - Replaced `ring-blue-500` / `focus:ring-blue-500` → `ring-gray-500` / `focus:ring-gray-500`
+  - Replaced `focus:border-blue-500` → `focus:border-gray-500`
+- Files affected: `UserListModal.tsx`, `ServerSettingsModal.tsx`, `ServerListView.tsx`, `MainView.tsx`, `ServerConnectModal.tsx`, `LocalServerPanel.tsx`, `ConnectView.tsx`, `ChatArea.tsx`, `ChannelList.tsx`, `AddServerModal.tsx`
+- Result: Discord/Steam-style neutral gray theme throughout UI
+
+**6. App Tagline Update**
+
+- **Client — `client/src/components/ServerListView.tsx`**: Changed tagline from "Manage your servers" to "Secure voice and text communication" to better reflect app's core purpose
+
+**7. Client Settings Panel**
+
+- **Client — `client/src/components/ClientSettingsModal.tsx`** (NEW): Created modal with sections for General (auto-start toggle, language dropdown), Appearance (theme selector), and Audio Devices (input/output device selectors); includes disclaimer that some features are placeholders; settings not yet persisted to localStorage (marked as TODO)
+- **Client — `client/src/App.tsx`**: Added `showClientSettingsModal` state and `ClientSettingsModal` import; passes `onOpenClientSettings` prop to `MainView`; renders modal when state is true
+- **Client — `client/src/components/MainView.tsx`**: Added "Client Settings" option to user dropdown menu with settings gear icon; calls `onOpenClientSettings` when clicked
+
+**8. Documentation Reorganization**
+
+- Moved 10 markdown files into `docs/` folder: `agent_decisions.md`, `architecture_spec.md`, `changelog.md`, `CLIENT_SERVER_INTEGRATION.md`, `definition_of_done.md`, `dev.sh`, `quickstart.md`, `SERVER_LAUNCH_GUIDE.md`, `todo.md`, `USER_FLOW.md`
+- Root directory now contains only `readme.md` for cleaner project structure
+
+---
+
 ## 2026-02-21 - Phase 0.5 Extension: Admin Features & UX Polish
 
 ### ✅ Completed

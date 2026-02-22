@@ -11,6 +11,7 @@ import MainView from './components/MainView'
 import AdminAuthModal from './components/AdminAuthModal'
 import ServerSettingsModal from './components/ServerSettingsModal'
 import UserListModal from './components/UserListModal'
+import ClientSettingsModal from './components/ClientSettingsModal'
 
 const CLIENT_VERSION = '1.0.0'
 
@@ -54,8 +55,10 @@ function App() {
   const [connectionError, setConnectionError] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
   const [showAdminAuthModal, setShowAdminAuthModal] = useState(false)
+  const [adminAuthError, setAdminAuthError] = useState<string | null>(null)
   const [showServerSettingsModal, setShowServerSettingsModal] = useState(false)
   const [showUserListModal, setShowUserListModal] = useState(false)
+  const [showClientSettingsModal, setShowClientSettingsModal] = useState(false)
   const [localServerStatus, setLocalServerStatus] = useState<LocalServerStatus>({
     installed: false,
     running: false,
@@ -142,11 +145,16 @@ function App() {
         if (message.type === 'ERROR' && !hasReceivedWelcome) {
           // Resume session failed - clear stored userId and fall back to username prompt
           ServerManager.updateServer(server.id, { lastUserId: undefined })
+
+          // Reload the updated server from localStorage to get accurate data
+          const updatedServer = ServerManager.getServer(server.id)
+
           wsClient.disconnect()
           setView({ type: 'server-list' })
-          setConnectingServer(server)
+          setConnectingServer(updatedServer || server)
           setConnectionError(message.payload.message)
           setIsConnecting(false)
+          setServers(ServerManager.loadServers()) // Refresh server list
           return
         }
         if (message.type === 'WELCOME') {
@@ -300,6 +308,11 @@ function App() {
         }
 
       case 'ERROR':
+        // If admin auth modal is open, show error there instead of connection error
+        if (showAdminAuthModal && message.payload.code === 'UNAUTHORIZED') {
+          setAdminAuthError(message.payload.message)
+          return connection
+        }
         return {
           ...connection,
           error: message.payload.message,
@@ -321,11 +334,7 @@ function App() {
       case 'CHANNEL_RENAMED':
         return {
           ...connection,
-          channels: connection.channels.map(ch =>
-            ch.id === message.payload.channel_id
-              ? { ...ch, name: message.payload.new_name }
-              : ch
-          ),
+          channels: connection.channels.map(ch => (ch.id === message.payload.channel_id ? { ...ch, name: message.payload.new_name } : ch)),
         }
 
       case 'SERVER_SETTINGS':
@@ -368,7 +377,9 @@ function App() {
         }
 
       case 'ADMIN_AUTHENTICATED':
-        // User authenticated as admin
+        // User authenticated as admin - close modal and clear error
+        setShowAdminAuthModal(false)
+        setAdminAuthError(null)
         return {
           ...connection,
           role: message.payload.new_role,
@@ -477,7 +488,7 @@ function App() {
     setShowServerSettingsModal(true)
   }
 
-  const handleUpdateServerSettings = (settings: { name?: string; admin_password?: string; max_users?: number; max_users_per_voice_channel?: number; max_message_size?: number }) => {
+  const handleUpdateServerSettings = (settings: { name?: string; current_admin_password?: string; admin_password?: string; max_users?: number; max_users_per_voice_channel?: number; max_message_size?: number }) => {
     if (view.type !== 'connected') return
 
     view.connection.client.send({
@@ -587,28 +598,28 @@ function App() {
         onSendMessage={handleSendMessage}
         onAuthenticateAdmin={() => setShowAdminAuthModal(true)}
         onOpenServerSettings={handleGetServerSettings}
+        onOpenClientSettings={() => setShowClientSettingsModal(true)}
         onRenameChannel={handleRenameChannel}
         onDeleteChannel={handleDeleteChannel}
         onViewUsers={handleGetUsers}
       />
 
-      {showAdminAuthModal && <AdminAuthModal onClose={() => setShowAdminAuthModal(false)} onAuthenticate={handleAuthenticateAdmin} />}
-
-      {showServerSettingsModal && (
-        <ServerSettingsModal
-          serverName={conn.server.name}
-          settings={conn.serverSettings}
-          onClose={() => setShowServerSettingsModal(false)}
-          onSave={handleUpdateServerSettings}
+      {showAdminAuthModal && (
+        <AdminAuthModal
+          onClose={() => {
+            setShowAdminAuthModal(false)
+            setAdminAuthError(null)
+          }}
+          onAuthenticate={handleAuthenticateAdmin}
+          error={adminAuthError}
         />
       )}
 
-      {showUserListModal && (
-        <UserListModal
-          users={conn.serverUsers}
-          onClose={() => setShowUserListModal(false)}
-        />
-      )}
+      {showServerSettingsModal && <ServerSettingsModal serverName={conn.server.name} settings={conn.serverSettings} onClose={() => setShowServerSettingsModal(false)} onSave={handleUpdateServerSettings} />}
+
+      {showUserListModal && <UserListModal users={conn.serverUsers} onClose={() => setShowUserListModal(false)} />}
+
+      {showClientSettingsModal && <ClientSettingsModal onClose={() => setShowClientSettingsModal(false)} />}
     </>
   )
 }

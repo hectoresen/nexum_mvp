@@ -66,7 +66,7 @@ export default function ChatArea({ channel, messages, onSendMessage }: ChatAreaP
 
             return (
               <div key={message.id} className="flex gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
                   <span className="text-sm font-semibold text-white">{avatarInitial}</span>
                 </div>
                 <div className="flex-1">
@@ -93,10 +93,10 @@ export default function ChatArea({ channel, messages, onSendMessage }: ChatAreaP
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 placeholder={`Message #${channel.name}`}
-                className="flex-1 px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="flex-1 px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                 maxLength={2000}
               />
-              <button type="submit" disabled={!input.trim()} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-md transition-colors">
+              <button type="submit" disabled={!input.trim()} className="px-6 py-3 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-md transition-colors">
                 Send
               </button>
             </div>
