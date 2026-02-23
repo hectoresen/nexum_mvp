@@ -1,0 +1,35 @@
+# Nexum v0.1.0 - SHA256 Checksums
+
+To verify the integrity of downloaded files, calculate their SHA256 hash and compare with these values.
+
+## Verification Instructions
+
+### Windows PowerShell
+```powershell
+Get-FileHash -Algorithm SHA256 "filename.ext"
+```
+
+### Linux/macOS
+```bash
+sha256sum filename.ext
+```
+
+## Checksums
+
+Nexum_0.1.0_x64_en-US.msi
+961E7E2BE11EB2C68ADA1CAD219E938FCED974C96F62E19A13477B274D8D81D7
+
+Nexum_0.1.0_x64-setup.exe
+6FF515E8741CBB422CC9D25EFBC1955979BD1BC0C512B73F070FA1DD0613D17B
+
+voice-server.exe
+130722661DF33D594F6554D3DC7368E87968DDC5702D4DA54B30A81FD28C8DE0
+
+voice-client.exe
+62CCE4930638922FC512136840C57CA018A9F97BC1AB18D845719BBCC9CFE5BE
+
+---
+
+**Release Date:** February 23, 2026
+**Release Tag:** v0.1.0
+**Repository:** https://github.com/hectoresen/nexum_mvp
