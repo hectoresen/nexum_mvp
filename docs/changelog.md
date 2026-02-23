@@ -20,6 +20,7 @@ All notable changes and completed tasks are documented here.
 ### ✨ Features Included
 
 **Core Functionality:**
+
 - ✅ Self-hosted voice and text communication server
 - ✅ Desktop client with Tauri framework
 - ✅ WebSocket-based real-time messaging
@@ -30,6 +31,7 @@ All notable changes and completed tasks are documented here.
 - ✅ Local server management (start/stop/configure)
 
 **User Interface:**
+
 - ✅ Modern dark theme with centralized theme system
 - ✅ Button component library (9 specialized variants)
 - ✅ Professional headphones app icon (white background, blue design)
@@ -38,6 +40,7 @@ All notable changes and completed tasks are documented here.
 - ✅ Admin authentication and controls
 
 **Technical Implementation:**
+
 - ✅ Rust backend with Axum web framework
 - ✅ SQLite database for persistence
 - ✅ React + TypeScript frontend

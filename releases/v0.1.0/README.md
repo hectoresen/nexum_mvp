@@ -13,6 +13,7 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 ## 📦 Download Links
 
 ### Client Application
+
 - **Windows MSI Installer** (Recommended)
   - File: `Nexum_0.1.0_x64_en-US.msi`
   - Size: 6.12 MB
@@ -29,6 +30,7 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
   - Location: `client/src-tauri/target/release/`
 
 ### Server Application
+
 - **Server Executable**
   - File: `voice-server.exe`
   - Size: 7.2 MB
@@ -39,6 +41,7 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 ## ✨ Features
 
 ### 🎯 Core Features
+
 - **Self-hosted Architecture** - Complete control over your data
 - **Voice & Text Channels** - Organize communications by topic
 - **User Authentication** - Secure username-based sessions
@@ -47,6 +50,7 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 - **Real-time Messaging** - WebSocket-based instant messaging
 
 ### 🎨 User Interface
+
 - **Modern Dark Theme** - Professional, consistent design system
 - **Button Component Library** - 9 specialized button variants
 - **Custom App Icons** - Professional headphones icon design
@@ -54,6 +58,7 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 - **User Settings Panel** - Avatar management and preferences
 
 ### 🔧 Administration
+
 - **Admin Authentication** - Password-protected admin actions
 - **Server Settings** - Configurable server parameters
 - **User Management** - View all registered users
@@ -61,6 +66,7 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 - **Password Management** - Change admin password securely
 
 ### 💻 Local Server Management
+
 - **Server Detection** - Automatic local server discovery
 - **One-Click Start/Stop** - Easy server control
 - **First-Time Setup** - Guided admin password configuration
@@ -72,6 +78,7 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 ## 🏗️ Technical Stack
 
 ### Client
+
 - **Framework:** Tauri 2.0 (Rust + Web)
 - **UI Library:** React 18 + TypeScript
 - **Styling:** Tailwind CSS with custom theme system
@@ -79,6 +86,7 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 - **Communication:** WebSocket for real-time updates
 
 ### Server
+
 - **Language:** Rust
 - **Runtime:** Tokio (async)
 - **Web Framework:** Axum 0.7
@@ -93,6 +101,7 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 ### Quick Start (Client Only)
 
 1. **Install the client:**
+
    ```powershell
    # Run the MSI installer
    .\Nexum_0.1.0_x64_en-US.msi
@@ -106,7 +115,6 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 ### Full Setup (Client + Local Server)
 
 1. **Install the client** (includes server binary)
-   
 2. **Launch Nexum** and use the Local Server Panel:
    - Set admin password (first time only)
    - Click "Start Server"
@@ -115,11 +123,13 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 ### Server-Only Deployment
 
 1. **Copy the server binary:**
+
    ```powershell
    voice-server.exe
    ```
 
 2. **Run the server:**
+
    ```powershell
    .\voice-server.exe
    ```
@@ -137,12 +147,14 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 ## 📋 System Requirements
 
 ### Client
+
 - **OS:** Windows 10/11 (64-bit)
 - **RAM:** 2 GB minimum, 4 GB recommended
 - **Storage:** 50 MB for installation
 - **Network:** Internet connection for remote servers
 
 ### Server
+
 - **OS:** Windows 10/11, Linux (via Wine or native build)
 - **RAM:** 512 MB minimum, 1 GB recommended
 - **Storage:** 100 MB (includes database)
@@ -153,12 +165,15 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 ## 🐛 Known Issues
 
 ### Voice Functionality
+
 ⚠️ **Voice chat is not yet implemented.** This release includes:
+
 - Voice channel creation and management
 - UI for joining voice channels
 - Placeholder for future voice implementation
 
 ### Current Limitations
+
 - No voice audio streaming (UDP implementation pending)
 - No encryption for WebSocket communication
 - SQLite database (single-file, not distributed)
@@ -169,6 +184,7 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 ## 🔒 Security Notice
 
 **Important:** This is an MVP/Alpha release. For production use:
+
 - Use HTTPS/WSS with proper certificates
 - Configure firewall rules for exposed ports
 - Regularly backup the SQLite database
@@ -180,6 +196,7 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 ## 📖 Documentation
 
 Complete documentation available in the `/docs` folder:
+
 - **[Quick Start Guide](docs/quickstart.md)** - Get started in 5 minutes
 - **[Architecture Spec](docs/architecture_spec.md)** - Technical architecture
 - **[Changelog](docs/changelog.md)** - Complete change history
@@ -190,6 +207,7 @@ Complete documentation available in the `/docs` folder:
 ## 🗺️ Roadmap
 
 ### v0.2.0 (Planned)
+
 - ✅ Voice audio implementation (UDP streaming)
 - 🔒 WebSocket encryption (WSS)
 - 🌐 Web client support
@@ -197,6 +215,7 @@ Complete documentation available in the `/docs` folder:
 - 🎨 Light theme support
 
 ### Future Releases
+
 - End-to-end encryption
 - File sharing
 - Screen sharing
@@ -222,6 +241,7 @@ Copyright © 2026 Nexum Team. All rights reserved.
 ## 💬 Support
 
 For issues, questions, or feedback:
+
 - **GitHub Issues:** [Create an issue](https://github.com/hectoresen/nexum_mvp/issues)
 - **Documentation:** Check `/docs` folder in repository
 
@@ -230,6 +250,7 @@ For issues, questions, or feedback:
 ## 🙏 Acknowledgments
 
 Built with:
+
 - [Tauri](https://tauri.app/) - Desktop app framework
 - [Rust](https://www.rust-lang.org/) - System programming language
 - [React](https://react.dev/) - UI library
