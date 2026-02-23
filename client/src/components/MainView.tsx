@@ -17,7 +17,7 @@ interface MainViewProps {
   onSendMessage: (content: string) => void
   onAuthenticateAdmin?: () => void
   onOpenServerSettings?: () => void
-  onOpenClientSettings?: () => void
+  onOpenClientSettings?: (section: 'general' | 'voice-video') => void
   onRenameChannel?: (channelId: string, newName: string) => void
   onDeleteChannel?: (channelId: string) => void
   onViewUsers?: () => void
@@ -214,7 +214,7 @@ export default function MainView({
               {onOpenClientSettings && (
                 <button
                   onClick={() => {
-                    onOpenClientSettings()
+                    onOpenClientSettings('general')
                     setUserDropdownOpen(false)
                   }}
                   className="w-full px-3 py-2 text-sm text-left text-white hover:bg-gray-700 transition-colors flex items-center gap-2">

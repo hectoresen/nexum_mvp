@@ -43,6 +43,17 @@ This phase integrates the CLI server with the client for a unified user experien
 - [x] **User settings modal** — dropdown now has "User Settings" with "Change Avatar" option
 - [x] **Right sidebar user list** — displays all server users with avatars, roles, "(you)" indicator
 - [x] **Button styling consistency** — Cancel buttons are gray with gray text, Save buttons are blue
+- [x] **User list loading fix** — removed owner-only restriction from GET_USERS, now accessible to all authenticated users
+- [x] **Avatar display after upload fix** — client constructs full URLs from server's avatar_path + serverAddress
+
+### 0.5.3 Home Screen UX Redesign ✅
+
+- [x] **Server dropdown navigation** — moved local server management from card to header dropdown
+- [x] **Settings dropdown with sections** — General (app/language/appearance) and Voice & Video (audio devices)
+- [x] **Minimal add server button** — changed from card-style button to icon-only "+" 
+- [x] **Server name auto-fetch** — removed manual name field, server sends real name in WELCOME message
+- [x] **Client settings tabs** — reorganized modal into General and Voice & Video sections
+- [x] **Removed gear icon** — consolidated settings access into dropdown menu
 
 ### Future: Private Messaging & Encryption
 

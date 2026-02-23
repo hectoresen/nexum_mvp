@@ -2,6 +2,77 @@
 
 All notable changes and completed tasks are documented here.
 
+## 2026-02-23 - Bug Fixes & UI Redesign (7 improvements)
+
+### ✅ Completed
+
+**1. User List Loading Fix**
+
+- **Server — `server/src/handlers.rs`**: Modified `handle_get_users` to allow any authenticated user (previously owner-only); removed `UserRole::Owner` check; now validates session existence only; fixes "Loading..." bug where non-owner users couldn't see server members in right sidebar
+
+**2. Avatar Display After Upload Fix**
+
+- **Client — `client/src/components/UserListPanel.tsx`**: Added `serverAddress` prop; created `getAvatarUrl()` helper that prefers `avatar_url` (external URLs) but falls back to constructing full URL from `avatar_path + serverAddress`
+- **Client — `client/src/components/MainView.tsx`**: Passes `serverAddress` prop to UserListPanel
+- **Client — `client/src/App.tsx`**: Modified `currentUserAvatar` construction to use `avatar_path` if `avatar_url` not available; passes `serverAddress` to MainView
+- **Root cause**: Server stores relative `avatar_path` (e.g. "avatars/{userId}.webp"), client now constructs `http://{serverAddress}/{avatar_path}` for display
+
+**3. Home Screen UI Redesign**
+
+- **Client — `client/src/components/ServerListView.tsx`**: 
+  - Removed standalone "Local Server" card section entirely
+  - Added "Server" dropdown below subtitle with local server status indicator (🟢 Running / ⚪ Installed / 🔴 Not Installed)
+  - Server dropdown contains Start/Configure/Download options based on status + Add Server option
+  - Changed "+ Add Server" button from rectangular card to minimal icon-only design (no background, no border)
+  - Added "Settings" dropdown next to Server dropdown
+  - Removed gear icon button from header right side
+  - Updated empty state message to reference new UI ("Click the + button or Server menu")
+  - Dropdown borders removed/softened for cleaner appearance
+  - Click-outside detection for both dropdowns
+
+**4. Settings Dropdown with Sections**
+
+- **Client — `client/src/components/ServerListView.tsx`**: Settings dropdown now has two options:
+  - "General" — opens settings modal to general section (app, language, appearance)
+  - "Voice & Video" — opens settings modal to voice/video section (audio devices)
+- **Client — `client/src/components/ClientSettingsModal.tsx`**: Redesigned with tabbed interface; accepts `initialSection` prop; reorganized into two sections:
+  - **General tab**: Application settings (auto-start on boot, language selector), Appearance (theme selector)
+  - **Voice & Video tab**: Audio Devices (input/output device selectors)
+- **Client — `client/src/App.tsx`**: Changed `showClientSettingsModal` from boolean to `clientSettingsSection` (nullable union type); passes section to modal via `initialSection` prop
+- **Client — `client/src/components/MainView.tsx`**: Updated `onOpenClientSettings` callback to accept section parameter; defaults to 'general' when called from user dropdown
+
+**5. Server Name Auto-fetch (removed manual naming)**
+
+- **Client — `client/src/components/AddServerModal.tsx`**: Removed "Server Name" input field; modal now only asks for server address; simplified interface from 2 fields to 1
+- **Client — `client/src/App.tsx`**: Modified `handleAddServer` to accept only `address` parameter; uses address as temporary name; when WELCOME received, updates server name from `message.payload.server_name` via `ServerManager.updateServer()`; server list refreshes to show real server name
+- **Flow**: User adds server with address only → connects → server sends real name in WELCOME → client updates saved server name automatically
+
+**6. Translation Consistency**
+
+- **Client — `client/src/components/ServerListView.tsx`**: Changed "Lista de servidores" to "Server List" for English consistency
+
+**7. Interface Type Updates**
+
+- **Client — `client/src/lib/serverManager.ts`**: `addServer()` signature unchanged (still requires name for temp display)
+- **Client — `client/src/types/server.ts`**: SavedServer interface unchanged (name field remains for display)
+- **Type safety**: All callback signatures updated to use `(section: 'general' | 'voice-video')` for settings navigation
+
+### 📦 Build Status
+
+- **Server**: ✅ No changes required
+- **Client**: ✅ Built successfully (908ms) — 49 modules, 0 TypeScript errors
+
+### 🎯 Impact
+
+- User list now populates for all users (not just owners)
+- Avatars display correctly after upload without reconnection
+- Cleaner home screen with consolidated navigation dropdowns
+- Settings organized into logical sections with direct navigation
+- Server names fetched automatically, reducing user friction during setup
+- Consistent English UI throughout application
+
+---
+
 ## 2026-02-22 - Avatar System & User UI Enhancements (9 improvements)
 
 ### ✅ Completed

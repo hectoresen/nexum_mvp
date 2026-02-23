@@ -62,7 +62,7 @@ function App() {
   const [adminAuthError, setAdminAuthError] = useState<string | null>(null)
   const [showServerSettingsModal, setShowServerSettingsModal] = useState(false)
   const [showUserListModal, setShowUserListModal] = useState(false)
-  const [showClientSettingsModal, setShowClientSettingsModal] = useState(false)
+  const [clientSettingsSection, setClientSettingsSection] = useState<'general' | 'voice-video' | null>(null)
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false)
   const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null)
   const [showUserSettingsModal, setShowUserSettingsModal] = useState(false)
@@ -87,9 +87,9 @@ function App() {
     }
   }
 
-  const handleAddServer = (name: string, address: string) => {
+  const handleAddServer = (address: string) => {
     ServerManager.addServer({
-      name,
+      name: address, // Temporary name, will be updated on connection
       address,
       isLocal: false,
     })
@@ -330,6 +330,9 @@ function App() {
         if (connection.server) {
           ServerManager.updateLastUserId(connection.server.id, message.payload.user_id)
           ServerManager.updateLastUsername(connection.server.id, message.payload.username)
+          // Update server name from server response
+          ServerManager.updateServer(connection.server.id, { name: message.payload.server_name })
+          setServers(ServerManager.loadServers()) // Refresh server list to show updated name
         }
 
         return {
@@ -654,7 +657,7 @@ function App() {
           onAddServer={() => setShowAddServerModal(true)}
           onDeleteServer={handleDeleteServer}
           onLaunchLocalServer={handleLaunchLocalServer}
-          onOpenClientSettings={() => setShowClientSettingsModal(true)}
+          onOpenClientSettings={(section) => setClientSettingsSection(section)}
           localServerStatus={localServerStatus}
         />
 
@@ -672,7 +675,7 @@ function App() {
           />
         )}
 
-        {showClientSettingsModal && <ClientSettingsModal onClose={() => setShowClientSettingsModal(false)} />}
+        {clientSettingsSection && <ClientSettingsModal initialSection={clientSettingsSection} onClose={() => setClientSettingsSection(null)} />}
       </>
     )
   }
@@ -711,7 +714,7 @@ function App() {
         onSendMessage={handleSendMessage}
         onAuthenticateAdmin={() => setShowAdminAuthModal(true)}
         onOpenServerSettings={handleGetServerSettings}
-        onOpenClientSettings={() => setShowClientSettingsModal(true)}
+        onOpenClientSettings={(section) => setClientSettingsSection(section)}
         onRenameChannel={handleRenameChannel}
         onDeleteChannel={handleDeleteChannel}
         onViewUsers={handleGetUsers}
@@ -741,7 +744,7 @@ function App() {
 
       {showUserListModal && <UserListModal users={conn.serverUsers} onClose={() => setShowUserListModal(false)} />}
 
-      {showClientSettingsModal && <ClientSettingsModal onClose={() => setShowClientSettingsModal(false)} />}
+      {clientSettingsSection && <ClientSettingsModal initialSection={clientSettingsSection} onClose={() => setClientSettingsSection(null)} />}
 
       {showChangePasswordModal && (
         <ChangePasswordModal

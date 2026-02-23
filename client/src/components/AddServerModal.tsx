@@ -2,17 +2,16 @@ import { useState } from 'react'
 
 interface AddServerModalProps {
   onClose: () => void
-  onAdd: (name: string, address: string) => void
+  onAdd: (address: string) => void
 }
 
 export default function AddServerModal({ onClose, onAdd }: AddServerModalProps) {
-  const [name, setName] = useState('')
   const [address, setAddress] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (name.trim() && address.trim()) {
-      onAdd(name.trim(), address.trim())
+    if (address.trim()) {
+      onAdd(address.trim())
       onClose()
     }
   }
@@ -31,22 +30,6 @@ export default function AddServerModal({ onClose, onAdd }: AddServerModalProps) 
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label htmlFor="serverName" className="block text-sm font-medium text-gray-300 mb-2">
-              Server Name
-            </label>
-            <input
-              id="serverName"
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="My Server"
-              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-              autoFocus
-              required
-            />
-          </div>
-
-          <div>
             <label htmlFor="serverAddress" className="block text-sm font-medium text-gray-300 mb-2">
               Server Address
             </label>
@@ -57,6 +40,7 @@ export default function AddServerModal({ onClose, onAdd }: AddServerModalProps) 
               onChange={e => setAddress(e.target.value)}
               placeholder="localhost:8080 or 192.168.1.10:8080"
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+              autoFocus
               required
             />
             <p className="text-xs text-gray-400 mt-1">Format: host:port</p>

@@ -1,10 +1,14 @@
 import { useState } from 'react'
 
+type SettingsSection = 'general' | 'voice-video'
+
 interface ClientSettingsModalProps {
   onClose: () => void
+  initialSection?: SettingsSection
 }
 
-export default function ClientSettingsModal({ onClose }: ClientSettingsModalProps) {
+export default function ClientSettingsModal({ onClose, initialSection = 'general' }: ClientSettingsModalProps) {
+  const [currentSection, setCurrentSection] = useState<SettingsSection>(initialSection)
   const [autoStart, setAutoStart] = useState(false)
   const [theme, setTheme] = useState('dark')
   const [language, setLanguage] = useState('en')
@@ -39,10 +43,36 @@ export default function ClientSettingsModal({ onClose }: ClientSettingsModalProp
           </button>
         </div>
 
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6 border-b border-gray-700">
+          <button
+            onClick={() => setCurrentSection('general')}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+              currentSection === 'general'
+                ? 'text-white border-blue-500'
+                : 'text-gray-400 border-transparent hover:text-gray-300'
+            }`}
+          >
+            General
+          </button>
+          <button
+            onClick={() => setCurrentSection('voice-video')}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+              currentSection === 'voice-video'
+                ? 'text-white border-blue-500'
+                : 'text-gray-400 border-transparent hover:text-gray-300'
+            }`}
+          >
+            Voice & Video
+          </button>
+        </div>
+
         <div className="space-y-6">
-          {/* General Settings */}
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-3 border-b border-gray-700 pb-2">General</h3>
+          {/* General Section */}
+          {currentSection === 'general' && (
+            <>
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-3 border-b border-gray-700 pb-2">Application</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -86,8 +116,12 @@ export default function ClientSettingsModal({ onClose }: ClientSettingsModalProp
               </div>
             </div>
           </div>
+            </>
+          )}
 
-          {/* Audio Devices */}
+          {/* Voice & Video Section */}
+          {currentSection === 'voice-video' && (
+            <>
           <div>
             <h3 className="text-lg font-semibold text-white mb-3 border-b border-gray-700 pb-2">Audio Devices</h3>
             <div className="space-y-3">
@@ -120,6 +154,8 @@ export default function ClientSettingsModal({ onClose }: ClientSettingsModalProp
               </div>
             </div>
           </div>
+            </>
+          )}
 
           {/* Footer Note */}
           <div className="bg-gray-700/50 rounded-lg p-4">
