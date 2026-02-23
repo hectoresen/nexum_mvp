@@ -8,6 +8,7 @@ import UserListPanel from './UserListPanel'
 interface MainViewProps {
   state: AppState
   serverName?: string // Optional server name to display
+  serverAddress?: string // Server address for avatar URLs
   currentUserAvatar?: string | null // Current user's avatar URL
   serverUsers: User[] | null // List of all server users
   onDisconnect: () => void
@@ -26,6 +27,7 @@ interface MainViewProps {
 export default function MainView({
   state,
   serverName = 'Voice Server',
+  serverAddress,
   currentUserAvatar,
   serverUsers,
   onDisconnect,
@@ -265,7 +267,7 @@ export default function MainView({
       </div>
 
       {/* Right sidebar - User list */}
-      <UserListPanel users={serverUsers} currentUserId={state.userId} />
+      <UserListPanel users={serverUsers} currentUserId={state.userId} serverAddress={serverAddress} />
     </div>
   )
 }

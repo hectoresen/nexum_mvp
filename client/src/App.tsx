@@ -681,7 +681,10 @@ function App() {
   const conn = view.connection
   // Get current user avatar from user list
   const currentUser = conn.serverUsers?.find(u => u.id === conn.userId)
-  const currentUserAvatar = currentUser?.avatar_url || null
+  
+  // Construct avatar URL from avatar_path or use avatar_url
+  const currentUserAvatar = currentUser?.avatar_url || 
+    (currentUser?.avatar_path ? `http://${conn.server.address}/${currentUser.avatar_path}` : null)
 
   return (
     <>
@@ -699,6 +702,7 @@ function App() {
           error: conn.error,
         }}
         serverName={conn.serverName}
+        serverAddress={conn.server.address}
         currentUserAvatar={currentUserAvatar}
         serverUsers={conn.serverUsers}
         onDisconnect={handleDisconnect}

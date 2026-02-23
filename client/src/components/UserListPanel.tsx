@@ -3,9 +3,10 @@ import { User } from '../types/protocol'
 interface UserListPanelProps {
   users: User[] | null
   currentUserId: string | null
+  serverAddress?: string // e.g., "localhost:8080"
 }
 
-export default function UserListPanel({ users, currentUserId }: UserListPanelProps) {
+export default function UserListPanel({ users, currentUserId, serverAddress }: UserListPanelProps) {
   console.log('UserListPanel render - users:', users, 'currentUserId:', currentUserId)
 
   if (!users) {
@@ -25,15 +26,29 @@ export default function UserListPanel({ users, currentUserId }: UserListPanelPro
   const owners = users.filter(u => u.role === 'owner')
   const members = users.filter(u => u.role === 'member')
 
+  const getAvatarUrl = (user: User): string | null => {
+    // Prefer avatar_url (external URLs)
+    if (user.avatar_url) return user.avatar_url
+    
+    // Use avatar_path with server address
+    if (user.avatar_path && serverAddress) {
+      return `http://${serverAddress}/${user.avatar_path}`
+    }
+    
+    return null
+  }
+
   const renderUser = (user: User) => {
     const isCurrentUser = user.id === currentUserId
+    const avatarUrl = getAvatarUrl(user)
+    
     return (
       <div
         key={user.id}
         className={`px-3 py-2 hover:bg-gray-700 transition-colors cursor-pointer flex items-center gap-2 ${isCurrentUser ? 'bg-gray-700/50' : ''}`}
         title={`${user.username}${isCurrentUser ? ' (you)' : ''}`}>
         <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0 overflow-hidden">
-          {user.avatar_url ? <img src={user.avatar_url} alt={user.username} className="w-full h-full object-cover" /> : <span className="text-xs font-semibold text-white">{user.username[0]?.toUpperCase()}</span>}
+          {avatarUrl ? <img src={avatarUrl} alt={user.username} className="w-full h-full object-cover" /> : <span className="text-xs font-semibold text-white">{user.username[0]?.toUpperCase()}</span>}
         </div>
         <div className="flex-1 min-w-0">
           <p className={`text-sm truncate ${isCurrentUser ? 'text-white font-medium' : 'text-gray-300'}`}>

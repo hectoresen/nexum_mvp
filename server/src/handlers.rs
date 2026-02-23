@@ -580,13 +580,9 @@ async fn handle_get_users(
     state: &Arc<AppState>,
     tx: &mpsc::UnboundedSender<Message>,
 ) -> Result<()> {
-    let role = state.session_manager.get_user_role(session_id)
+    // Any authenticated user can see the user list
+    let _user_id = state.session_manager.get_session(session_id)
         .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
-
-    if role != UserRole::Owner {
-        send_error(tx, ErrorCode::Unauthorized, "Only owners can view user list")?;
-        return Ok(());
-    }
 
     let users = state.db.list_users()?;
     let msg = ServerMessage::ServerUsers(ServerUsersPayload { users });
