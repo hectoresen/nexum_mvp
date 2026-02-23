@@ -2,6 +2,64 @@
 
 All notable changes and completed tasks are documented here.
 
+## 🎉 v0.1.0 - First Public Release (MVP/Alpha) - 2026-02-23
+
+**Release Tag:** `v0.1.0`  
+**Type:** MVP/Alpha - First Public Release
+
+### 📦 Release Artifacts
+
+- **Client Application:**
+  - Windows MSI Installer: `Nexum_0.1.0_x64_en-US.msi` (6.12 MB)
+  - Windows NSIS Installer: `Nexum_0.1.0_x64-setup.exe` (4.05 MB)
+  - Standalone Executable: `voice-client.exe` (10.68 MB)
+
+- **Server Application:**
+  - Server Executable: `voice-server.exe` (7.2 MB)
+
+### ✨ Features Included
+
+**Core Functionality:**
+- ✅ Self-hosted voice and text communication server
+- ✅ Desktop client with Tauri framework
+- ✅ WebSocket-based real-time messaging
+- ✅ User authentication and session management
+- ✅ Channel management (text & voice types)
+- ✅ Avatar system (upload or URL)
+- ✅ Server administration panel
+- ✅ Local server management (start/stop/configure)
+
+**User Interface:**
+- ✅ Modern dark theme with centralized theme system
+- ✅ Button component library (9 specialized variants)
+- ✅ Professional headphones app icon (white background, blue design)
+- ✅ Responsive layout (server list, channels, chat, user list)
+- ✅ User settings and profile management
+- ✅ Admin authentication and controls
+
+**Technical Implementation:**
+- ✅ Rust backend with Axum web framework
+- ✅ SQLite database for persistence
+- ✅ React + TypeScript frontend
+- ✅ Tailwind CSS with custom utilities
+- ✅ WebSocket protocol for real-time communication
+- ✅ Image processing (WebP, PNG, JPEG, GIF support)
+
+### 📝 Known Limitations
+
+- ⚠️ Voice audio streaming not yet implemented (UI placeholder only)
+- ⚠️ No WebSocket encryption (WSS not configured)
+- ⚠️ Windows-only installers (no macOS/Linux builds)
+- ⚠️ SQLite single-file database (not distributed)
+
+### 🔗 Links
+
+- **Release Notes:** [RELEASE_NOTES_v0.1.0.md](../RELEASE_NOTES_v0.1.0.md)
+- **GitHub Tag:** https://github.com/hectoresen/nexum_mvp/releases/tag/v0.1.0
+- **Documentation:** [docs/](../docs/)
+
+---
+
 ## 2026-02-23 - Complete Theme Migration & Button Component System
 
 ### ✅ Completed
