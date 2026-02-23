@@ -4,6 +4,7 @@ import { Channel, User } from '../types/protocol'
 import ChannelList from './ChannelList'
 import ChatArea from './ChatArea'
 import UserListPanel from './UserListPanel'
+import { tw } from '../theme'
 
 interface MainViewProps {
   state: AppState
@@ -72,11 +73,11 @@ export default function MainView({
   const currentMessages = state.currentChannelId ? state.messages.get(state.currentChannelId) || [] : []
 
   return (
-    <div className="flex h-full w-full bg-gray-900">
+    <div className={`flex h-full w-full ${tw.bgMain}`}>
       {/* Sidebar */}
-      <div className="w-64 bg-gray-800 flex flex-col">
+      <div className={`w-64 ${tw.bgHeader} flex flex-col`}>
         {/* Server header */}
-        <div className="p-4 border-b border-gray-700">
+        <div className={`p-4 border-b ${tw.borderDefault}`}>
           <h2 className="text-white font-semibold truncate">{serverName}</h2>
           <p className="text-xs text-gray-400 mt-1">
             {state.username} • {state.role}

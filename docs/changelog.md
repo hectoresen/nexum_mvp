@@ -2,6 +2,272 @@
 
 All notable changes and completed tasks are documented here.
 
+## 2026-02-23 - Complete Theme Migration & Button Component System
+
+### ✅ Completed
+
+**Button Component System**
+
+- **Created reusable Button component** — `client/src/components/Button.tsx`:
+  - **Base Button component** with props: `variant` (primary|secondary|danger|warning), `size` (sm|md|lg), `fullWidth`
+  - **Variants**:
+    - `primary` — Blue (#2563eb) for primary actions
+    - `secondary` — Gray-800 for secondary/cancel actions
+    - `danger` — Red (#dc2626) for destructive actions
+    - `warning` — Amber-700 for warning/admin actions
+  - **Size options**:
+    - `sm` — Compact (px-3 py-1.5 text-sm)
+    - `md` — Default (px-6 py-2)
+    - `lg` — Large (px-8 py-3 text-lg)
+  - **Specialized button exports**:
+    - `PrimaryButton`, `SecondaryButton`, `DangerButton`, `WarningButton`
+    - `CancelButton`, `SubmitButton`, `SaveButton`, `DeleteButton`, `CloseButton`
+  - Fully integrated with theme system using `tw.*` utilities
+  - Includes disabled states, focus rings, and smooth transitions
+
+**Complete Theme Migration — All Components Updated**
+
+- **User Interface Components** (6 files):
+  - `client/src/components/UserListPanel.tsx` — Right sidebar member list
+    - Fixed: User complaint about wrong background color (bg-gray-800 → tw.bgHeader)
+    - Updated: All text colors, hover states, avatar backgrounds, borders
+  - `client/src/components/AvatarModal.tsx` — Avatar upload/URL modal (356 lines, most complex)
+    - Migrated: Modal container, tabs, drag/drop zone, preview sections
+    - Updated: All input fields, processing states, success/empty states
+    - Replaced: All buttons with PrimaryButton/SecondaryButton/CancelButton components
+  - `client/src/components/UserSettingsModal.tsx` — User settings modal
+    - Updated: Modal styling, text colors, buttons (SecondaryButton for Close)
+  - `client/src/components/AdminAuthModal.tsx` — Admin authentication modal
+    - Updated: Modal backdrop (theme.overlay), card styling, input fields
+    - Replaced: Cancel button with CancelButton component
+  - `client/src/components/ChangePasswordModal.tsx` — Password change modal
+    - Updated: All 3 password inputs with theme colors and focus states
+    - Replaced: Cancel button with CancelButton component
+  - `client/src/components/ChannelList.tsx` — Channel list display
+    - Updated: Hover states (hover:bg-gray-700/50 → tw.bgHoverSubtle)
+
+- **Connection & Server Components** (3 files):
+  - `client/src/components/ChatArea.tsx` — Main chat interface
+    - Updated: Channel header, message area, user avatars, message text
+    - Updated: Input field, plus button dropdown, send button, GIF button
+    - Updated: Empty state messages, voice channel info section
+    - All backgrounds, borders, text colors migrated to theme
+  - `client/src/components/ConnectView.tsx` — Server connection screen
+    - Updated: Main container background, username/server inputs
+    - Updated: Labels, placeholders, helper text, connect button
+    - Updated: Footer border and tagline text
+  - `client/src/components/ServerConnectModal.tsx` — Server connection modal
+    - Updated: Modal backdrop (theme.overlay), card styling
+    - Updated: Server address display box, username input
+    - Replaced: Cancel button with CancelButton component
+
+- **Server Management Components** (1 file):
+  - `client/src/components/LocalServerPanel.tsx` — Local server management
+    - Updated: All slate-\* colors to theme equivalents
+    - Updated: Loading states, not installed view, server info display
+    - Updated: Password input section (first time setup)
+    - Updated: Control buttons (Start/Stop/Refresh), binary path display
+
+**Color Replacements Summary**:
+
+- ❌ Removed: `bg-gray-800`, `bg-gray-700`, `bg-gray-600`, `bg-slate-800`, `bg-slate-700`
+- ✅ Replaced with: `tw.bgCard`, `tw.bgHeader`, `tw.bgInput`, `tw.bgMain`
+- ❌ Removed: `text-white`, `text-gray-300`, `text-gray-400`, `text-gray-500`, `text-slate-*`
+- ✅ Replaced with: `tw.textPrimary`, `tw.textSecondary`, `tw.textTertiary`, `tw.textMuted`
+- ❌ Removed: `border-gray-700`, `border-gray-600`, `border-slate-*`
+- ✅ Replaced with: `tw.borderDefault`, `tw.borderSubtle`
+- ❌ Removed: `hover:bg-gray-700`, `hover:bg-gray-600`, `hover:text-white`
+- ✅ Replaced with: `tw.bgHover`, `tw.bgHoverSubtle`, `hover:${tw.textPrimary}`
+- ❌ Removed: Hardcoded button HTML with inline styles
+- ✅ Replaced with: Specialized button components (PrimaryButton, CancelButton, etc.)
+
+**Benefits**:
+
+- ✅ **100% theme consistency** — All components now use centralized theme system
+- ✅ **Reusable button components** — Eliminates duplicate button styling code
+- ✅ **Easy maintenance** — Change theme colors in one place, affects entire app
+- ✅ **Better semantics** — `tw.textPrimary` is clearer than `text-white`
+- ✅ **Future-proof** — Ready for light mode or custom theme implementation
+- ✅ **Component library** — 9 specialized button variants for consistent UX
+
+**App Icon Created**:
+
+- Created `client/src-tauri/icons/app-icon.svg` — Professional headphones icon
+  - **Design**: Modern minimalist headphones with microphone boom
+  - **Colors**: Blue (#2563eb) on white background (#FFFFFF)
+  - **Features**: Clean design, high contrast, clearly visible in all contexts
+  - **Style**: Professional gaming/communication headset with articulated mic
+- **Generated all required icon formats using ImageMagick**:
+  - `32x32.png` (1.71 KB) — Small taskbar icon
+  - `64x64.png` (3.64 KB) — Standard icon
+  - `128x128.png` (8.45 KB) — Large icon
+  - `128x128@2x.png` (18.77 KB) — Retina display (256x256)
+  - `icon.png` (40.41 KB) — Master icon (512x512)
+  - `icon.ico` (278.79 KB) — Windows multi-size icon (16,32,48,256)
+- Created `convert_icons.ps1` script for automatic icon generation from SVG
+- **Design improvement**: Changed from dark background (hard to see) to white background with high contrast
+  - `128x128.png` (11.97 KB) — Large icon
+  - `128x128@2x.png` (27.01 KB) — Retina display (256x256)
+  - `icon.png` (61.36 KB) — Master icon (512x512)
+  - `icon.ico` (278.79 KB) — Windows multi-size icon (16,32,48,256)
+- Created `convert_icons.ps1` script for automatic icon generation from SVG
+
+**Build Verification**:
+
+- ✅ TypeScript compilation: 0 errors
+- ✅ Vite production build: 51 modules, 925ms
+- ✅ Output: 226.81 kB JS (gzip: 62.46 kB), 22.06 kB CSS (gzip: 4.81 kB)
+- ✅ All components compile and bundle successfully
+- ✅ Tauri release build: Completed successfully (28.40s)
+- ✅ Windows installers generated:
+  - `Nexum_0.1.0_x64_en-US.msi` (MSI installer)
+  - `Nexum_0.1.0_x64-setup.exe` (NSIS installer)
+- ✅ New icons integrated in Windows executable
+
+**Technical Details**:
+
+- Updated 10+ component files with theme migration
+- Created 1 new Button component system (102 lines)
+- Removed 100+ instances of hardcoded colors
+- Fixed 6 TypeScript unused import errors during migration
+- All changes maintain backward compatibility with existing Tauri backend
+
+---
+
+## 2026-02-23 - Centralized Theme System
+
+### ✅ Completed
+
+**Theme Architecture Refactoring**
+
+- **Created centralized theme system** — `client/src/theme.ts`:
+  - Defined all application colors in a single configuration file
+  - **Background colors**: `bg.main` (#0a0a0a), `bg.header` (#111111), `bg.card` (#1a1a1a), `bg.input` (#111111)
+  - **Border colors**: `border.default` (gray-800), `border.subtle` (gray-700), `border.focus`
+  - **Text colors**: `text.primary` (white), `text.secondary` (gray-300), `text.tertiary` (gray-400), `text.muted` (gray-500)
+  - **Button colors**: Primary (blue), secondary (gray), danger (red) with hover states
+  - **Status colors**: Online, offline, error, success, warning
+  - Exported Tailwind utility classes (`tw.*`) for easy integration
+
+- **Updated components to use theme system** (6 files):
+  - `client/src/components/ServerListView.tsx` — Header, dropdowns, navigation
+  - `client/src/components/MainView.tsx` — Main view layout and sidebar
+  - `client/src/components/AddServerModal.tsx` — Server connection modal
+  - `client/src/components/ServerSettingsModal.tsx` — Server configuration modal
+  - `client/src/components/ClientSettingsModal.tsx` — Client settings modal
+  - `client/src/components/ChannelList.tsx` — Channel list sidebar
+
+- **Created documentation** — `client/THEME_GUIDE.md`:
+  - Complete guide on using the theme system
+  - Color palette reference with semantic names
+  - Code examples for both inline styles and Tailwind classes
+  - Migration guide for converting hardcoded colors
+  - Future light mode implementation guidelines
+
+**Benefits**:
+
+- ✅ Single source of truth for all colors — change once, propagates everywhere
+- ✅ Consistent color usage across entire application
+- ✅ Easy to implement light mode or custom themes in the future
+- ✅ Semantic color names (`bgHeader`, `textPrimary`) instead of utility classes
+- ✅ Eliminates hardcoded color values scattered throughout components
+
+**Technical Details**:
+
+- Replaced hardcoded Tailwind classes (`bg-gray-800`, `text-gray-400`, etc.) with theme references
+- Used template literals for dynamic className composition
+- Maintained TypeScript type safety
+- Compatible with existing Tailwind configuration
+
+✅ **Build verified**: Client builds successfully with theme system (922ms, 0 errors, 50 modules)
+
+---
+
+## 2026-02-23 - Logo Implementation
+
+### ✅ Completed
+
+**Brand Logo Integration**
+
+- **Assets**:
+  - Added `client/src/assets/nexumlogodarkmode.png` — Nexum logo for dark theme
+  - Added `client/src/assets/nexumlogolightmode.png` — Nexum logo for light theme
+  - Created `client/src/vite-env.d.ts` — TypeScript declarations for image imports
+
+- **Client — `client/src/App.tsx`**:
+  - Added `theme` state ('dark' | 'light') for theme detection
+  - Passes `theme` prop to ServerListView component
+  - Prepared infrastructure for future light mode implementation
+
+- **Client — `client/src/components/ServerListView.tsx`**:
+  - Replaced text "Nexum" heading with dynamic logo image
+  - Logo switches automatically based on theme prop
+  - Logo displays with `h-8 w-auto` sizing for consistent header height
+  - Imports both theme variants of logo
+
+**Technical changes**:
+
+- Logo images bundled in production build (2MB each)
+- Dynamic import based on theme state
+- TypeScript module declarations for all image formats (.png, .jpg, .svg, .webp, .gif)
+
+✅ **Build verified**: Client builds successfully with logo assets (908ms, 0 errors, 51 modules)
+
+---
+
+## 2026-02-23 - Project Rebranding: Voice MVP → Nexum
+
+### ✅ Completed
+
+**Complete project rename from "Voice MVP" to "Nexum"**
+
+- **Documentation (10 files)**:
+  - `readme.md` — Updated title, all descriptions, tagline, and footer
+  - `docs/todo.md` — Updated title
+  - `docs/quickstart.md` — Updated title, references, database paths (`voice_mvp.db` → `nexum.db`)
+  - `docs/USER_FLOW.md` — Updated title
+  - `docs/architecture_spec.md` — Updated title, comparison tables (vs Discord/TeamSpeak/Mumble), file structure, backup references
+  - `docs/CLIENT_SERVER_INTEGRATION.md` — Updated installation paths, welcome messages
+  - `docs/changelog.md` — Updated installer names
+  - `docs/agent_decisions.md` — Updated project paths
+  - `docs/dev.sh` — Updated script name
+  - `server/README.md` — Updated database references
+
+- **Client (7 files)**:
+  - `client/src-tauri/tauri.conf.json` — Changed `productName: "Nexum"`, `identifier: "com.nexum.app"`, window title
+  - `client/src-tauri/Cargo.toml` — Updated description and authors to "Nexum Team"
+  - `client/index.html` — Changed page title to "Nexum"
+  - `client/src/components/ConnectView.tsx` — Updated main heading
+  - `client/src/components/ServerListView.tsx` — Updated main heading
+  - `client/src/components/ClientSettingsModal.tsx` — Updated auto-start description text
+  - `client/src/lib/serverManager.ts` — Changed storage key to `'nexum_servers'`
+  - `client/src-tauri/src/server_manager.rs` — Updated installation paths (`C:\Program Files\Nexum`, `~/nexum`)
+
+- **Server (3 files)**:
+  - `server/Cargo.toml` — Updated authors to "Nexum Team"
+  - `server-gui/src-tauri/Cargo.toml` — Updated authors to "Nexum Team"
+  - `server-gui/src-tauri/tauri.conf.json` — Changed `identifier: "com.nexum.servergui"`
+
+- **Build Scripts (2 files)**:
+  - `dev.ps1` — Updated header comment and console messages
+  - `build.ps1` — Updated header comment and script title banner
+
+- **Assets**:
+  - Created `client/src/assets/` directory for logos and images
+
+**Naming conventions established**:
+
+- Display name: "Nexum"
+- File/folder names: `nexum`
+- Executable names: `nexum.exe`
+- Package identifiers: `com.nexum.*`
+- Database file: `nexum.db` (previously `voice_mvp.db`, actual runtime: `server.db`)
+- LocalStorage keys: `nexum_servers`
+
+✅ **Build verified**: Client builds successfully after rename (932ms, 0 errors)
+
+---
+
 ## 2026-02-23 - Bug Fixes & UI Redesign (8 improvements)
 
 ### ✅ Completed

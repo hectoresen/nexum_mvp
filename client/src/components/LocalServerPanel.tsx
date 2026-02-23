@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { tw } from '../theme'
 
 interface ServerInfo {
   status: 'notinstalled' | 'stopped' | 'starting' | 'running' | 'error'
@@ -144,10 +145,10 @@ export default function LocalServerPanel({ onServerStarted, onServerStopped }: L
 
   if (loading && !serverInfo) {
     return (
-      <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+      <div className={`${tw.bgCard} rounded-lg p-4 border ${tw.borderDefault}`}>
         <div className="flex items-center justify-center">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-500"></div>
-          <span className="ml-3 text-slate-300">Detecting server...</span>
+          <span className={`ml-3 ${tw.textSecondary}`}>Detecting server...</span>
         </div>
       </div>
     )
@@ -155,13 +156,13 @@ export default function LocalServerPanel({ onServerStarted, onServerStopped }: L
 
   if (!serverInfo?.installed) {
     return (
-      <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+      <div className={`${tw.bgCard} rounded-lg p-4 border ${tw.borderDefault}`}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold text-white">🖥️ Local Server</h3>
-          <span className="text-xs text-slate-400">Not Installed</span>
+          <h3 className={`text-lg font-semibold ${tw.textPrimary}`}>🖥️ Local Server</h3>
+          <span className={`text-xs ${tw.textTertiary}`}>Not Installed</span>
         </div>
-        <p className="text-sm text-slate-300 mb-3">The server binary is not installed on this system.</p>
-        <div className="text-xs text-slate-400">Expected location: Same directory as client executable</div>
+        <p className={`text-sm ${tw.textSecondary} mb-3`}>The server binary is not installed on this system.</p>
+        <div className={`text-xs ${tw.textTertiary}`}>Expected location: Same directory as client executable</div>
       </div>
     )
   }
@@ -177,10 +178,10 @@ export default function LocalServerPanel({ onServerStarted, onServerStopped }: L
   const status = statusConfig[serverInfo.status]
 
   return (
-    <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+    <div className={`${tw.bgCard} rounded-lg p-4 border ${tw.borderDefault}`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-white">🖥️ Local Server</h3>
+        <h3 className={`text-lg font-semibold ${tw.textPrimary}`}>🖥️ Local Server</h3>
         <div className="flex items-center">
           <div className={`w-2 h-2 rounded-full ${status.color} mr-2 ${serverInfo.status === 'starting' ? 'animate-pulse' : ''}`}></div>
           <span className={`text-sm font-medium ${status.textColor}`}>{status.label}</span>
@@ -192,16 +193,16 @@ export default function LocalServerPanel({ onServerStarted, onServerStopped }: L
 
       {/* Server Info */}
       <div className="mb-4 space-y-2 text-sm">
-        <div className="flex justify-between text-slate-300">
+        <div className={`flex justify-between ${tw.textSecondary}`}>
           <span>WebSocket Port:</span>
           <span className="font-mono">localhost:{serverInfo.ws_port}</span>
         </div>
-        <div className="flex justify-between text-slate-300">
+        <div className={`flex justify-between ${tw.textSecondary}`}>
           <span>UDP Port:</span>
           <span className="font-mono">{serverInfo.udp_port}</span>
         </div>
         {serverInfo.pid && (
-          <div className="flex justify-between text-slate-300">
+          <div className={`flex justify-between ${tw.textSecondary}`}>
             <span>Process ID:</span>
             <span className="font-mono">{serverInfo.pid}</span>
           </div>
@@ -210,49 +211,49 @@ export default function LocalServerPanel({ onServerStarted, onServerStopped }: L
 
       {/* Password Input (First Time Setup) */}
       {showPasswordInput && !isConfigured && (
-        <div className="mb-4 p-3 bg-slate-900 rounded border border-slate-600">
-          <label className="block text-sm font-medium text-slate-300 mb-2">Admin Password (First Time Setup)</label>
+        <div className={`mb-4 p-3 ${tw.bgInput} rounded border ${tw.borderDefault}`}>
+          <label className={`block text-sm font-medium ${tw.textSecondary} mb-2`}>Admin Password (First Time Setup)</label>
           <div className="flex gap-2">
             <input
               type="password"
               value={adminPassword}
               onChange={e => setAdminPassword(e.target.value)}
               placeholder="Enter admin password"
-              className="flex-1 bg-slate-700 text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
+              className={`flex-1 ${tw.bgInput} ${tw.textPrimary} rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500`}
               disabled={loading}
             />
-            <button onClick={generatePassword} className="bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 rounded text-sm font-medium transition disabled:opacity-50" disabled={loading}>
+            <button onClick={generatePassword} className={`${tw.bgInput} hover:bg-gray-500 ${tw.textPrimary} px-3 py-2 rounded text-sm font-medium transition disabled:opacity-50`} disabled={loading}>
               Generate
             </button>
           </div>
-          <p className="text-xs text-slate-400 mt-2">This password will be required to authenticate as admin from the client.</p>
+          <p className={`text-xs ${tw.textTertiary} mt-2`}>This password will be required to authenticate as admin from the client.</p>
         </div>
       )}
 
       {/* Control Buttons */}
       <div className="flex gap-2">
         {serverInfo.status === 'stopped' || serverInfo.status === 'error' ? (
-          <button onClick={handleStart} disabled={loading} className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded font-medium transition disabled:opacity-50 disabled:cursor-not-allowed">
+          <button onClick={handleStart} disabled={loading} className={`flex-1 bg-green-600 hover:bg-green-700 ${tw.textPrimary} py-2 px-4 rounded font-medium transition disabled:opacity-50 disabled:cursor-not-allowed`}>
             {loading ? 'Starting...' : 'Start Server'}
           </button>
         ) : serverInfo.status === 'running' ? (
-          <button onClick={handleStop} disabled={loading} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded font-medium transition disabled:opacity-50 disabled:cursor-not-allowed">
+          <button onClick={handleStop} disabled={loading} className={`flex-1 bg-red-600 hover:bg-red-700 ${tw.textPrimary} py-2 px-4 rounded font-medium transition disabled:opacity-50 disabled:cursor-not-allowed`}>
             {loading ? 'Stopping...' : 'Stop Server'}
           </button>
         ) : (
-          <button disabled className="flex-1 bg-slate-600 text-slate-300 py-2 px-4 rounded font-medium cursor-not-allowed">
+          <button disabled className={`flex-1 ${tw.bgInput} ${tw.textSecondary} py-2 px-4 rounded font-medium cursor-not-allowed`}>
             Starting...
           </button>
         )}
 
-        <button onClick={detectServer} disabled={loading} className="bg-slate-700 hover:bg-slate-600 text-white py-2 px-4 rounded font-medium transition disabled:opacity-50">
+        <button onClick={detectServer} disabled={loading} className={`${tw.bgInput} hover:bg-gray-600 ${tw.textPrimary} py-2 px-4 rounded font-medium transition disabled:opacity-50`}>
           🔄
         </button>
       </div>
 
       {/* Binary Path (Dev Info) */}
       {serverInfo.binary_path && (
-        <div className="mt-3 text-xs text-slate-500 truncate" title={serverInfo.binary_path}>
+        <div className={`mt-3 text-xs ${tw.textMuted} truncate`} title={serverInfo.binary_path}>
           {serverInfo.binary_path}
         </div>
       )}

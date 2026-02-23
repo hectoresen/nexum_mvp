@@ -1,0 +1,36 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo blanco limpio -->
+  <rect width="512" height="512" fill="#FFFFFF" rx="64"/>
+  
+  <!-- Auriculares minimalistas - diseño moderno -->
+  <!-- Diadema -->
+  <path d="M 156 200 Q 156 120 256 120 Q 356 120 356 200" 
+        stroke="#2563eb" 
+        stroke-width="24" 
+        fill="none" 
+        stroke-linecap="round"/>
+  
+  <!-- Auricular izquierdo -->
+  <rect x="136" y="200" width="60" height="120" rx="30" 
+        fill="#2563eb"/>
+  <rect x="146" y="210" width="40" height="100" rx="20" 
+        fill="#3b82f6" opacity="0.6"/>
+  
+  <!-- Auricular derecho -->
+  <rect x="316" y="200" width="60" height="120" rx="30" 
+        fill="#2563eb"/>
+  <rect x="326" y="210" width="40" height="100" rx="20" 
+        fill="#3b82f6" opacity="0.6"/>
+  
+  <!-- Detalles de micrófono -->
+  <!-- Brazo del mic desde auricular izquierdo -->
+  <path d="M 166 280 L 166 340 Q 166 360 186 360 L 220 360" 
+        stroke="#1e40af" 
+        stroke-width="8" 
+        fill="none" 
+        stroke-linecap="round"/>
+  
+  <!-- Cabeza del micrófono -->
+  <circle cx="230" cy="360" r="12" fill="#1e40af"/>
+  <circle cx="230" cy="360" r="8" fill="#60a5fa" opacity="0.7"/>
+</svg>

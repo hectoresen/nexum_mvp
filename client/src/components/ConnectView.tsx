@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import LocalServerPanel from './LocalServerPanel'
+import { tw } from '../theme'
 
 interface ConnectViewProps {
   onConnect: (serverAddress: string, username: string) => void
@@ -24,9 +25,9 @@ export default function ConnectView({ onConnect, connecting, error }: ConnectVie
   }
 
   return (
-    <div className="flex items-center justify-center w-full h-full bg-gray-900">
+    <div className={`flex items-center justify-center w-full h-full ${tw.bgMain}`}>
       <div className="w-full max-w-2xl p-8">
-        <h1 className="text-3xl font-bold text-center text-white mb-8">Nexum</h1>
+        <h1 className={`text-3xl font-bold text-center ${tw.textPrimary} mb-8`}>Nexum</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Local Server Panel */}
@@ -35,12 +36,12 @@ export default function ConnectView({ onConnect, connecting, error }: ConnectVie
           </div>
 
           {/* Connection Form */}
-          <div className="lg:col-span-2 bg-gray-800 rounded-lg shadow-xl p-6">
-            <h2 className="text-xl font-semibold text-white mb-4">Connect to Server</h2>
+          <div className={`lg:col-span-2 ${tw.bgCard} rounded-lg shadow-xl p-6`}>
+            <h2 className={`text-xl font-semibold ${tw.textPrimary} mb-4`}>Connect to Server</h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="username" className={`block text-sm font-medium ${tw.textSecondary} mb-2`}>
                   Username
                 </label>
                 <input
@@ -49,7 +50,7 @@ export default function ConnectView({ onConnect, connecting, error }: ConnectVie
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   placeholder="Enter your username"
-                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                  className={`w-full px-4 py-3 ${tw.bgInput} border ${tw.borderDefault} rounded-md ${tw.textPrimary} placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent`}
                   disabled={connecting}
                   required
                   minLength={1}
@@ -58,7 +59,7 @@ export default function ConnectView({ onConnect, connecting, error }: ConnectVie
               </div>
 
               <div>
-                <label htmlFor="server" className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="server" className={`block text-sm font-medium ${tw.textSecondary} mb-2`}>
                   Server Address
                 </label>
                 <input
@@ -67,11 +68,11 @@ export default function ConnectView({ onConnect, connecting, error }: ConnectVie
                   value={serverAddress}
                   onChange={e => setServerAddress(e.target.value)}
                   placeholder="localhost:8080"
-                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                  className={`w-full px-4 py-3 ${tw.bgInput} border ${tw.borderDefault} rounded-md ${tw.textPrimary} placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent`}
                   disabled={connecting}
                   required
                 />
-                <p className="text-xs text-gray-400 mt-1">Format: host:port (e.g., localhost:8080 or remote.server.com:8080)</p>
+                <p className={`text-xs ${tw.textTertiary} mt-1`}>Format: host:port (e.g., localhost:8080 or remote.server.com:8080)</p>
               </div>
 
               {error && (
@@ -83,7 +84,7 @@ export default function ConnectView({ onConnect, connecting, error }: ConnectVie
               <button
                 type="submit"
                 disabled={connecting || !username.trim() || !serverAddress.trim()}
-                className="w-full py-3 px-4 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-gray-800">
+                className={`w-full py-3 px-4 ${tw.bgInput} hover:bg-gray-500 disabled:${tw.bgInput} disabled:cursor-not-allowed ${tw.textPrimary} font-semibold rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-gray-800`}>
                 {connecting ? (
                   <span className="flex items-center justify-center">
                     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -100,8 +101,8 @@ export default function ConnectView({ onConnect, connecting, error }: ConnectVie
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-gray-700">
-          <p className="text-sm text-gray-400 text-center">No account needed • Self-hosted • Privacy first</p>
+        <div className={`mt-8 pt-6 border-t ${tw.borderDefault}`}>
+          <p className={`text-sm ${tw.textTertiary} text-center`}>No account needed • Self-hosted • Privacy first</p>
         </div>
       </div>
     </div>

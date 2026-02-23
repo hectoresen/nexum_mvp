@@ -1,4 +1,5 @@
 import { User } from '../types/protocol'
+import { tw } from '../theme'
 
 interface UserListPanelProps {
   users: User[] | null
@@ -11,12 +12,12 @@ export default function UserListPanel({ users, currentUserId, serverAddress }: U
 
   if (!users) {
     return (
-      <div className="w-56 bg-gray-800 border-l border-gray-700 flex flex-col">
-        <div className="h-12 px-4 border-b border-gray-700 flex flex-col justify-center">
-          <h3 className="text-white font-semibold text-sm">Server Members</h3>
+      <div className={`w-56 ${tw.bgHeader} border-l ${tw.borderDefault} flex flex-col`}>
+        <div className={`h-12 px-4 border-b ${tw.borderDefault} flex flex-col justify-center`}>
+          <h3 className={`${tw.textPrimary} font-semibold text-sm`}>Server Members</h3>
         </div>
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-gray-500 text-sm">Loading...</p>
+          <p className={`${tw.textMuted} text-sm`}>Loading...</p>
         </div>
       </div>
     )
@@ -45,15 +46,15 @@ export default function UserListPanel({ users, currentUserId, serverAddress }: U
     return (
       <div
         key={user.id}
-        className={`px-3 py-2 hover:bg-gray-700 transition-colors cursor-pointer flex items-center gap-2 ${isCurrentUser ? 'bg-gray-700/50' : ''}`}
+        className={`px-3 py-2 ${tw.bgHoverSubtle} transition-colors cursor-pointer flex items-center gap-2 ${isCurrentUser ? 'bg-gray-800' : ''}`}
         title={`${user.username}${isCurrentUser ? ' (you)' : ''}`}>
-        <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0 overflow-hidden">
-          {avatarUrl ? <img src={avatarUrl} alt={user.username} className="w-full h-full object-cover" /> : <span className="text-xs font-semibold text-white">{user.username[0]?.toUpperCase()}</span>}
+        <div className={`w-8 h-8 rounded-full ${tw.bgInput} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
+          {avatarUrl ? <img src={avatarUrl} alt={user.username} className="w-full h-full object-cover" /> : <span className={`text-xs font-semibold ${tw.textPrimary}`}>{user.username[0]?.toUpperCase()}</span>}
         </div>
         <div className="flex-1 min-w-0">
-          <p className={`text-sm truncate ${isCurrentUser ? 'text-white font-medium' : 'text-gray-300'}`}>
+          <p className={`text-sm truncate ${isCurrentUser ? `${tw.textPrimary} font-medium` : tw.textSecondary}`}>
             {user.username}
-            {isCurrentUser && <span className="text-gray-500 ml-1">(you)</span>}
+            {isCurrentUser && <span className={`${tw.textMuted} ml-1`}>(you)</span>}
           </p>
         </div>
         {user.role === 'owner' && (
@@ -66,10 +67,10 @@ export default function UserListPanel({ users, currentUserId, serverAddress }: U
   }
 
   return (
-    <div className="w-56 bg-gray-800 border-l border-gray-700 flex flex-col">
-      <div className="h-12 px-4 border-b border-gray-700 flex flex-col justify-center">
-        <h3 className="text-white font-semibold text-sm">Server Members</h3>
-        <p className="text-xs text-gray-500 mt-1">{users.length} total</p>
+    <div className={`w-56 ${tw.bgHeader} border-l ${tw.borderDefault} flex flex-col`}>
+      <div className={`h-12 px-4 border-b ${tw.borderDefault} flex flex-col justify-center`}>
+        <h3 className={`${tw.textPrimary} font-semibold text-sm`}>Server Members</h3>
+        <p className={`text-xs ${tw.textMuted} mt-1`}>{users.length} total</p>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -77,7 +78,7 @@ export default function UserListPanel({ users, currentUserId, serverAddress }: U
         {owners.length > 0 && (
           <div className="py-2">
             <div className="px-3 py-1">
-              <p className="text-xs font-semibold text-gray-400 uppercase">Owners</p>
+              <p className={`text-xs font-semibold ${tw.textTertiary} uppercase`}>Owners</p>
             </div>
             {owners.map(renderUser)}
           </div>
@@ -87,7 +88,7 @@ export default function UserListPanel({ users, currentUserId, serverAddress }: U
         {members.length > 0 && (
           <div className="py-2">
             <div className="px-3 py-1">
-              <p className="text-xs font-semibold text-gray-400 uppercase">Members</p>
+              <p className={`text-xs font-semibold ${tw.textTertiary} uppercase`}>Members</p>
             </div>
             {members.map(renderUser)}
           </div>
@@ -95,14 +96,14 @@ export default function UserListPanel({ users, currentUserId, serverAddress }: U
 
         {users.length === 0 && (
           <div className="flex-1 flex items-center justify-center p-4">
-            <p className="text-gray-500 text-sm text-center">No users found</p>
+            <p className={`${tw.textMuted} text-sm text-center`}>No users found</p>
           </div>
         )}
       </div>
 
       {/* Future: Private messages info */}
-      <div className="p-3 border-t border-gray-700">
-        <p className="text-xs text-gray-500 text-center">Click user for private messages (coming soon)</p>
+      <div className={`p-3 border-t ${tw.borderDefault}`}>
+        <p className={`text-xs ${tw.textMuted} text-center`}>Click user for private messages (coming soon)</p>
       </div>
     </div>
   )

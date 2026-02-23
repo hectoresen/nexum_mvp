@@ -7,6 +7,7 @@
 #### Technology Stack Choices
 
 **Server (Rust):**
+
 - **Tokio** (1.36+): Async runtime - standard choice for Rust async
 - **Axum** (0.7+): WebSocket server - simpler than Actix, better ergonomics
 - **tokio-tungstenite**: WebSocket implementation for Axum
@@ -17,6 +18,7 @@
 - **tokio::net::UdpSocket**: Built-in UDP support, no extra dependency
 
 **Client (Tauri):**
+
 - **Tauri v2**: Latest stable, better performance than v1
 - **React 18**: UI framework - specified in README
 - **TypeScript 5**: Type safety for protocol
@@ -28,12 +30,14 @@
 #### Architecture Decisions
 
 1. **Monorepo Structure**:
+
    ```
    nexum/
    ├── server/           # Rust binary
    ├── client/           # Tauri app
    └── protocol/         # Shared TypeScript types (copied, not shared build)
    ```
+
    - Reason: Keeps relativity simple, no workspace complexity for MVP
    - Server and client are separate build processes
 
@@ -101,6 +105,7 @@
 #### Dependencies Versioning
 
 Using latest stable versions as of Feb 2026:
+
 - Rust edition 2021
 - Node 20 LTS
 - TypeScript 5.x
@@ -116,6 +121,7 @@ Using latest stable versions as of Feb 2026:
 #### Platform Support
 
 Initial targets:
+
 - Windows 10/11 (x64)
 - macOS 12+ (Intel + Apple Silicon)
 - Linux support deferred (easy to add later)
@@ -124,7 +130,7 @@ Initial targets:
 
 ## Questions/Uncertainties
 
-1. **Audio Mixing**: Should client mix all streams or play overlapped? 
+1. **Audio Mixing**: Should client mix all streams or play overlapped?
    - **Decision**: Mix using Web Audio API GainNode + AudioContext destination
 
 2. **Server Discovery**: How do users share server addresses?
@@ -141,4 +147,4 @@ Initial targets:
 
 ---
 
-*This document tracks all architectural and technical decisions made during development.*
+_This document tracks all architectural and technical decisions made during development._

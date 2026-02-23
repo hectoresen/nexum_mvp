@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Channel, UserRole } from '../types/protocol'
+import { tw } from '../theme'
 
 interface ChannelListProps {
   channels: Channel[]
@@ -58,9 +59,9 @@ export default function ChannelList({ channels, currentChannelId, role, onSelect
             }}
             onBlur={() => commitRename(channel.id)}
             autoFocus
-            className="flex-1 px-1.5 py-0.5 text-sm bg-gray-600 border border-gray-500 rounded text-white outline-none"
+            className={`flex-1 px-1.5 py-0.5 text-sm ${tw.bgInput} border ${tw.borderDefault} rounded ${tw.textPrimary} outline-none`}
           />
-          <button onClick={cancelRename} className="text-gray-400 hover:text-white p-0.5">
+          <button onClick={cancelRename} className={`${tw.textTertiary} hover:${tw.textPrimary} p-0.5`}>
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -70,22 +71,28 @@ export default function ChannelList({ channels, currentChannelId, role, onSelect
     }
 
     return (
-      <div key={channel.id} className={`group flex items-center rounded transition-colors ${currentChannelId === channel.id ? 'bg-gray-700' : 'hover:bg-gray-700/50'}`}>
+      <div key={channel.id} className={`group flex items-center rounded transition-colors ${currentChannelId === channel.id ? tw.bgHoverSubtle : `hover:${tw.bgHoverSubtle}`}`}>
         <button
           onClick={() => onSelectChannel(channel.id)}
-          className={`flex-1 text-left px-2 py-1.5 flex items-center gap-2 ${currentChannelId === channel.id ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'}`}>
+          className={`flex-1 text-left px-2 py-1.5 flex items-center gap-2 ${currentChannelId === channel.id ? tw.textPrimary : `${tw.textTertiary} group-hover:${tw.textSecondary}`}`}>
           {icon}
           <span className="text-sm truncate">{channel.name}</span>
         </button>
 
         {isOwner && (
           <div className="flex items-center gap-0.5 pr-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={e => startRename(channel, e)} className="p-0.5 text-gray-400 hover:text-gray-400 transition-colors" title="Rename channel">
+            <button onClick={e => startRename(channel, e)} className={`p-0.5 ${tw.textTertiary} hover:${tw.textTertiary} transition-colors`} title="Rename channel">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </button>
-            <button onClick={e => handleDelete(channel.id, e)} className="p-0.5 text-gray-400 hover:text-red-400 transition-colors" title="Delete channel">
+            <button
+              onClick={e => handleDelete(channel.id, e)}
+              className={`p-0.5 ${tw.textTertiary} transition-colors`}
+              style={{ color: undefined }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
+              onMouseLeave={e => (e.currentTarget.style.color = '')}
+              title="Delete channel">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
@@ -100,14 +107,14 @@ export default function ChannelList({ channels, currentChannelId, role, onSelect
     <div className="space-y-4">
       {textChannels.length > 0 && (
         <div>
-          <h3 className="text-xs font-semibold text-gray-500 uppercase px-2 mb-1">Text Channels</h3>
-          {textChannels.map(channel => renderChannel(channel, <span className="text-gray-500 text-sm">#</span>))}
+          <h3 className={`text-xs font-semibold ${tw.textMuted} uppercase px-2 mb-1`}>Text Channels</h3>
+          {textChannels.map(channel => renderChannel(channel, <span className={`${tw.textMuted} text-sm`}>#</span>))}
         </div>
       )}
 
       {voiceChannels.length > 0 && (
         <div>
-          <h3 className="text-xs font-semibold text-gray-500 uppercase px-2 mb-1">Voice Channels</h3>
+          <h3 className={`text-xs font-semibold ${tw.textMuted} uppercase px-2 mb-1`}>Voice Channels</h3>
           {voiceChannels.map(channel =>
             renderChannel(
               channel,
@@ -124,7 +131,7 @@ export default function ChannelList({ channels, currentChannelId, role, onSelect
         </div>
       )}
 
-      {channels.length === 0 && <div className="px-2 py-4 text-center text-sm text-gray-500">No channels yet</div>}
+      {channels.length === 0 && <div className={`px-2 py-4 text-center text-sm ${tw.textMuted}`}>No channels yet</div>}
     </div>
   )
 }

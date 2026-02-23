@@ -1,4 +1,6 @@
 import { useState, useRef } from 'react'
+import { theme, tw } from '../theme'
+import { PrimaryButton, SecondaryButton, CancelButton } from './Button'
 
 interface AvatarModalProps {
   currentAvatar?: string | null
@@ -190,16 +192,16 @@ export default function AvatarModal({ currentAvatar, serverAddress, sessionId, u
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[70]">
-      <div className="bg-gray-800 rounded-lg p-6 w-[520px] shadow-2xl border border-gray-700">
+    <div className="fixed inset-0 flex items-center justify-center z-[70] p-4" style={{ backgroundColor: theme.overlay }}>
+      <div className={`${tw.bgCard} rounded-lg p-6 w-[520px] shadow-2xl border ${tw.borderDefault}`}>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-            <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <h2 className={`text-xl font-semibold ${tw.textPrimary} flex items-center gap-2`}>
+            <svg className={`w-6 h-6 ${tw.textSecondary}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
             Change Avatar
           </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+          <button onClick={onClose} className={`${tw.textTertiary} hover:${tw.textPrimary} transition-colors`}>
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -207,11 +209,15 @@ export default function AvatarModal({ currentAvatar, serverAddress, sessionId, u
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-4 border-b border-gray-700">
-          <button onClick={() => setActiveTab('upload')} className={`px-4 py-2 font-medium transition-colors ${activeTab === 'upload' ? 'text-white border-b-2 border-blue-500' : 'text-gray-400 hover:text-gray-300'}`}>
+        <div className={`flex gap-2 mb-4 border-b ${tw.borderDefault}`}>
+          <button
+            onClick={() => setActiveTab('upload')}
+            className={`px-4 py-2 font-medium transition-colors ${activeTab === 'upload' ? `${tw.textPrimary} border-b-2 border-blue-500` : `${tw.textTertiary} hover:${tw.textSecondary}`}`}>
             Upload File
           </button>
-          <button onClick={() => setActiveTab('url')} className={`px-4 py-2 font-medium transition-colors ${activeTab === 'url' ? 'text-white border-b-2 border-blue-500' : 'text-gray-400 hover:text-gray-300'}`}>
+          <button
+            onClick={() => setActiveTab('url')}
+            className={`px-4 py-2 font-medium transition-colors ${activeTab === 'url' ? `${tw.textPrimary} border-b-2 border-blue-500` : `${tw.textTertiary} hover:${tw.textSecondary}`}`}>
             Use URL
           </button>
         </div>
@@ -224,39 +230,40 @@ export default function AvatarModal({ currentAvatar, serverAddress, sessionId, u
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onClick={() => !processingImage && fileInputRef.current?.click()}
-                className={`border-2 border-dashed border-gray-600 rounded-lg p-8 text-center ${processingImage ? 'cursor-wait opacity-75' : 'cursor-pointer hover:border-gray-500'} transition-colors bg-gray-700/30`}>
+                className={`border-2 border-dashed ${tw.borderDefault} rounded-lg p-8 text-center ${processingImage ? 'cursor-wait opacity-75' : `cursor-pointer ${tw.bgHover}`} transition-colors`}
+                style={{ backgroundColor: tw.bgInput }}>
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={e => e.target.files?.[0] && handleFileSelect(e.target.files[0])} className="hidden" disabled={processingImage} />
 
                 {processingImage ? (
                   <div className="flex flex-col items-center gap-2">
                     <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-white font-medium">Processing image...</p>
-                    <p className="text-sm text-gray-400">Resizing and compressing...</p>
+                    <p className={`${tw.textPrimary} font-medium`}>Processing image...</p>
+                    <p className={`text-sm ${tw.textTertiary}`}>Resizing and compressing...</p>
                   </div>
                 ) : selectedFile ? (
                   <div className="flex flex-col items-center gap-2">
                     <svg className="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p className="text-white font-medium">{selectedFile.name}</p>
-                    <p className="text-sm text-gray-400">{(selectedFile.size / 1024).toFixed(0)} KB • 256x256px</p>
+                    <p className={`${tw.textPrimary} font-medium`}>{selectedFile.name}</p>
+                    <p className={`text-sm ${tw.textTertiary}`}>{(selectedFile.size / 1024).toFixed(0)} KB • 256x256px</p>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2">
-                    <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className={`w-12 h-12 ${tw.textTertiary}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
-                    <p className="text-white font-medium">Click or drag image here</p>
-                    <p className="text-sm text-gray-400">Auto-compressed to 256x256 • Max 200KB</p>
+                    <p className={`${tw.textPrimary} font-medium`}>Click or drag image here</p>
+                    <p className={`text-sm ${tw.textTertiary}`}>Auto-compressed to 256x256 • Max 200KB</p>
                   </div>
                 )}
               </div>
 
               {/* Preview for uploaded file */}
               {previewUrl && (
-                <div className="flex flex-col items-center p-4 bg-gray-700/50 rounded-md">
-                  <p className="text-sm text-gray-300 mb-3">Preview</p>
-                  <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-600 border-2 border-gray-500">
+                <div className={`flex flex-col items-center p-4 ${tw.bgInput} rounded-md border ${tw.borderDefault}`}>
+                  <p className={`text-sm ${tw.textSecondary} mb-3`}>Preview</p>
+                  <div className={`w-24 h-24 rounded-full overflow-hidden ${tw.bgInput} border-2 ${tw.borderDefault}`}>
                     <img src={previewUrl} alt="Avatar preview" className="w-full h-full object-cover" />
                   </div>
                 </div>
@@ -267,23 +274,24 @@ export default function AvatarModal({ currentAvatar, serverAddress, sessionId, u
           {activeTab === 'url' && (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Avatar URL</label>
+                <label className={`block text-sm font-medium ${tw.textSecondary} mb-2`}>Avatar URL</label>
                 <input
                   type="text"
                   value={avatarUrl}
                   onChange={e => setAvatarUrl(e.target.value)}
                   placeholder="https://example.com/avatar.png"
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-gray-500 placeholder-gray-500"
+                  className={`w-full px-3 py-2 ${tw.bgInput} border ${tw.borderDefault} rounded-md ${tw.textPrimary} focus:outline-none focus:border-gray-500`}
+                  style={{ '--tw-ring-color': theme.border.focus } as React.CSSProperties}
                   autoFocus
                 />
-                <p className="text-xs text-gray-500 mt-1">Enter a publicly accessible image URL</p>
+                <p className={`text-xs ${tw.textMuted} mt-1`}>Enter a publicly accessible image URL</p>
               </div>
 
               {/* Avatar Preview */}
               {avatarUrl && (
-                <div className="flex flex-col items-center p-4 bg-gray-700/50 rounded-md">
-                  <p className="text-sm text-gray-300 mb-3">Preview</p>
-                  <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-600 border-2 border-gray-500">
+                <div className={`flex flex-col items-center p-4 ${tw.bgInput} rounded-md border ${tw.borderDefault}`}>
+                  <p className={`text-sm ${tw.textSecondary} mb-3`}>Preview</p>
+                  <div className={`w-24 h-24 rounded-full overflow-hidden ${tw.bgInput} border-2 ${tw.borderDefault}`}>
                     <img
                       src={avatarUrl}
                       alt="Avatar preview"
@@ -313,9 +321,9 @@ export default function AvatarModal({ currentAvatar, serverAddress, sessionId, u
             </div>
           )}
 
-          <div className="p-3 bg-gray-700/50 border border-gray-600 rounded-md">
-            <p className="text-xs text-gray-400 flex items-start gap-2">
-              <svg className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+          <div className={`p-3 ${tw.bgInput} border ${tw.borderDefault} rounded-md`}>
+            <p className={`text-xs ${tw.textTertiary} flex items-start gap-2`}>
+              <svg className={`w-4 h-4 ${tw.textMuted} mt-0.5 flex-shrink-0`} fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
               </svg>
               <span>Images are automatically resized to 256x256 and compressed to meet the 200KB limit. Upload any image and it will be optimized.</span>
@@ -324,25 +332,14 @@ export default function AvatarModal({ currentAvatar, serverAddress, sessionId, u
         </div>
 
         <div className="mt-6 flex justify-between gap-3">
-          <button
-            onClick={handleClear}
-            disabled={uploading || processingImage}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+          <SecondaryButton onClick={handleClear} disabled={uploading || processingImage} size="sm">
             Clear
-          </button>
+          </SecondaryButton>
           <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              disabled={uploading || processingImage}
-              className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={uploading || processingImage || (activeTab === 'upload' && !selectedFile) || (activeTab === 'url' && !avatarUrl.trim())}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <CancelButton onClick={onClose} disabled={uploading || processingImage} />
+            <PrimaryButton onClick={handleSave} disabled={uploading || processingImage || (activeTab === 'upload' && !selectedFile) || (activeTab === 'url' && !avatarUrl.trim())}>
               {uploading ? 'Uploading...' : processingImage ? 'Processing...' : 'Save'}
-            </button>
+            </PrimaryButton>
           </div>
         </div>
       </div>
