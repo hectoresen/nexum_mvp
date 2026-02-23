@@ -2,7 +2,7 @@
 
 All notable changes and completed tasks are documented here.
 
-## 2026-02-23 - Bug Fixes & UI Redesign (7 improvements)
+## 2026-02-23 - Bug Fixes & UI Redesign (8 improvements)
 
 ### ✅ Completed
 
@@ -57,6 +57,10 @@ All notable changes and completed tasks are documented here.
 - **Client — `client/src/types/server.ts`**: SavedServer interface unchanged (name field remains for display)
 - **Type safety**: All callback signatures updated to use `(section: 'general' | 'voice-video')` for settings navigation
 
+**8. Server Card UI Polish**
+
+- **Client — `client/src/components/ServerListView.tsx`**: Replaced "Connect" text button with icon-only button (door with arrow icon); button now shows "Connect" tooltip on hover; consistent styling with delete button (icon-only + tooltip pattern)
+
 ### 📦 Build Status
 
 - **Server**: ✅ No changes required
@@ -70,6 +74,7 @@ All notable changes and completed tasks are documented here.
 - Settings organized into logical sections with direct navigation
 - Server names fetched automatically, reducing user friction during setup
 - Consistent English UI throughout application
+- Cleaner server cards with icon-only actions and tooltips
 
 ---
 

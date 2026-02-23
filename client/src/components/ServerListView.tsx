@@ -251,8 +251,14 @@ export default function ServerListView({ servers, onSelectServer, onAddServer, o
                       </div>
 
                       <div className="flex items-center gap-2 ml-4">
-                        <button onClick={() => onSelectServer(server)} className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white font-medium rounded-md transition-colors">
-                          Connect
+                        <button 
+                          onClick={() => onSelectServer(server)} 
+                          className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-md transition-colors" 
+                          title="Connect"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                          </svg>
                         </button>
 
                         {confirmDelete === server.id ? (
