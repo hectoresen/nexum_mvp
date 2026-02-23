@@ -11,6 +11,12 @@ pub struct User {
     pub id: Uuid,
     pub username: String,
     pub role: UserRole,
+    #[serde(skip_serializing)]
+    pub ip_address: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
+    pub avatar_path: Option<String>,
+    pub avatar_version: i32,
     pub created_at: DateTime<Utc>,
 }
 
@@ -118,13 +124,32 @@ pub enum ClientMessage {
     #[serde(rename = "LEAVE_VOICE")]
     LeaveVoice(LeaveVoicePayload),
     
+    #[serde(rename = "AUTHENTICATE_ADMIN")]
+    AuthenticateAdmin(AuthenticateAdminPayload),
+    
+    #[serde(rename = "RENAME_CHANNEL")]
+    RenameChannel(RenameChannelPayload),
+    
+    #[serde(rename = "GET_SERVER_SETTINGS")]
+    GetServerSettings,
+    
+    #[serde(rename = "UPDATE_SERVER_SETTINGS")]
+    UpdateServerSettings(UpdateServerSettingsPayload),
+    
+    #[serde(rename = "GET_USERS")]
+    GetUsers,
+    
+    #[serde(rename = "UPDATE_AVATAR")]
+    UpdateAvatar(UpdateAvatarPayload),
+    
     #[serde(rename = "PING")]
     Ping,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectPayload {
-    pub username: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub username: Option<String>,
     pub client_version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resume_session_id: Option<Uuid>,
@@ -167,6 +192,38 @@ pub struct LeaveVoicePayload {
     pub channel_id: Uuid,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthenticateAdminPayload {
+    pub password: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RenameChannelPayload {
+    pub channel_id: Uuid,
+    pub new_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateServerSettingsPayload {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current_admin_password: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub admin_password: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_users: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_users_per_voice_channel: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_message_size: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateAvatarPayload {
+    pub avatar_url: Option<String>,
+}
+
 // ============================================================================
 // Server Messages
 // ============================================================================
@@ -195,11 +252,32 @@ pub enum ServerMessage {
     #[serde(rename = "MESSAGE")]
     Message(MessagePayload),
     
+    #[serde(rename = "MESSAGE_HISTORY")]
+    MessageHistory(MessageHistoryPayload),
+    
+    #[serde(rename = "ADMIN_AUTHENTICATED")]
+    AdminAuthenticated(AdminAuthenticatedPayload),
+    
     #[serde(rename = "VOICE_JOINED")]
     VoiceJoined(VoiceJoinedPayload),
     
     #[serde(rename = "VOICE_LEFT")]
     VoiceLeft(VoiceLeftPayload),
+    
+    #[serde(rename = "CHANNEL_RENAMED")]
+    ChannelRenamed(ChannelRenamedPayload),
+    
+    #[serde(rename = "SERVER_SETTINGS")]
+    ServerSettings(ServerSettingsPayload),
+    
+    #[serde(rename = "SERVER_USERS")]
+    ServerUsers(ServerUsersPayload),
+    
+    #[serde(rename = "USER_AVATAR_UPDATED")]
+    UserAvatarUpdated(UserAvatarUpdatedPayload),
+    
+    #[serde(rename = "USER_UPDATED")]
+    UserUpdated(UserUpdatedPayload),
     
     #[serde(rename = "PONG")]
     Pong,
@@ -209,7 +287,9 @@ pub enum ServerMessage {
 pub struct WelcomePayload {
     pub session_id: Uuid,
     pub user_id: Uuid,
+    pub username: String,
     pub server_version: String,
+    pub server_name: String,
     pub role: UserRole,
     pub channels: Vec<Channel>,
 }
@@ -226,6 +306,7 @@ pub enum ErrorCode {
     VersionMismatch,
     ServerFull,
     InvalidPayload,
+    InvalidRequest,
     Unauthorized,
     ChannelNotFound,
     UserNotFound,
@@ -263,6 +344,18 @@ pub struct MessagePayload {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MessageHistoryPayload {
+    pub channel_id: Uuid,
+    pub messages: Vec<MessagePayload>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdminAuthenticatedPayload {
+    pub user_id: Uuid,
+    pub new_role: UserRole,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VoiceJoinedPayload {
     pub channel_id: Uuid,
     pub user_id: Uuid,
@@ -272,4 +365,37 @@ pub struct VoiceJoinedPayload {
 pub struct VoiceLeftPayload {
     pub channel_id: Uuid,
     pub user_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChannelRenamedPayload {
+    pub channel_id: Uuid,
+    pub new_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServerSettingsPayload {
+    pub name: String,
+    pub ws_port: u16,
+    pub udp_port: u16,
+    pub max_users: usize,
+    pub max_users_per_voice_channel: usize,
+    pub max_message_size: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServerUsersPayload {
+    pub users: Vec<User>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserAvatarUpdatedPayload {
+    pub user_id: Uuid,
+    pub avatar_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserUpdatedPayload {
+    pub user_id: Uuid,
+    pub avatar_version: i32,
 }

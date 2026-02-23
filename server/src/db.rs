@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, params, OptionalExtension};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
@@ -35,6 +35,10 @@ impl Database {
                 id TEXT PRIMARY KEY,
                 username TEXT NOT NULL,
                 role TEXT NOT NULL,
+                ip_address TEXT,
+                avatar_url TEXT,
+                avatar_path TEXT,
+                avatar_version INTEGER DEFAULT 0,
                 created_at TEXT NOT NULL
             );
 
@@ -84,21 +88,29 @@ impl Database {
     // User Operations
     // ========================================================================
 
-    pub fn create_user(&self, username: &str, role: UserRole) -> Result<User> {
+    pub fn create_user(&self, username: &str, role: UserRole, ip_address: Option<String>) -> Result<User> {
         let user = User {
             id: Uuid::new_v4(),
             username: username.to_string(),
             role,
+            ip_address: ip_address.clone(),
+            avatar_url: None,
+            avatar_path: None,
+            avatar_version: 0,
             created_at: Utc::now(),
         };
 
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT INTO users (id, username, role, created_at) VALUES (?1, ?2, ?3, ?4)",
+            "INSERT INTO users (id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
                 user.id.to_string(),
                 &user.username,
                 user.role.to_string(),
+                ip_address,
+                user.avatar_url,
+                user.avatar_path,
+                user.avatar_version,
                 user.created_at.to_rfc3339(),
             ],
         )?;
@@ -109,7 +121,7 @@ impl Database {
     pub fn get_user(&self, user_id: Uuid) -> Result<Option<User>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, username, role, created_at FROM users WHERE id = ?1"
+            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at FROM users WHERE id = ?1"
         )?;
 
         let user = stmt.query_row(params![user_id.to_string()], |row| {
@@ -117,7 +129,33 @@ impl Database {
                 id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
                 username: row.get(1)?,
                 role: UserRole::from_string(&row.get::<_, String>(2)?),
-                created_at: row.get::<_, String>(3)?.parse().unwrap(),
+                ip_address: row.get(3)?,
+                avatar_url: row.get(4)?,
+                avatar_path: row.get(5)?,
+                avatar_version: row.get(6)?,
+                created_at: row.get::<_, String>(7)?.parse().unwrap(),
+            })
+        }).optional()?;
+
+        Ok(user)
+    }
+
+    pub fn get_user_by_username(&self, username: &str) -> Result<Option<User>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at FROM users WHERE username = ?1"
+        )?;
+
+        let user = stmt.query_row(params![username], |row| {
+            Ok(User {
+                id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                username: row.get(1)?,
+                role: UserRole::from_string(&row.get::<_, String>(2)?),
+                ip_address: row.get(3)?,
+                avatar_url: row.get(4)?,
+                avatar_path: row.get(5)?,
+                avatar_version: row.get(6)?,
+                created_at: row.get::<_, String>(7)?.parse().unwrap(),
             })
         }).optional()?;
 
@@ -133,6 +171,41 @@ impl Database {
         Ok(())
     }
 
+    pub fn update_user_role(&self, user_id: Uuid, role: UserRole) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE users SET role = ?1 WHERE id = ?2",
+            params![role.to_string(), user_id.to_string()],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_user_avatar(&self, user_id: Uuid, avatar_url: Option<String>) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE users SET avatar_url = ?1 WHERE id = ?2",
+            params![avatar_url, user_id.to_string()],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_avatar_path(&self, user_id: Uuid, avatar_path: String) -> Result<i32> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE users SET avatar_path = ?1, avatar_version = avatar_version + 1 WHERE id = ?2",
+            params![avatar_path, user_id.to_string()],
+        )?;
+        
+        // Get the new version number
+        let version: i32 = conn.query_row(
+            "SELECT avatar_version FROM users WHERE id = ?1",
+            params![user_id.to_string()],
+            |row| row.get(0),
+        )?;
+        
+        Ok(version)
+    }
+
     pub fn count_users(&self) -> Result<usize> {
         let conn = self.conn.lock().unwrap();
         let count: i64 = conn.query_row(
@@ -145,6 +218,49 @@ impl Database {
 
     pub fn is_first_user(&self) -> Result<bool> {
         Ok(self.count_users()? == 0)
+    }
+
+    pub fn list_users(&self) -> Result<Vec<User>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at FROM users ORDER BY created_at"
+        )?;
+        let users = stmt.query_map([], |row| {
+            Ok(User {
+                id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                username: row.get(1)?,
+                role: UserRole::from_string(&row.get::<_, String>(2)?),
+                ip_address: row.get(3)?,
+                avatar_url: row.get(4)?,
+                avatar_path: row.get(5)?,
+                avatar_version: row.get(6)?,
+                created_at: row.get::<_, String>(7)?.parse().unwrap(),
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+        Ok(users)
+    }
+
+    pub fn get_user_by_ip(&self, ip_address: &str) -> Result<Option<User>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at FROM users WHERE ip_address = ?1"
+        )?;
+
+        let user = stmt.query_row(params![ip_address], |row| {
+            Ok(User {
+                id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                username: row.get(1)?,
+                role: UserRole::from_string(&row.get::<_, String>(2)?),
+                ip_address: row.get(3)?,
+                avatar_url: row.get(4)?,
+                avatar_path: row.get(5)?,
+                avatar_version: row.get(6)?,
+                created_at: row.get::<_, String>(7)?.parse().unwrap(),
+            })
+        }).optional()?;
+
+        Ok(user)
     }
 
     // ========================================================================
@@ -223,6 +339,27 @@ impl Database {
         Ok(())
     }
 
+    pub fn rename_channel(&self, channel_id: Uuid, new_name: &str) -> Result<Channel> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE channels SET name = ?1 WHERE id = ?2",
+            params![new_name, channel_id.to_string()],
+        )?;
+        let mut stmt = conn.prepare(
+            "SELECT id, name, type, max_users, created_at FROM channels WHERE id = ?1"
+        )?;
+        let channel = stmt.query_row(params![channel_id.to_string()], |row| {
+            Ok(Channel {
+                id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                name: row.get(1)?,
+                channel_type: ChannelType::from_string(&row.get::<_, String>(2)?),
+                max_users: row.get::<_, Option<i64>>(3)?.map(|u| u as usize),
+                created_at: row.get::<_, String>(4)?.parse().unwrap(),
+            })
+        })?;
+        Ok(channel)
+    }
+
     // ========================================================================
     // Message Operations
     // ========================================================================
@@ -273,5 +410,32 @@ impl Database {
         .collect::<Result<Vec<_>, _>>()?;
 
         Ok(messages)
+    }
+
+    pub fn get_message_history(&self, channel_id: Uuid, limit: usize) -> Result<Vec<(Message, String)>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT m.id, m.channel_id, m.user_id, m.content, m.created_at, u.username
+             FROM messages m
+             JOIN users u ON m.user_id = u.id
+             WHERE m.channel_id = ?1 
+             ORDER BY m.created_at ASC 
+             LIMIT ?2"
+        )?;
+
+        let rows = stmt.query_map(params![channel_id.to_string(), limit as i64], |row| {
+            let message = Message {
+                id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                channel_id: Uuid::parse_str(&row.get::<_, String>(1)?).unwrap(),
+                user_id: Uuid::parse_str(&row.get::<_, String>(2)?).unwrap(),
+                content: row.get(3)?,
+                created_at: row.get::<_, String>(4)?.parse().unwrap(),
+            };
+            let username: String = row.get(5)?;
+            Ok((message, username))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(rows)
     }
 }

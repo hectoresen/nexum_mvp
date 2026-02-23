@@ -15,6 +15,7 @@ pub async fn handle_message(
     session_id: Option<Uuid>,
     state: &Arc<AppState>,
     tx: &mpsc::UnboundedSender<Message>,
+    client_ip: Option<&str>,
 ) -> Result<Uuid> {
     let client_msg: ClientMessage = match serde_json::from_str(text) {
         Ok(msg) => msg,
@@ -26,7 +27,7 @@ pub async fn handle_message(
 
     match client_msg {
         ClientMessage::Connect(payload) => {
-            handle_connect(payload, state, tx).await
+            handle_connect(payload, state, tx, client_ip).await
         }
         _ => {
             let sid = match session_id {
@@ -40,11 +41,17 @@ pub async fn handle_message(
             match client_msg {
                 ClientMessage::CreateChannel(p) => handle_create_channel(sid, p, state, tx).await,
                 ClientMessage::DeleteChannel(p) => handle_delete_channel(sid, p, state, tx).await,
+                ClientMessage::RenameChannel(p) => handle_rename_channel(sid, p, state, tx).await,
                 ClientMessage::JoinChannel(p) => handle_join_channel(sid, p, state, tx).await,
                 ClientMessage::LeaveChannel(p) => handle_leave_channel(sid, p, state, tx).await,
                 ClientMessage::SendMessage(p) => handle_send_message(sid, p, state, tx).await,
                 ClientMessage::JoinVoice(p) => handle_join_voice(sid, p, state, tx).await,
                 ClientMessage::LeaveVoice(p) => handle_leave_voice(sid, p, state, tx).await,
+                ClientMessage::AuthenticateAdmin(p) => handle_authenticate_admin(sid, p, state, tx).await,
+                ClientMessage::GetServerSettings => handle_get_server_settings(sid, state, tx).await,
+                ClientMessage::UpdateServerSettings(p) => handle_update_server_settings(sid, p, state, tx).await,
+                ClientMessage::GetUsers => handle_get_users(sid, state, tx).await,
+                ClientMessage::UpdateAvatar(p) => handle_update_avatar(sid, p, state, tx).await,
                 ClientMessage::Ping => handle_ping(tx).await,
                 _ => unreachable!(),
             }?;
@@ -58,6 +65,7 @@ async fn handle_connect(
     payload: ConnectPayload,
     state: &Arc<AppState>,
     tx: &mpsc::UnboundedSender<Message>,
+    client_ip: Option<&str>,
 ) -> Result<Uuid> {
     // Check version compatibility (major version must match)
     let client_major = payload.client_version.split('.').next().unwrap_or("0");
@@ -74,22 +82,62 @@ async fn handle_connect(
     }
 
     // Check if server is full
-    if state.session_manager.count_active_sessions() >= state.config.limits.max_users {
+    if state.session_manager.count_active_sessions() >= state.config.read().unwrap().limits.max_users {
         send_error(tx, ErrorCode::ServerFull, "Server is at maximum capacity")?;
         bail!("Server full");
     }
 
-    // Determine if this is the first user (becomes owner)
-    let is_first = state.db.is_first_user()?;
-    let role = if is_first {
-        UserRole::Owner
+    // Determine user: resume existing session or create new user
+    let user = if let Some(resume_id) = payload.resume_session_id {
+        // Client is trying to resume with existing user ID
+        match state.db.get_user(resume_id)? {
+            Some(existing_user) => {
+                info!("User resumed: {} ({}) as {:?}", existing_user.username, existing_user.id, existing_user.role);
+                existing_user
+            }
+            None => {
+                send_error(tx, ErrorCode::InvalidRequest, "Invalid user ID")?;
+                bail!("User ID not found");
+            }
+        }
     } else {
-        UserRole::Member
-    };
+        // New connection: check if this IP already has a user
+        if let Some(ip) = client_ip {
+            if let Some(existing_user) = state.db.get_user_by_ip(ip)? {
+                // This IP already has a user - reject with error message
+                send_error(
+                    tx, 
+                    ErrorCode::InvalidRequest, 
+                    &format!("This device already has an account with username '{}'. Please reconnect to resume your session.", existing_user.username)
+                )?;
+                bail!("IP already has a user");
+            }
+        }
 
-    // Create user in database
-    let user = state.db.create_user(&payload.username, role)?;
-    info!("New user created: {} ({}) as {:?}", user.username, user.id, user.role);
+        // Username is required for new connections
+        let username = match payload.username {
+            Some(name) => name,
+            None => {
+                send_error(tx, ErrorCode::InvalidPayload, "Username is required for new connections")?;
+                bail!("Username missing");
+            }
+        };
+
+        // Check if username is available
+        if let Some(_existing) = state.db.get_user_by_username(&username)? {
+            send_error(tx, ErrorCode::InvalidRequest, "Username already in use")?;
+            bail!("Username already taken");
+        }
+
+        // All new users start as Member
+        // They must authenticate with admin password to become Owner
+        let role = UserRole::Member;
+
+        // Create new user in database with IP address
+        let new_user = state.db.create_user(&username, role, client_ip.map(|s| s.to_string()))?;
+        info!("New user created: {} ({}) as {:?} from IP {:?}", new_user.username, new_user.id, new_user.role, client_ip);
+        new_user
+    };
 
     // Create session
     let session_id = state.session_manager.create_session(user.clone(), tx.clone());
@@ -97,11 +145,16 @@ async fn handle_connect(
     // Get all channels
     let channels = state.db.list_channels()?;
 
+    // Get server name from config
+    let server_name = state.config.read().unwrap().server.name.clone();
+
     // Send WELCOME message
     let welcome = ServerMessage::Welcome(WelcomePayload {
         session_id,
         user_id: user.id,
+        username: user.username.clone(),
         server_version: SERVER_VERSION.to_string(),
+        server_name,
         role: user.role,
         channels,
     });
@@ -178,7 +231,7 @@ async fn handle_join_channel(
     session_id: Uuid,
     payload: JoinChannelPayload,
     state: &Arc<AppState>,
-    _tx: &mpsc::UnboundedSender<Message>,
+    tx: &mpsc::UnboundedSender<Message>,
 ) -> Result<()> {
     let user_id = state.session_manager.get_session(session_id)
         .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
@@ -193,6 +246,21 @@ async fn handle_join_channel(
     // Get user info
     let user = state.db.get_user(user_id)?
         .ok_or_else(|| anyhow::anyhow!("User not found"))?;
+
+    // Load message history (last 50 messages)
+    let history = state.db.get_message_history(payload.channel_id, 50)?;
+    let message_payloads: Vec<MessagePayload> = history.into_iter()
+        .map(|(message, username)| MessagePayload { message, username })
+        .collect();
+
+    // Send history to the user who joined
+    if !message_payloads.is_empty() {
+        let history_msg = ServerMessage::MessageHistory(MessageHistoryPayload {
+            channel_id: payload.channel_id,
+            messages: message_payloads,
+        });
+        send_message(tx, &history_msg)?;
+    }
 
     // Notify channel members
     let msg = ServerMessage::UserJoined(UserJoinedPayload {
@@ -238,11 +306,11 @@ async fn handle_send_message(
         .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
 
     // Validate message size
-    if payload.content.len() > state.config.limits.max_message_size {
+    if payload.content.len() > state.config.read().unwrap().limits.max_message_size {
         send_error(
             tx,
             ErrorCode::MessageTooLarge,
-            &format!("Message exceeds {} characters", state.config.limits.max_message_size)
+            &format!("Message exceeds {} characters", state.config.read().unwrap().limits.max_message_size)
         )?;
         return Ok(());
     }
@@ -289,7 +357,7 @@ async fn handle_join_voice(
 
     // Check channel capacity
     let current_members = state.session_manager.get_voice_channel_members(payload.channel_id);
-    if current_members.len() >= state.config.limits.max_users_per_voice_channel {
+    if current_members.len() >= state.config.read().unwrap().limits.max_users_per_voice_channel {
         send_error(tx, ErrorCode::ServerFull, "Voice channel is full")?;
         return Ok(());
     }
@@ -331,9 +399,221 @@ async fn handle_leave_voice(
     Ok(())
 }
 
+async fn handle_authenticate_admin(
+    session_id: Uuid,
+    payload: AuthenticateAdminPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let user_id = state.session_manager.get_session(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    // Get current user
+    let user = state.db.get_user(user_id)?
+        .ok_or_else(|| anyhow::anyhow!("User not found"))?;
+
+    // Check if already owner
+    if user.role == UserRole::Owner {
+        send_error(tx, ErrorCode::InvalidRequest, "You are already an owner")?;
+        return Ok(());
+    }
+
+    // Verify password
+    if payload.password != state.config.read().unwrap().server.admin_password {
+        send_error(tx, ErrorCode::Unauthorized, "Invalid admin password")?;
+        return Ok(());
+    }
+
+    // Promote to owner
+    state.db.update_user_role(user_id, UserRole::Owner)?;
+    
+    // Update session role
+    state.session_manager.update_user_role(session_id, UserRole::Owner);
+
+    info!("User {} authenticated as admin", user.username);
+
+    // Send confirmation
+    let msg = ServerMessage::AdminAuthenticated(AdminAuthenticatedPayload {
+        user_id,
+        new_role: UserRole::Owner,
+    });
+    send_message(tx, &msg)?;
+
+    Ok(())
+}
+
 async fn handle_ping(tx: &mpsc::UnboundedSender<Message>) -> Result<()> {
     let msg = ServerMessage::Pong;
     send_message(tx, &msg)?;
+    Ok(())
+}
+
+async fn handle_rename_channel(
+    session_id: Uuid,
+    payload: RenameChannelPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can rename channels")?;
+        return Ok(());
+    }
+
+    let channel = state.db.rename_channel(payload.channel_id, &payload.new_name)?;
+    info!("Channel renamed: {} -> {} ({})", payload.channel_id, payload.new_name, channel.id);
+
+    let msg = ServerMessage::ChannelRenamed(ChannelRenamedPayload {
+        channel_id: payload.channel_id,
+        new_name: payload.new_name,
+    });
+    broadcast_message(&state.session_manager, &msg);
+
+    Ok(())
+}
+
+async fn handle_get_server_settings(
+    session_id: Uuid,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can view server settings")?;
+        return Ok(());
+    }
+
+    let cfg = state.config.read().unwrap();
+    let msg = ServerMessage::ServerSettings(ServerSettingsPayload {
+        name: cfg.server.name.clone(),
+        ws_port: cfg.server.ws_port,
+        udp_port: cfg.server.udp_port,
+        max_users: cfg.limits.max_users,
+        max_users_per_voice_channel: cfg.limits.max_users_per_voice_channel,
+        max_message_size: cfg.limits.max_message_size,
+    });
+    drop(cfg);
+    send_message(tx, &msg)?;
+
+    Ok(())
+}
+
+async fn handle_update_server_settings(
+    session_id: Uuid,
+    payload: UpdateServerSettingsPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can update server settings")?;
+        return Ok(());
+    }
+
+    {
+        let mut cfg = state.config.write().unwrap();
+        if let Some(name) = payload.name {
+            cfg.server.name = name;
+        }
+        
+        // Password change requires current password verification
+        if let Some(new_pwd) = payload.admin_password {
+            if !new_pwd.is_empty() {
+                // Verify current password if provided
+                if let Some(current_pwd) = payload.current_admin_password {
+                    if current_pwd != cfg.server.admin_password {
+                        send_error(tx, ErrorCode::Unauthorized, "Current admin password is incorrect")?;
+                        return Ok(());
+                    }
+                    cfg.server.admin_password = new_pwd;
+                } else {
+                    // Require current password for password change
+                    send_error(tx, ErrorCode::InvalidRequest, "Current admin password is required to change password")?;
+                    return Ok(());
+                }
+            }
+        }
+        
+        if let Some(max) = payload.max_users {
+            cfg.limits.max_users = max;
+        }
+        if let Some(max_voice) = payload.max_users_per_voice_channel {
+            cfg.limits.max_users_per_voice_channel = max_voice;
+        }
+        if let Some(max_msg) = payload.max_message_size {
+            cfg.limits.max_message_size = max_msg;
+        }
+    }
+
+    // Persist to disk
+    let cfg_snapshot = state.config.read().unwrap().clone();
+    if let Err(e) = cfg_snapshot.save(&state.config_path) {
+        warn!("Failed to save config: {}", e);
+    } else {
+        info!("Server settings updated and saved");
+    }
+
+    // Send updated settings back
+    let cfg = state.config.read().unwrap();
+    let msg = ServerMessage::ServerSettings(ServerSettingsPayload {
+        name: cfg.server.name.clone(),
+        ws_port: cfg.server.ws_port,
+        udp_port: cfg.server.udp_port,
+        max_users: cfg.limits.max_users,
+        max_users_per_voice_channel: cfg.limits.max_users_per_voice_channel,
+        max_message_size: cfg.limits.max_message_size,
+    });
+    drop(cfg);
+    send_message(tx, &msg)?;
+
+    Ok(())
+}
+
+async fn handle_get_users(
+    session_id: Uuid,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    // Any authenticated user can see the user list
+    let _user_id = state.session_manager.get_session(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    let users = state.db.list_users()?;
+    let msg = ServerMessage::ServerUsers(ServerUsersPayload { users });
+    send_message(tx, &msg)?;
+
+    Ok(())
+}
+
+async fn handle_update_avatar(
+    session_id: Uuid,
+    payload: UpdateAvatarPayload,
+    state: &Arc<AppState>,
+    _tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    // Get user ID from session
+    let user_id = state.session_manager.get_session(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    // Update avatar in database
+    state.db.update_user_avatar(user_id, payload.avatar_url.clone())?;
+
+    info!("User {} updated avatar", user_id);
+
+    // Broadcast avatar update to all connected clients
+    let msg = ServerMessage::UserAvatarUpdated(UserAvatarUpdatedPayload {
+        user_id,
+        avatar_url: payload.avatar_url,
+    });
+
+    broadcast_message(&state.session_manager, &msg);
+
     Ok(())
 }
 

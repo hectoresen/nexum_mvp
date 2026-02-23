@@ -65,6 +65,13 @@ impl SessionManager {
         sessions.get(&session_id).map(|s| s.role.clone())
     }
 
+    pub fn update_user_role(&self, session_id: Uuid, new_role: UserRole) {
+        let mut sessions = self.sessions.write().unwrap();
+        if let Some(session) = sessions.get_mut(&session_id) {
+            session.role = new_role;
+        }
+    }
+
     pub fn remove_session(&self, session_id: Uuid) {
         let mut sessions = self.sessions.write().unwrap();
         if let Some(session) = sessions.remove(&session_id) {
