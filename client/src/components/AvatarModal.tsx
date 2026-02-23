@@ -27,8 +27,8 @@ export default function AvatarModal({ currentAvatar, serverAddress, sessionId, u
   const compressAndResizeImage = async (file: File): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
-      
-      reader.onload = (e) => {
+
+      reader.onload = e => {
         const img = new Image()
         img.onload = () => {
           // Create canvas
@@ -55,7 +55,7 @@ export default function AvatarModal({ currentAvatar, serverAddress, sessionId, u
           let quality = 0.85
           const tryCompress = () => {
             canvas.toBlob(
-              (blob) => {
+              blob => {
                 if (!blob) {
                   reject(new Error('Failed to compress image'))
                   return
@@ -73,7 +73,7 @@ export default function AvatarModal({ currentAvatar, serverAddress, sessionId, u
                 }
               },
               'image/webp',
-              quality
+              quality,
             )
           }
 
@@ -106,7 +106,7 @@ export default function AvatarModal({ currentAvatar, serverAddress, sessionId, u
 
       // Compress and resize
       const compressedBlob = await compressAndResizeImage(file)
-      
+
       // Create a File from the Blob
       const compressedFile = new File([compressedBlob], file.name.replace(/\.[^.]+$/, '.webp'), {
         type: 'image/webp',
@@ -116,11 +116,10 @@ export default function AvatarModal({ currentAvatar, serverAddress, sessionId, u
 
       // Create preview
       const previewReader = new FileReader()
-      previewReader.onload = (e) => {
+      previewReader.onload = e => {
         setPreviewUrl(e.target?.result as string)
       }
       previewReader.readAsDataURL(compressedBlob)
-
     } catch (err: any) {
       setError(err.message || 'Failed to process image')
       setSelectedFile(null)
@@ -155,7 +154,7 @@ export default function AvatarModal({ currentAvatar, serverAddress, sessionId, u
         const response = await fetch(`http://${serverAddress}/api/users/${userId}/avatar`, {
           method: 'POST',
           headers: {
-            'Authorization': `Session ${sessionId}`,
+            Authorization: `Session ${sessionId}`,
           },
           body: formData,
         })
@@ -325,11 +324,17 @@ export default function AvatarModal({ currentAvatar, serverAddress, sessionId, u
         </div>
 
         <div className="mt-6 flex justify-between gap-3">
-          <button onClick={handleClear} disabled={uploading || processingImage} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+          <button
+            onClick={handleClear}
+            disabled={uploading || processingImage}
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed">
             Clear
           </button>
           <div className="flex gap-3">
-            <button onClick={onClose} disabled={uploading || processingImage} className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <button
+              onClick={onClose}
+              disabled={uploading || processingImage}
+              className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               Cancel
             </button>
             <button

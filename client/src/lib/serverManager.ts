@@ -2,7 +2,7 @@
 
 import { SavedServer } from '../types/server';
 
-const STORAGE_KEY = 'voice_mvp_servers';
+const STORAGE_KEY = 'nexum_servers';
 
 export class ServerManager {
   /**

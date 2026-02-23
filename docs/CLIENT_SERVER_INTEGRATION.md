@@ -14,7 +14,7 @@ El cliente y el servidor CLI se instalarán juntos en la misma ruta, permitiendo
 ## 📁 Estructura de Instalación
 
 ```
-C:\Program Files\Voice MVP\
+C:\Program Files\Nexum\
 ├── voice-client.exe          # Cliente Tauri
 ├── voice-server.exe          # Servidor CLI
 ├── resources\
@@ -30,7 +30,7 @@ C:\Program Files\Voice MVP\
 ### 1. Primera Instalación
 
 ```
-Usuario instala Voice MVP (cliente + servidor)
+Usuario instala Nexum (cliente + servidor)
     ↓
 Cliente detecta voice-server.exe en la misma ruta
     ↓
@@ -298,7 +298,7 @@ cd client
 npm run tauri:build
 
 # 3. El instalador incluirá ambos
-Write-Host "Installer: client/src-tauri/target/release/bundle/msi/Voice MVP_x.x.x.msi"
+Write-Host "Installer: client/src-tauri/target/release/bundle/msi/Nexum_x.x.x.msi"
 ```
 
 ## 🔐 Gestión de Contraseñas
@@ -331,7 +331,7 @@ Write-Host "Installer: client/src-tauri/target/release/bundle/msi/Voice MVP_x.x.
 
 ```
 ┌─────────────────────────────────────────┐
-│  Voice MVP                              │
+│  Nexum                              │
 ├─────────────────────────────────────────┤
 │                                         │
 │  🖥️  LOCAL SERVER                       │
@@ -368,7 +368,7 @@ Write-Host "Installer: client/src-tauri/target/release/bundle/msi/Voice MVP_x.x.
 ### Wizard Primera Ejecución:
 
 ```
-Step 1: Welcome to Voice MVP
+Step 1: Welcome to Nexum
 [ ] Host my own server on this computer
 [ ] Connect to an existing server
 
@@ -380,7 +380,7 @@ Configure your server password:
 Step 3:
 Starting your server...
 ● Server running on localhost:8080
-You're ready to use Voice MVP!
+You're ready to use Nexum!
 [Start Using]
 ```
 

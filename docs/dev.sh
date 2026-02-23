@@ -44,7 +44,7 @@ case "$1" in
     ;;
   
   *)
-    echo "Voice MVP - Development Helper"
+    echo "Nexum - Development Helper"
     echo ""
     echo "Usage: ./dev.sh [command]"
     echo ""

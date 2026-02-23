@@ -29,7 +29,7 @@
 
 1. **Monorepo Structure**:
    ```
-   voice_mvp/
+   nexum/
    ├── server/           # Rust binary
    ├── client/           # Tauri app
    └── protocol/         # Shared TypeScript types (copied, not shared build)

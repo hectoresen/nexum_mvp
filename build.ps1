@@ -1,4 +1,4 @@
-# Build Script - Voice MVP Unified
+# Build Script - Nexum Unified
 # Compila servidor CLI + cliente con servidor integrado
 #
 # Usage:
@@ -18,7 +18,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 Write-Host "======================================" -ForegroundColor Cyan
-Write-Host "Voice MVP - Unified Build Script" -ForegroundColor Cyan
+Write-Host "Nexum - Unified Build Script" -ForegroundColor Cyan
 Write-Host "======================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -144,7 +144,7 @@ Write-Host ""
 $ErrorActionPreference = "Stop"
 
 Write-Host "======================================" -ForegroundColor Cyan
-Write-Host "Voice MVP - Unified Build Script" -ForegroundColor Cyan
+Write-Host "Nexum - Unified Build Script" -ForegroundColor Cyan
 Write-Host "======================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -218,7 +218,7 @@ if (-not $ServerOnly) {
             Write-Host ""
             Write-Host "✅ Client built and bundled successfully" -ForegroundColor Green
             Write-Host "   Installer: client/src-tauri/target/release/bundle/msi/" -ForegroundColor Gray
-            Write-Host "   Portable: client/src-tauri/target/release/voice-mvp.exe" -ForegroundColor Gray
+            Write-Host "   Portable: client/src-tauri/target/release/nexum.exe" -ForegroundColor Gray
         }
         else {
             Write-Host "🔨 Building client for development..." -ForegroundColor Cyan

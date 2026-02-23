@@ -2,7 +2,7 @@
 name = "voice-server-gui"
 version = "0.1.0"
 description = "Voice Server Manager GUI"
-authors = ["Voice MVP Team"]
+authors = ["Nexum Team"]
 edition = "2021"
 
 [build-dependencies]

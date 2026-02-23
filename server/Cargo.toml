@@ -2,7 +2,7 @@
 name = "voice-server"
 version = "0.1.0"
 edition = "2021"
-authors = ["Voice MVP Team"]
+authors = ["Nexum Team"]
 description = "Self-hosted voice and chat server"
 
 [dependencies]

@@ -1,7 +1,7 @@
-# Voice MVP - Development Launch Script for Windows
+# Nexum - Development Launch Script for Windows
 # Launches server and client in separate terminals
 
-Write-Host "🚀 Launching Voice MVP Development Environment..." -ForegroundColor Cyan
+Write-Host "🚀 Launching Nexum Development Environment..." -ForegroundColor Cyan
 Write-Host ""
 
 # Check if Rust is installed
@@ -27,7 +27,7 @@ Write-Host ""
 # Launch server in new terminal
 Write-Host "📡 Starting server..." -ForegroundColor Yellow
 $serverPath = Join-Path $PSScriptRoot "server"
-Start-Process pwsh -ArgumentList "-NoExit", "-Command", "cd '$serverPath'; Write-Host '🔧 Voice MVP Server' -ForegroundColor Cyan; cargo run"
+Start-Process pwsh -ArgumentList "-NoExit", "-Command", "cd '$serverPath'; Write-Host '🔧 Nexum Server' -ForegroundColor Cyan; cargo run"
 
 # Wait a bit for server to start
 Start-Sleep -Seconds 2
@@ -35,7 +35,7 @@ Start-Sleep -Seconds 2
 # Launch client in new terminal
 Write-Host "💻 Starting client..." -ForegroundColor Yellow
 $clientPath = Join-Path $PSScriptRoot "client"
-Start-Process pwsh -ArgumentList "-NoExit", "-Command", "cd '$clientPath'; Write-Host '🎨 Voice MVP Client' -ForegroundColor Cyan; `$env:PATH += ';$env:USERPROFILE\.cargo\bin'; npm run tauri dev"
+Start-Process pwsh -ArgumentList "-NoExit", "-Command", "cd '$clientPath'; Write-Host '🎨 Nexum Client' -ForegroundColor Cyan; `$env:PATH += ';$env:USERPROFILE\.cargo\bin'; npm run tauri dev"
 
 Write-Host ""
 Write-Host "✨ Development environment launched!" -ForegroundColor Green

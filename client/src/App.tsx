@@ -657,7 +657,7 @@ function App() {
           onAddServer={() => setShowAddServerModal(true)}
           onDeleteServer={handleDeleteServer}
           onLaunchLocalServer={handleLaunchLocalServer}
-          onOpenClientSettings={(section) => setClientSettingsSection(section)}
+          onOpenClientSettings={section => setClientSettingsSection(section)}
           localServerStatus={localServerStatus}
         />
 
@@ -684,10 +684,9 @@ function App() {
   const conn = view.connection
   // Get current user avatar from user list
   const currentUser = conn.serverUsers?.find(u => u.id === conn.userId)
-  
+
   // Construct avatar URL from avatar_path or use avatar_url
-  const currentUserAvatar = currentUser?.avatar_url || 
-    (currentUser?.avatar_path ? `http://${conn.server.address}/${currentUser.avatar_path}` : null)
+  const currentUserAvatar = currentUser?.avatar_url || (currentUser?.avatar_path ? `http://${conn.server.address}/${currentUser.avatar_path}` : null)
 
   return (
     <>
@@ -714,7 +713,7 @@ function App() {
         onSendMessage={handleSendMessage}
         onAuthenticateAdmin={() => setShowAdminAuthModal(true)}
         onOpenServerSettings={handleGetServerSettings}
-        onOpenClientSettings={(section) => setClientSettingsSection(section)}
+        onOpenClientSettings={section => setClientSettingsSection(section)}
         onRenameChannel={handleRenameChannel}
         onDeleteChannel={handleDeleteChannel}
         onViewUsers={handleGetUsers}
@@ -760,14 +759,7 @@ function App() {
       {showUserSettingsModal && <UserSettingsModal onClose={() => setShowUserSettingsModal(false)} onChangeAvatar={() => setShowAvatarModal(true)} />}
 
       {showAvatarModal && conn.sessionId && conn.userId && (
-        <AvatarModal 
-          currentAvatar={currentUserAvatar} 
-          serverAddress={conn.server.address} 
-          sessionId={conn.sessionId}
-          userId={conn.userId}
-          onClose={() => setShowAvatarModal(false)} 
-          onSave={handleUpdateAvatar} 
-        />
+        <AvatarModal currentAvatar={currentUserAvatar} serverAddress={conn.server.address} sessionId={conn.sessionId} userId={conn.userId} onClose={() => setShowAvatarModal(false)} onSave={handleUpdateAvatar} />
       )}
     </>
   )

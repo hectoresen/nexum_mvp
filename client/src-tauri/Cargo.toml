@@ -1,8 +1,8 @@
 [package]
 name = "voice-client"
 version = "0.1.0"
-description = "Voice MVP Client"
-authors = ["Voice MVP Team"]
+description = "Nexum Client"
+authors = ["Nexum Team"]
 edition = "2021"
 
 [build-dependencies]

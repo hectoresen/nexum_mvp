@@ -19,7 +19,7 @@ All notable changes and completed tasks are documented here.
 
 **3. Home Screen UI Redesign**
 
-- **Client — `client/src/components/ServerListView.tsx`**: 
+- **Client — `client/src/components/ServerListView.tsx`**:
   - Removed standalone "Local Server" card section entirely
   - Added "Server" dropdown below subtitle with local server status indicator (🟢 Running / ⚪ Installed / 🔴 Not Installed)
   - Server dropdown contains Start/Configure/Download options based on status + Add Server option
@@ -463,8 +463,8 @@ All notable changes and completed tasks are documented here.
 ### Windows Build Success 🎉
 
 - ✅ Successfully compiled Windows installers on native Windows
-- ✅ Generated MSI installer (3.47 MB): `Voice MVP_0.1.0_x64_en-US.msi`
-- ✅ Generated NSIS installer (2.32 MB): `Voice MVP_0.1.0_x64-setup.exe`
+- ✅ Generated MSI installer (3.47 MB): `Nexum_0.1.0_x64_en-US.msi`
+- ✅ Generated NSIS installer (2.32 MB): `Nexum_0.1.0_x64-setup.exe`
 - ✅ Installed Rust toolchain 1.93.1 with cargo
 - ✅ Compiled 470 Rust crates successfully
 - ✅ Build completed in ~1m 37s

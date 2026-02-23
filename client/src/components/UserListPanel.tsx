@@ -29,19 +29,19 @@ export default function UserListPanel({ users, currentUserId, serverAddress }: U
   const getAvatarUrl = (user: User): string | null => {
     // Prefer avatar_url (external URLs)
     if (user.avatar_url) return user.avatar_url
-    
+
     // Use avatar_path with server address
     if (user.avatar_path && serverAddress) {
       return `http://${serverAddress}/${user.avatar_path}`
     }
-    
+
     return null
   }
 
   const renderUser = (user: User) => {
     const isCurrentUser = user.id === currentUserId
     const avatarUrl = getAvatarUrl(user)
-    
+
     return (
       <div
         key={user.id}

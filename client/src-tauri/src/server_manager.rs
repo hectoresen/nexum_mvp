@@ -104,14 +104,14 @@ impl ServerManager {
         // 3. Standard installation paths
         #[cfg(target_os = "windows")]
         {
-            paths.push(PathBuf::from("C:\\Program Files\\Voice MVP\\voice-server.exe"));
-            paths.push(PathBuf::from("C:\\Program Files (x86)\\Voice MVP\\voice-server.exe"));
+            paths.push(PathBuf::from("C:\\Program Files\\Nexum\\voice-server.exe"));
+            paths.push(PathBuf::from("C:\\Program Files (x86)\\Nexum\\voice-server.exe"));
         }
 
         // 4. User's home directory
         if let Some(home) = dirs::home_dir() {
-            paths.push(home.join("voice-mvp").join("voice-server.exe"));
-            paths.push(home.join("voice-mvp").join("voice-server"));
+            paths.push(home.join("nexum").join("voice-server.exe"));
+            paths.push(home.join("nexum").join("voice-server"));
         }
 
         // 5. Current working directory (for development)

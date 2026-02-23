@@ -1,4 +1,4 @@
-# TODO List - Voice MVP
+# TODO List - Nexum
 
 ## 🚧 Phase 0.5: Client-Server Integration (IN PROGRESS)
 
@@ -50,7 +50,7 @@ This phase integrates the CLI server with the client for a unified user experien
 
 - [x] **Server dropdown navigation** — moved local server management from card to header dropdown
 - [x] **Settings dropdown with sections** — General (app/language/appearance) and Voice & Video (audio devices)
-- [x] **Minimal add server button** — changed from card-style button to icon-only "+" 
+- [x] **Minimal add server button** — changed from card-style button to icon-only "+"
 - [x] **Server name auto-fetch** — removed manual name field, server sends real name in WELCOME message
 - [x] **Client settings tabs** — reorganized modal into General and Voice & Video sections
 - [x] **Removed gear icon** — consolidated settings access into dropdown menu
@@ -124,6 +124,7 @@ Analyze and implement light theme support across entire application.
 #### Color Palette Design 🎨
 
 **Dark Mode (Current):**
+
 - Background: gray-900 (#111827)
 - Surface: gray-800 (#1f2937)
 - Border: gray-700 (#374151)
@@ -133,6 +134,7 @@ Analyze and implement light theme support across entire application.
 - Accent: gray-500/600
 
 **Light Mode (To Implement):**
+
 - Background: gray-50 (#f9fafb)
 - Surface: white (#ffffff)
 - Border: gray-200 (#e5e7eb)

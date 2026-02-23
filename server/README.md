@@ -93,7 +93,7 @@ enabled = true
 
 The server stores all data in the `./data` directory:
 
-- `voice_mvp.db` - SQLite database with users, channels, messages
+- `nexum.db` - SQLite database with users, channels, messages
 - Other server data
 
 ## 🌐 Networking

@@ -1,6 +1,6 @@
-# Voice MVP - Quick Start Guide
+# Nexum - Quick Start Guide
 
-**Desarrollo y testing del proyecto Voice MVP**
+**Desarrollo y testing del proyecto Nexum**
 
 ---
 
@@ -61,7 +61,7 @@ npm run tauri dev
 ```powershell
 # 1. Clone repository
 git clone <repo-url>
-cd voice_mvp
+cd nexum
 
 # 2. Install Rust (if not installed)
 # Download from: https://rustup.rs
@@ -90,7 +90,7 @@ El servidor inicia en:
 
 - **WebSocket**: `ws://0.0.0.0:8080/ws` (escucha en todas las interfaces)
 - **UDP**: `0.0.0.0:9000`
-- **Base de datos**: `./data/voice_mvp.db` (se crea automáticamente)
+- **Base de datos**: `./data/nexum.db` (se crea automáticamente)
 
 **💡 Para conectarte desde el mismo PC, usa:** `localhost:8080` o `127.0.0.1:8080`
 
@@ -133,8 +133,8 @@ npm run tauri build
 
 **Genera:**
 
-- `src-tauri/target/release/bundle/msi/Voice MVP_0.1.0_x64_en-US.msi` (~3.5 MB)
-- `src-tauri/target/release/bundle/nsis/Voice MVP_0.1.0_x64-setup.exe` (~2.3 MB)
+- `src-tauri/target/release/bundle/msi/Nexum_0.1.0_x64_en-US.msi` (~3.5 MB)
+- `src-tauri/target/release/bundle/nsis/Nexum_0.1.0_x64-setup.exe` (~2.3 MB)
 
 ### Servidor (Binario standalone)
 
@@ -175,7 +175,7 @@ $env:PATH += ";$env:USERPROFILE\.cargo\bin"
 ## 📁 Estructura del Proyecto
 
 ```
-voice_mvp/
+nexum/
 ├── server/                    # Rust (Tokio + Axum + SQLite)
 │   ├── src/
 │   │   ├── main.rs           # Entry point

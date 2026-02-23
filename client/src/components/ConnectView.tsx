@@ -26,7 +26,7 @@ export default function ConnectView({ onConnect, connecting, error }: ConnectVie
   return (
     <div className="flex items-center justify-center w-full h-full bg-gray-900">
       <div className="w-full max-w-2xl p-8">
-        <h1 className="text-3xl font-bold text-center text-white mb-8">Voice MVP</h1>
+        <h1 className="text-3xl font-bold text-center text-white mb-8">Nexum</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Local Server Panel */}

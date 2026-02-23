@@ -1,4 +1,4 @@
-# Voice MVP - User Flow & Server Decisions
+# Nexum - User Flow & Server Decisions
 
 **Documento de decisiones de flujo de usuarios y configuración del servidor**
 

@@ -47,22 +47,12 @@ export default function ClientSettingsModal({ onClose, initialSection = 'general
         <div className="flex gap-2 mb-6 border-b border-gray-700">
           <button
             onClick={() => setCurrentSection('general')}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
-              currentSection === 'general'
-                ? 'text-white border-blue-500'
-                : 'text-gray-400 border-transparent hover:text-gray-300'
-            }`}
-          >
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${currentSection === 'general' ? 'text-white border-blue-500' : 'text-gray-400 border-transparent hover:text-gray-300'}`}>
             General
           </button>
           <button
             onClick={() => setCurrentSection('voice-video')}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
-              currentSection === 'voice-video'
-                ? 'text-white border-blue-500'
-                : 'text-gray-400 border-transparent hover:text-gray-300'
-            }`}
-          >
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${currentSection === 'voice-video' ? 'text-white border-blue-500' : 'text-gray-400 border-transparent hover:text-gray-300'}`}>
             Voice & Video
           </button>
         </div>
@@ -73,87 +63,87 @@ export default function ClientSettingsModal({ onClose, initialSection = 'general
             <>
               <div>
                 <h3 className="text-lg font-semibold text-white mb-3 border-b border-gray-700 pb-2">Application</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300">Auto-start on System Boot</label>
-                  <p className="text-xs text-gray-500 mt-1">Launch Voice MVP automatically when your computer starts</p>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300">Auto-start on System Boot</label>
+                      <p className="text-xs text-gray-500 mt-1">Launch Nexum automatically when your computer starts</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" checked={autoStart} onChange={e => setAutoStart(e.target.checked)} className="sr-only peer" />
+                      <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-500"></div>
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Language</label>
+                    <select value={language} onChange={e => setLanguage(e.target.value)} className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-gray-500">
+                      <option value="en">English</option>
+                      <option value="es">Español</option>
+                      <option value="fr">Français</option>
+                      <option value="de">Deutsch</option>
+                      <option value="ja">日本語</option>
+                    </select>
+                  </div>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" checked={autoStart} onChange={e => setAutoStart(e.target.checked)} className="sr-only peer" />
-                  <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-500"></div>
-                </label>
               </div>
 
+              {/* Appearance */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Language</label>
-                <select value={language} onChange={e => setLanguage(e.target.value)} className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-gray-500">
-                  <option value="en">English</option>
-                  <option value="es">Español</option>
-                  <option value="fr">Français</option>
-                  <option value="de">Deutsch</option>
-                  <option value="ja">日本語</option>
-                </select>
+                <h3 className="text-lg font-semibold text-white mb-3 border-b border-gray-700 pb-2">Appearance</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Theme</label>
+                    <select value={theme} onChange={e => setTheme(e.target.value)} className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-gray-500">
+                      <option value="dark">Dark</option>
+                      <option value="light" disabled>
+                        Light (Coming Soon)
+                      </option>
+                      <option value="auto" disabled>
+                        Auto (Coming Soon)
+                      </option>
+                    </select>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-
-          {/* Appearance */}
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-3 border-b border-gray-700 pb-2">Appearance</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Theme</label>
-                <select value={theme} onChange={e => setTheme(e.target.value)} className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-gray-500">
-                  <option value="dark">Dark</option>
-                  <option value="light" disabled>
-                    Light (Coming Soon)
-                  </option>
-                  <option value="auto" disabled>
-                    Auto (Coming Soon)
-                  </option>
-                </select>
-              </div>
-            </div>
-          </div>
             </>
           )}
 
           {/* Voice & Video Section */}
           {currentSection === 'voice-video' && (
             <>
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-3 border-b border-gray-700 pb-2">Audio Devices</h3>
-            <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Input Device (Microphone)</label>
-                <select
-                  value={audioInputDevice}
-                  onChange={e => setAudioInputDevice(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-gray-500">
-                  <option value="default">Default System Device</option>
-                  <option value="device-1" disabled>
-                    Device enumeration coming soon
-                  </option>
-                </select>
-                <p className="text-xs text-gray-500 mt-1">Select your microphone for voice chat</p>
-              </div>
+                <h3 className="text-lg font-semibold text-white mb-3 border-b border-gray-700 pb-2">Audio Devices</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Input Device (Microphone)</label>
+                    <select
+                      value={audioInputDevice}
+                      onChange={e => setAudioInputDevice(e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-gray-500">
+                      <option value="default">Default System Device</option>
+                      <option value="device-1" disabled>
+                        Device enumeration coming soon
+                      </option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">Select your microphone for voice chat</p>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Output Device (Speakers/Headphones)</label>
-                <select
-                  value={audioOutputDevice}
-                  onChange={e => setAudioOutputDevice(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-gray-500">
-                  <option value="default">Default System Device</option>
-                  <option value="device-1" disabled>
-                    Device enumeration coming soon
-                  </option>
-                </select>
-                <p className="text-xs text-gray-500 mt-1">Select your audio output for voice and sounds</p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Output Device (Speakers/Headphones)</label>
+                    <select
+                      value={audioOutputDevice}
+                      onChange={e => setAudioOutputDevice(e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:border-gray-500">
+                      <option value="default">Default System Device</option>
+                      <option value="device-1" disabled>
+                        Device enumeration coming soon
+                      </option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">Select your audio output for voice and sounds</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
             </>
           )}
 
