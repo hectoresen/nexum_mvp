@@ -6,7 +6,7 @@
 [![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)](https://www.rust-lang.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![Tauri](https://img.shields.io/badge/tauri-2.0-blue.svg)](https://tauri.app/)
-[![Release](https://img.shields.io/badge/version-0.1.0-brightgreen.svg)](https://github.com/yourusername/nexum/releases)
+[![Release](https://img.shields.io/github/v/release/hectoresen/nexum_mvp)](https://github.com/hectoresen/nexum/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](https://github.com/yourusername/nexum)
 
 ---
