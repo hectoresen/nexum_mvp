@@ -17,6 +17,7 @@ interface MainViewProps {
   onCreateChannel: (name: string, type: 'text' | 'voice') => void
   onJoinChannel: (channelId: string) => void
   onSendMessage: (content: string) => void
+  onDeleteMessage?: (messageId: string) => void // New: Delete message handler
   onAuthenticateAdmin?: () => void
   onOpenServerSettings?: () => void
   onOpenClientSettings?: (section: 'general' | 'voice-video') => void
@@ -36,6 +37,7 @@ export default function MainView({
   onCreateChannel,
   onJoinChannel,
   onSendMessage,
+  onDeleteMessage,
   onAuthenticateAdmin,
   onOpenServerSettings,
   onOpenClientSettings,
@@ -251,7 +253,7 @@ export default function MainView({
       {/* Main content area */}
       <div className="flex-1 flex flex-col">
         {currentChannel ? (
-          <ChatArea channel={currentChannel} messages={currentMessages} currentUserId={state.userId || ''} serverAddress={serverAddress} serverUsers={serverUsers} onSendMessage={onSendMessage} />
+          <ChatArea channel={currentChannel} messages={currentMessages} currentUserId={state.userId || ''} serverAddress={serverAddress} serverUsers={serverUsers} onSendMessage={onSendMessage} onDeleteMessage={onDeleteMessage} />
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className={`text-center ${tw.textMuted}`}>

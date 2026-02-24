@@ -10,13 +10,16 @@ interface ChatAreaProps {
   serverAddress?: string // Server address for avatar URLs
   serverUsers: User[] | null // List of all server users for profile modal
   onSendMessage: (content: string) => void
+  onDeleteMessage?: (messageId: string) => void // Callback for deleting messages
 }
 
-export default function ChatArea({ channel, messages, currentUserId: _currentUserId, serverAddress, serverUsers, onSendMessage }: ChatAreaProps) {
+export default function ChatArea({ channel, messages, currentUserId: _currentUserId, serverAddress, serverUsers, onSendMessage, onDeleteMessage }: ChatAreaProps) {
   const { tw } = useAppTheme()
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -46,11 +49,40 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
     }
   }
 
+  const handleDeleteMessage = (messageId: string) => {
+    setDeleteConfirmId(messageId)
+  }
+
+  const confirmDelete = (messageId: string) => {
+    if (onDeleteMessage) {
+      onDeleteMessage(messageId)
+    }
+    setDeleteConfirmId(null)
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* User profile modal */}
       {selectedUser && (
         <UserProfileModal user={selectedUser} serverAddress={serverAddress} onClose={() => setSelectedUser(null)} />
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setDeleteConfirmId(null)}>
+          <div className={`${tw.bgCard} rounded-lg shadow-xl w-96 p-6 border ${tw.borderDefault}`} onClick={e => e.stopPropagation()}>
+            <h3 className={`text-lg font-semibold ${tw.textPrimary} mb-3`}>Delete Message</h3>
+            <p className={`${tw.textSecondary} mb-6`}>Are you sure you want to delete this message? This action cannot be undone.</p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setDeleteConfirmId(null)} className={`px-4 py-2 ${tw.btnSecondary} ${tw.textPrimary} rounded-md hover:${tw.bgHoverSubtle} transition-colors font-normal cursor-pointer`}>
+                Cancel
+              </button>
+              <button onClick={() => confirmDelete(deleteConfirmId)} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors font-normal cursor-pointer">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {/* Channel header */}
       <div className={`h-12 border-b ${tw.borderDefault} px-4 flex items-center justify-between ${tw.bgHeader}`}>
@@ -85,8 +117,16 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
             // Construct avatar URL if avatar_path is available
             const avatarUrl = message.avatar_url || (message.avatar_path && serverAddress ? `http://${serverAddress}/${message.avatar_path}` : null)
 
+            // Check if message is deleted
+            const isDeleted = !!message.deleted_by_user_id
+
             return (
-              <div key={message.id} className="flex gap-3">
+              <div
+                key={message.id}
+                className="flex gap-3 group relative"
+                onMouseEnter={() => setHoveredMessageId(message.id)}
+                onMouseLeave={() => setHoveredMessageId(null)}
+              >
                 {/* Avatar */}
                 <div className={`w-10 h-10 rounded-full ${tw.bgInput} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
                   {avatarUrl ? (
@@ -105,8 +145,25 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
                     </span>
                     <span className={`text-xs ${tw.textMuted}`}>{formatTime(message.created_at)}</span>
                   </div>
-                  <p className={`${tw.textSecondary} mt-1 break-words`}>{message.content}</p>
+                  {isDeleted ? (
+                    <p className={`${tw.textMuted} italic mt-1`}>Message deleted by: {message.deleted_by_username}</p>
+                  ) : (
+                    <p className={`${tw.textSecondary} mt-1 break-words`}>{message.content}</p>
+                  )}
                 </div>
+
+                {/* Delete button - show on hover if user owns the message and it's not deleted */}
+                {!isDeleted && hoveredMessageId === message.id && message.user_id === _currentUserId && onDeleteMessage && (
+                  <button
+                    onClick={() => handleDeleteMessage(message.id)}
+                    className="absolute right-0 top-0 p-1.5 hover:bg-red-600 bg-gray-600 rounded transition-colors"
+                    title="Delete message"
+                  >
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                )}
               </div>
             )
           })

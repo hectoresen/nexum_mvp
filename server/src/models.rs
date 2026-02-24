@@ -82,6 +82,10 @@ pub struct Message {
     pub user_id: Uuid,
     pub content: String,
     pub created_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deleted_by_user_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deleted_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -117,6 +121,9 @@ pub enum ClientMessage {
     
     #[serde(rename = "SEND_MESSAGE")]
     SendMessage(SendMessagePayload),
+    
+    #[serde(rename = "DELETE_MESSAGE")]
+    DeleteMessage(DeleteMessagePayload),
     
     #[serde(rename = "JOIN_VOICE")]
     JoinVoice(JoinVoicePayload),
@@ -180,6 +187,11 @@ pub struct LeaveChannelPayload {
 pub struct SendMessagePayload {
     pub channel_id: Uuid,
     pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteMessagePayload {
+    pub message_id: Uuid,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -254,6 +266,9 @@ pub enum ServerMessage {
     
     #[serde(rename = "MESSAGE_HISTORY")]
     MessageHistory(MessageHistoryPayload),
+    
+    #[serde(rename = "MESSAGE_DELETED")]
+    MessageDeleted(MessageDeletedPayload),
     
     #[serde(rename = "ADMIN_AUTHENTICATED")]
     AdminAuthenticated(AdminAuthenticatedPayload),
@@ -351,6 +366,14 @@ pub struct MessagePayload {
 pub struct MessageHistoryPayload {
     pub channel_id: Uuid,
     pub messages: Vec<MessagePayload>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MessageDeletedPayload {
+    pub message_id: Uuid,
+    pub channel_id: Uuid,
+    pub deleted_by_user_id: Uuid,
+    pub deleted_by_username: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

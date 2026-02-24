@@ -33,6 +33,9 @@ export interface Message {
   avatar_url?: string; // Optional: populated from MessagePayload
   avatar_path?: string; // Optional: populated from MessagePayload
   avatar_version?: number; // Optional: populated from MessagePayload
+  deleted_by_user_id?: string; // Optional: set when message is deleted
+  deleted_at?: string; // Optional: set when message is deleted
+  deleted_by_username?: string; // Optional: username of deleter (from MessageDeletedPayload)
 }
 
 // ============================================================================
@@ -47,6 +50,7 @@ export type ClientMessage =
   | { type: 'JOIN_CHANNEL'; payload: JoinChannelPayload }
   | { type: 'LEAVE_CHANNEL'; payload: LeaveChannelPayload }
   | { type: 'SEND_MESSAGE'; payload: SendMessagePayload }
+  | { type: 'DELETE_MESSAGE'; payload: DeleteMessagePayload }
   | { type: 'JOIN_VOICE'; payload: JoinVoicePayload }
   | { type: 'LEAVE_VOICE'; payload: LeaveVoicePayload }
   | { type: 'AUTHENTICATE_ADMIN'; payload: AuthenticateAdminPayload }
@@ -82,6 +86,10 @@ export interface LeaveChannelPayload {
 export interface SendMessagePayload {
   channel_id: string;
   content: string;
+}
+
+export interface DeleteMessagePayload {
+  message_id: string;
 }
 
 export interface JoinVoicePayload {
@@ -124,6 +132,7 @@ export type ServerMessage =
   | { type: 'USER_LEFT'; payload: UserLeftPayload }
   | { type: 'MESSAGE'; payload: MessagePayload }
   | { type: 'MESSAGE_HISTORY'; payload: MessageHistoryPayload }
+  | { type: 'MESSAGE_DELETED'; payload: MessageDeletedPayload }
   | { type: 'ADMIN_AUTHENTICATED'; payload: AdminAuthenticatedPayload }
   | { type: 'VOICE_JOINED'; payload: VoiceJoinedPayload }
   | { type: 'VOICE_LEFT'; payload: VoiceLeftPayload }
@@ -189,6 +198,13 @@ export interface MessagePayload {
 export interface MessageHistoryPayload {
   channel_id: string;
   messages: MessagePayload[];
+}
+
+export interface MessageDeletedPayload {
+  message_id: string;
+  channel_id: string;
+  deleted_by_user_id: string;
+  deleted_by_username: string;
 }
 
 export interface AdminAuthenticatedPayload {

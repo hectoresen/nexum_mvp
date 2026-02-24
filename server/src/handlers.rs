@@ -45,6 +45,7 @@ pub async fn handle_message(
                 ClientMessage::JoinChannel(p) => handle_join_channel(sid, p, state, tx).await,
                 ClientMessage::LeaveChannel(p) => handle_leave_channel(sid, p, state, tx).await,
                 ClientMessage::SendMessage(p) => handle_send_message(sid, p, state, tx).await,
+                ClientMessage::DeleteMessage(p) => handle_delete_message(sid, p, state, tx).await,
                 ClientMessage::JoinVoice(p) => handle_join_voice(sid, p, state, tx).await,
                 ClientMessage::LeaveVoice(p) => handle_leave_voice(sid, p, state, tx).await,
                 ClientMessage::AuthenticateAdmin(p) => handle_authenticate_admin(sid, p, state, tx).await,
@@ -342,6 +343,45 @@ async fn handle_send_message(
     });
 
     broadcast_to_channel(&state.session_manager, payload.channel_id, &msg);
+
+    Ok(())
+}
+
+async fn handle_delete_message(
+    session_id: Uuid,
+    payload: DeleteMessagePayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let user_id = state.session_manager.get_session(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    // Get the message to check ownership
+    let message = state.db.get_message(payload.message_id)?
+        .ok_or_else(|| anyhow::anyhow!("Message not found"))?;
+    
+    // Verify the user owns the message (TODO: Allow owners to delete any message)
+    if message.user_id != user_id {
+        send_error(tx, ErrorCode::Unauthorized, "You can only delete your own messages")?;
+        return Ok(());
+    }
+
+    // Mark message as deleted
+    state.db.delete_message(payload.message_id, user_id)?;
+
+    // Get user info for broadcast
+    let user = state.db.get_user(user_id)?
+        .ok_or_else(|| anyhow::anyhow!("User not found"))?;
+
+    // Broadcast deletion to channel
+    let msg = ServerMessage::MessageDeleted(MessageDeletedPayload {
+        message_id: payload.message_id,
+        channel_id: message.channel_id,
+        deleted_by_user_id: user_id,
+        deleted_by_username: user.username,
+    });
+
+    broadcast_to_channel(&state.session_manager, message.channel_id, &msg);
 
     Ok(())
 }

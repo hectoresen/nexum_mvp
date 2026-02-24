@@ -423,6 +423,26 @@ function App() {
           messages: historyMessages,
         }
 
+      case 'MESSAGE_DELETED':
+        // Mark message as deleted
+        const deletedMessages = new Map(connection.messages)
+        const channelMsgs = deletedMessages.get(message.payload.channel_id) || []
+        const updatedMsgs = channelMsgs.map(msg =>
+          msg.id === message.payload.message_id
+            ? {
+                ...msg,
+                deleted_by_user_id: message.payload.deleted_by_user_id,
+                deleted_by_username: message.payload.deleted_by_username,
+                deleted_at: new Date().toISOString(),
+              }
+            : msg,
+        )
+        deletedMessages.set(message.payload.channel_id, updatedMsgs)
+        return {
+          ...connection,
+          messages: deletedMessages,
+        }
+
       case 'ADMIN_AUTHENTICATED':
         // User authenticated as admin - close modal and clear error
         setShowAdminAuthModal(false)
@@ -525,6 +545,17 @@ function App() {
       payload: {
         channel_id: view.connection.currentChannelId,
         content,
+      },
+    })
+  }
+
+  const handleDeleteMessage = (messageId: string) => {
+    if (view.type !== 'connected') return
+
+    view.connection.client.send({
+      type: 'DELETE_MESSAGE',
+      payload: {
+        message_id: messageId,
       },
     })
   }
@@ -717,6 +748,7 @@ function App() {
         onCreateChannel={handleCreateChannel}
         onJoinChannel={handleJoinChannel}
         onSendMessage={handleSendMessage}
+        onDeleteMessage={handleDeleteMessage}
         onAuthenticateAdmin={() => setShowAdminAuthModal(true)}
         onOpenServerSettings={handleGetServerSettings}
         onOpenClientSettings={section => setClientSettingsSection(section)}
