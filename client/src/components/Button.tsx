@@ -1,5 +1,5 @@
 import { ButtonHTMLAttributes } from 'react'
-import { tw } from '../theme'
+import { useAppTheme } from '../hooks/useAppTheme'
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'warning'
 type ButtonSize = 'sm' | 'md' | 'lg'
@@ -17,15 +17,17 @@ const sizeClasses = {
   lg: 'px-8 py-3 text-lg',
 }
 
-const variantClasses = {
-  primary: tw.btnPrimary,
-  secondary: tw.btnSecondary,
-  danger: tw.btnDanger,
-  warning: 'bg-amber-700 hover:bg-amber-600',
-}
-
 export function Button({ variant = 'primary', size = 'md', fullWidth = false, className = '', children, disabled, ...props }: ButtonProps) {
-  const baseClasses = `${tw.textPrimary} font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed`
+  const { tw } = useAppTheme()
+
+  const variantClasses = {
+    primary: tw.btnPrimary,
+    secondary: tw.btnSecondary,
+    danger: tw.btnDanger,
+    warning: 'bg-amber-600 hover:bg-amber-500',
+  }
+
+  const baseClasses = `${tw.textPrimary} font-normal rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer`
   const widthClass = fullWidth ? 'w-full' : ''
   const combinedClasses = `${baseClasses} ${sizeClasses[size]} ${variantClasses[variant]} ${widthClass} ${className}`
 

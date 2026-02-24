@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { tw } from '../theme'
+import { useAppTheme } from '../hooks/useAppTheme'
 
 interface ServerInfo {
   status: 'notinstalled' | 'stopped' | 'starting' | 'running' | 'error'
@@ -17,6 +17,7 @@ interface LocalServerPanelProps {
 }
 
 export default function LocalServerPanel({ onServerStarted, onServerStopped }: LocalServerPanelProps) {
+  const { tw } = useAppTheme()
   const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -219,10 +220,10 @@ export default function LocalServerPanel({ onServerStarted, onServerStopped }: L
               value={adminPassword}
               onChange={e => setAdminPassword(e.target.value)}
               placeholder="Enter admin password"
-              className={`flex-1 ${tw.bgInput} ${tw.textPrimary} rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500`}
+              className={`flex-1 ${tw.bgInput} ${tw.textPrimary} rounded px-3 py-2 text-sm border ${tw.borderDefault} focus:outline-none focus:ring-2 focus:ring-offset-2`}
               disabled={loading}
             />
-            <button onClick={generatePassword} className={`${tw.bgInput} hover:bg-gray-500 ${tw.textPrimary} px-3 py-2 rounded text-sm font-medium transition disabled:opacity-50`} disabled={loading}>
+            <button onClick={generatePassword} className={`${tw.btnSecondary} ${tw.textPrimary} px-3 py-2 rounded text-sm font-medium transition disabled:opacity-50`} disabled={loading}>
               Generate
             </button>
           </div>
@@ -246,7 +247,7 @@ export default function LocalServerPanel({ onServerStarted, onServerStopped }: L
           </button>
         )}
 
-        <button onClick={detectServer} disabled={loading} className={`${tw.bgInput} hover:bg-gray-600 ${tw.textPrimary} py-2 px-4 rounded font-medium transition disabled:opacity-50`}>
+        <button onClick={detectServer} disabled={loading} className={`${tw.btnSecondary} ${tw.textPrimary} py-2 px-4 rounded font-medium transition disabled:opacity-50`}>
           🔄
         </button>
       </div>

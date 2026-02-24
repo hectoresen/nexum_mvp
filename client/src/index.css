@@ -9,7 +9,42 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Dark mode styles (default) */
+[data-theme="dark"] body,
+body {
   @apply bg-gray-900 text-gray-100;
+}
+
+/* Light mode styles */
+[data-theme="light"] body {
+  @apply bg-white text-gray-900;
+}
+
+/* Placeholder color for inputs in dark mode */
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: rgb(107 114 128); /* gray-500 */
+  opacity: 1;
+}
+
+/* Placeholder color for inputs in light mode */
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: rgb(156 163 175); /* gray-400 */
+  opacity: 1;
+}
+
+/* Selection highlight colors */
+[data-theme="dark"] ::selection {
+  background-color: rgba(59, 130, 246, 0.3); /* blue-500 with opacity */
+  color: white;
+}
+
+[data-theme="light"] ::selection {
+  background-color: rgba(59, 130, 246, 0.3); /* blue-500 with opacity */
+  color: rgb(17, 24, 39); /* gray-900 */
 }
 
 * {

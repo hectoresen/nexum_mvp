@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { theme, tw } from '../theme'
-import { CancelButton } from './Button'
+import { useAppTheme } from '../hooks/useAppTheme'
+import { CancelButton, WarningButton } from './Button'
 
 interface AdminAuthModalProps {
   onClose: () => void
@@ -9,6 +9,7 @@ interface AdminAuthModalProps {
 }
 
 export default function AdminAuthModal({ onClose, onAuthenticate, error }: AdminAuthModalProps) {
+  const { theme, tw } = useAppTheme()
   const [password, setPassword] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -65,12 +66,9 @@ export default function AdminAuthModal({ onClose, onAuthenticate, error }: Admin
 
           <div className="flex gap-3">
             <CancelButton onClick={onClose} fullWidth />
-            <button
-              type="submit"
-              disabled={!password.trim()}
-              className="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <WarningButton type="submit" disabled={!password.trim()} fullWidth>
               Authenticate
-            </button>
+            </WarningButton>
           </div>
         </form>
       </div>

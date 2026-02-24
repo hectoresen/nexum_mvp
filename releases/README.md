@@ -6,30 +6,52 @@ Official releases of Nexum voice and chat application.
 
 ### [v0.1.0](v0.1.0/) - MVP/Alpha (February 23, 2026)
 
-**Download:**
+**Client Downloads:**
 
-- [Windows MSI Installer](v0.1.0/Nexum_0.1.0_x64_en-US.msi) (Recommended - 6.91 MB)
-- [Windows NSIS Installer](v0.1.0/Nexum_0.1.0_x64-setup.exe) (4.68 MB)
-- [Server Executable](v0.1.0/voice-server.exe) (7.20 MB)
-- [Client Executable](v0.1.0/voice-client.exe) (10.68 MB)
+- [Windows MSI Installer](v0.1.0/Nexum_0.1.0_x64_en-US.msi) (Recommended - 7.2 MB)
+  - Desktop application with integrated server management
+  - Start menu integration and auto-updates
+- [Windows NSIS Installer](v0.1.0/Nexum_0.1.0_x64-setup.exe) (4.9 MB)
+  - Portable installation option
 
-**[Release Notes](v0.1.0/README.md)**
+**Server Download (Standalone):**
+
+- [Nexum Server Executable](v0.1.0/Nexum-Server_0.1.0_x64.exe) (7.5 MB)
+  - For dedicated hosting or manual deployment
+  - No installation required - run directly
+  - First run: `Nexum-Server_0.1.0_x64.exe --admin-password <password>`
+
+**[Full Release Notes](v0.1.0/README.md)**
 
 ---
 
 ## Installation
 
-### Quick Install (Recommended)
+### For Desktop Users (Recommended)
 
 1. Download `Nexum_0.1.0_x64_en-US.msi`
 2. Double-click to install
 3. Launch Nexum from Start Menu
-4. Server binary included automatically
+4. Server management integrated in client UI
+5. Automatic local server detection and startup
 
-### Alternative Install
+### For Server Administrators
 
-- Use NSIS installer: `Nexum_0.1.0_x64-setup.exe`
-- Or download executables separately
+**Option A - Managed by Client:**
+
+- Install client MSI/NSIS
+- Server binary included and managed by client
+- Start/stop through client UI
+
+**Option B - Standalone Server:**
+
+1. Download `Nexum-Server_0.1.0_x64.exe`
+2. Place in any directory (e.g., `C:\Nexum\`)
+3. First run: `Nexum-Server_0.1.0_x64.exe --admin-password YourSecurePassword123`
+4. Subsequent runs: `Nexum-Server_0.1.0_x64.exe`
+5. Configure as Windows Service for auto-start (optional)
+
+See [Server Deployment Guide](../docs/server_deployment.md) for advanced setup.
 
 ---
 
@@ -37,8 +59,29 @@ Official releases of Nexum voice and chat application.
 
 - **OS:** Windows 10/11 (64-bit)
 - **RAM:** 2 GB minimum, 4 GB recommended
-- **Storage:** 50 MB for client, 100 MB for server
-- **Network:** Open ports 8080 (WebSocket) and 8081 (UDP)
+- **Storage:** 50 MB for client, 100 MB for server (includes database)
+- **Network:**
+  - Port 8080 (WebSocket) - required
+  - Port 8081 (UDP) - for voice channels
+  - For internet access: Configure port forwarding on router
+
+---
+
+## What's Included
+
+- **Client Application:**
+  - Modern desktop UI with light/dark themes
+  - Integrated server management
+  - Real-time voice and text chat
+  - Avatar system (upload or URL)
+  - Channel management
+
+- **Server Application:**
+  - Self-hosted Rust backend
+  - SQLite database (no setup required)
+  - WebSocket + UDP communication
+  - Admin authentication
+  - User and channel management
 
 ---
 
@@ -47,3 +90,4 @@ Official releases of Nexum voice and chat application.
 - **Documentation:** [/docs](../docs/)
 - **Issues:** [GitHub Issues](https://github.com/hectoresen/nexum_mvp/issues)
 - **Repository:** [github.com/hectoresen/nexum_mvp](https://github.com/hectoresen/nexum_mvp)
+- **License:** [MIT License](../LICENSE)

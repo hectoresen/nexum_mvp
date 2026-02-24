@@ -334,6 +334,7 @@ A: Windows 10+, macOS 12+, and Linux. Both x64 and ARM64 architectures.
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
 **Key Permissions:**
+
 - ✅ Commercial use
 - ✅ Modification
 - ✅ Distribution

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Channel, Message } from '../types/protocol'
-import { tw } from '../theme'
+import { useAppTheme } from '../hooks/useAppTheme'
 
 interface ChatAreaProps {
   channel: Channel
@@ -10,6 +10,7 @@ interface ChatAreaProps {
 }
 
 export default function ChatArea({ channel, messages, onSendMessage }: ChatAreaProps) {
+  const { tw } = useAppTheme()
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -98,7 +99,7 @@ export default function ChatArea({ channel, messages, onSendMessage }: ChatAreaP
                 </button>
                 {/* Dropdown menu - hidden for now */}
                 <div className={`hidden group-hover:block absolute bottom-full left-0 mb-2 w-48 ${tw.bgCard} rounded-lg shadow-xl border ${tw.borderDefault} py-1`}>
-                  <button className="w-full px-3 py-2 text-sm text-left text-gray-300 hover:bg-gray-700 transition-colors flex items-center gap-2">
+                  <button className={`w-full px-3 py-2 text-sm text-left ${tw.textSecondary} ${tw.bgHoverSubtle} transition-colors flex items-center gap-2`}>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
@@ -120,7 +121,7 @@ export default function ChatArea({ channel, messages, onSendMessage }: ChatAreaP
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   placeholder={`Message #${channel.name}`}
-                  className={`w-full pl-4 pr-20 py-3 ${tw.bgInput} border ${tw.borderDefault} rounded-md ${tw.textPrimary} placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent`}
+                  className={`w-full pl-4 pr-20 py-3 ${tw.bgInput} border ${tw.borderDefault} rounded-md ${tw.textPrimary} focus:outline-none focus:ring-2 focus:ring-offset-2`}
                   maxLength={2000}
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -130,7 +131,7 @@ export default function ChatArea({ channel, messages, onSendMessage }: ChatAreaP
                   </button>
                   {/* Send button - only visible when there's text */}
                   {input.trim() && (
-                    <button type="submit" className={`p-1.5 ${tw.bgInput} hover:bg-gray-500 rounded ${tw.textPrimary} transition-colors`}>
+                    <button type="submit" className={`p-1.5 ${tw.btnSecondary} ${tw.textPrimary} rounded transition-colors`}>
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                       </svg>
@@ -147,7 +148,7 @@ export default function ChatArea({ channel, messages, onSendMessage }: ChatAreaP
       {channel.channel_type === 'voice' && (
         <div className={`p-4 border-t ${tw.borderDefault} ${tw.bgCard}`}>
           <div className="flex items-center justify-center gap-4">
-            <button className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-md transition-colors">Join Voice</button>
+            <button className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-normal rounded-md transition-colors cursor-pointer">Join Voice</button>
             <p className={`text-sm ${tw.textTertiary}`}>Voice chat not yet implemented</p>
           </div>
         </div>

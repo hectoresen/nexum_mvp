@@ -1,5 +1,5 @@
 import { User } from '../types/protocol'
-import { tw } from '../theme'
+import { useAppTheme } from '../hooks/useAppTheme'
 
 interface UserListPanelProps {
   users: User[] | null
@@ -8,6 +8,7 @@ interface UserListPanelProps {
 }
 
 export default function UserListPanel({ users, currentUserId, serverAddress }: UserListPanelProps) {
+  const { tw } = useAppTheme()
   console.log('UserListPanel render - users:', users, 'currentUserId:', currentUserId)
 
   if (!users) {
@@ -44,12 +45,9 @@ export default function UserListPanel({ users, currentUserId, serverAddress }: U
     const avatarUrl = getAvatarUrl(user)
 
     return (
-      <div
-        key={user.id}
-        className={`px-3 py-2 ${tw.bgHoverSubtle} transition-colors cursor-pointer flex items-center gap-2 ${isCurrentUser ? 'bg-gray-800' : ''}`}
-        title={`${user.username}${isCurrentUser ? ' (you)' : ''}`}>
+      <div key={user.id} className={`px-3 py-2 ${tw.bgHoverSubtle} transition-colors cursor-pointer flex items-center gap-2 ${isCurrentUser ? tw.bgHover : ''}`} title={`${user.username}${isCurrentUser ? ' (you)' : ''}`}>
         <div className={`w-8 h-8 rounded-full ${tw.bgInput} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
-          {avatarUrl ? <img src={avatarUrl} alt={user.username} className="w-full h-full object-cover" /> : <span className={`text-xs font-semibold ${tw.textPrimary}`}>{user.username[0]?.toUpperCase()}</span>}
+          {avatarUrl ? <img src={avatarUrl} alt={user.username} className="w-full h-full object-cover" /> : <span className={`text-xs font-medium ${tw.textPrimary}`}>{user.username[0]?.toUpperCase()}</span>}
         </div>
         <div className="flex-1 min-w-0">
           <p className={`text-sm truncate ${isCurrentUser ? `${tw.textPrimary} font-medium` : tw.textSecondary}`}>
