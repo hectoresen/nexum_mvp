@@ -2,10 +2,12 @@
 
 **Truly private, self-hosted voice and text communication**
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)](https://www.rust-lang.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![Tauri](https://img.shields.io/badge/tauri-2.0-blue.svg)](https://tauri.app/)
-[![Open Source](https://img.shields.io/badge/License-TBD-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/badge/version-0.1.0-brightgreen.svg)](https://github.com/yourusername/nexum/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](https://github.com/yourusername/nexum)
 
 ---
 
@@ -329,7 +331,15 @@ A: Windows 10+, macOS 12+, and Linux. Both x64 and ARM64 architectures.
 
 ## 📄 License
 
-TBD - Check with project owner
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+**Key Permissions:**
+- ✅ Commercial use
+- ✅ Modification
+- ✅ Distribution
+- ✅ Private use
+
+The MIT License is permissive and allows you to use Nexum for any purpose, including commercial applications, while maintaining minimal restrictions.
 
 ---
 
