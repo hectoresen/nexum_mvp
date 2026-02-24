@@ -49,7 +49,7 @@ function VoiceIcon({ className }: { className?: string }) {
 
 export default function ChannelList({
   channels,
-  categories,
+  categories = [],
   currentChannelId,
   role,
   onSelectChannel,

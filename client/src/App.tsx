@@ -376,8 +376,8 @@ function App() {
           username: message.payload.username,
           role: message.payload.role,
           serverName: message.payload.server_name,
-          channels: message.payload.channels,
-          categories: message.payload.categories,
+          channels: message.payload.channels ?? [],
+          categories: message.payload.categories ?? [],
           error: null,
         }
 
