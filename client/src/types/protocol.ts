@@ -36,6 +36,7 @@ export interface Message {
   deleted_by_user_id?: string; // Optional: set when message is deleted
   deleted_at?: string; // Optional: set when message is deleted
   deleted_by_username?: string; // Optional: username of deleter (from MessageDeletedPayload)
+  edited_at?: string; // Optional: set when message is edited
 }
 
 // ============================================================================
@@ -51,6 +52,7 @@ export type ClientMessage =
   | { type: 'LEAVE_CHANNEL'; payload: LeaveChannelPayload }
   | { type: 'SEND_MESSAGE'; payload: SendMessagePayload }
   | { type: 'DELETE_MESSAGE'; payload: DeleteMessagePayload }
+  | { type: 'EDIT_MESSAGE'; payload: EditMessagePayload }
   | { type: 'JOIN_VOICE'; payload: JoinVoicePayload }
   | { type: 'LEAVE_VOICE'; payload: LeaveVoicePayload }
   | { type: 'AUTHENTICATE_ADMIN'; payload: AuthenticateAdminPayload }
@@ -90,6 +92,11 @@ export interface SendMessagePayload {
 
 export interface DeleteMessagePayload {
   message_id: string;
+}
+
+export interface EditMessagePayload {
+  message_id: string;
+  content: string;
 }
 
 export interface JoinVoicePayload {
@@ -133,6 +140,7 @@ export type ServerMessage =
   | { type: 'MESSAGE'; payload: MessagePayload }
   | { type: 'MESSAGE_HISTORY'; payload: MessageHistoryPayload }
   | { type: 'MESSAGE_DELETED'; payload: MessageDeletedPayload }
+  | { type: 'MESSAGE_EDITED'; payload: MessageEditedPayload }
   | { type: 'ADMIN_AUTHENTICATED'; payload: AdminAuthenticatedPayload }
   | { type: 'VOICE_JOINED'; payload: VoiceJoinedPayload }
   | { type: 'VOICE_LEFT'; payload: VoiceLeftPayload }
@@ -205,6 +213,13 @@ export interface MessageDeletedPayload {
   channel_id: string;
   deleted_by_user_id: string;
   deleted_by_username: string;
+}
+
+export interface MessageEditedPayload {
+  message_id: string;
+  channel_id: string;
+  content: string;
+  edited_at: string;
 }
 
 export interface AdminAuthenticatedPayload {

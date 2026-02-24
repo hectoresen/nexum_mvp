@@ -95,6 +95,9 @@ impl Database {
         if !columns.contains(&"deleted_at".to_string()) {
             conn.execute("ALTER TABLE messages ADD COLUMN deleted_at TEXT", [])?;
         }
+        if !columns.contains(&"edited_at".to_string()) {
+            conn.execute("ALTER TABLE messages ADD COLUMN edited_at TEXT", [])?;
+        }
 
         Ok(())
     }
@@ -388,17 +391,19 @@ impl Database {
             created_at: Utc::now(),
             deleted_by_user_id: None,
             deleted_at: None,
+            edited_at: None,
         };
 
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT INTO messages (id, channel_id, user_id, content, created_at, deleted_by_user_id, deleted_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO messages (id, channel_id, user_id, content, created_at, deleted_by_user_id, deleted_at, edited_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
                 message.id.to_string(),
                 message.channel_id.to_string(),
                 message.user_id.to_string(),
                 &message.content,
                 message.created_at.to_rfc3339(),
+                None::<String>,
                 None::<String>,
                 None::<String>,
             ],
@@ -410,7 +415,7 @@ impl Database {
     pub fn get_recent_messages(&self, channel_id: Uuid, limit: usize) -> Result<Vec<Message>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, channel_id, user_id, content, created_at, deleted_by_user_id, deleted_at 
+            "SELECT id, channel_id, user_id, content, created_at, deleted_by_user_id, deleted_at, edited_at 
              FROM messages 
              WHERE channel_id = ?1 
              ORDER BY created_at DESC 
@@ -420,6 +425,7 @@ impl Database {
         let messages = stmt.query_map(params![channel_id.to_string(), limit as i64], |row| {
             let deleted_by_user_id: Option<String> = row.get(5)?;
             let deleted_at: Option<String> = row.get(6)?;
+            let edited_at: Option<String> = row.get(7)?;
             
             Ok(Message {
                 id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
@@ -429,6 +435,7 @@ impl Database {
                 created_at: row.get::<_, String>(4)?.parse().unwrap(),
                 deleted_by_user_id: deleted_by_user_id.and_then(|s| Uuid::parse_str(&s).ok()),
                 deleted_at: deleted_at.and_then(|s| s.parse().ok()),
+                edited_at: edited_at.and_then(|s| s.parse().ok()),
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -439,7 +446,7 @@ impl Database {
     pub fn get_message_history(&self, channel_id: Uuid, limit: usize) -> Result<Vec<(Message, String, Option<String>, Option<String>, i32)>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT m.id, m.channel_id, m.user_id, m.content, m.created_at, m.deleted_by_user_id, m.deleted_at, u.username, u.avatar_url, u.avatar_path, u.avatar_version
+            "SELECT m.id, m.channel_id, m.user_id, m.content, m.created_at, m.deleted_by_user_id, m.deleted_at, m.edited_at, u.username, u.avatar_url, u.avatar_path, u.avatar_version
              FROM messages m
              JOIN users u ON m.user_id = u.id
              WHERE m.channel_id = ?1 
@@ -450,6 +457,7 @@ impl Database {
         let rows = stmt.query_map(params![channel_id.to_string(), limit as i64], |row| {
             let deleted_by_user_id: Option<String> = row.get(5)?;
             let deleted_at: Option<String> = row.get(6)?;
+            let edited_at: Option<String> = row.get(7)?;
             
             let message = Message {
                 id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
@@ -459,11 +467,12 @@ impl Database {
                 created_at: row.get::<_, String>(4)?.parse().unwrap(),
                 deleted_by_user_id: deleted_by_user_id.and_then(|s| Uuid::parse_str(&s).ok()),
                 deleted_at: deleted_at.and_then(|s| s.parse().ok()),
+                edited_at: edited_at.and_then(|s| s.parse().ok()),
             };
-            let username: String = row.get(7)?;
-            let avatar_url: Option<String> = row.get(8)?;
-            let avatar_path: Option<String> = row.get(9)?;
-            let avatar_version: i32 = row.get(10)?;
+            let username: String = row.get(8)?;
+            let avatar_url: Option<String> = row.get(9)?;
+            let avatar_path: Option<String> = row.get(10)?;
+            let avatar_version: i32 = row.get(11)?;
             Ok((message, username, avatar_url, avatar_path, avatar_version))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -490,12 +499,13 @@ impl Database {
     pub fn get_message(&self, message_id: Uuid) -> Result<Option<Message>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, channel_id, user_id, content, created_at, deleted_by_user_id, deleted_at FROM messages WHERE id = ?1"
+            "SELECT id, channel_id, user_id, content, created_at, deleted_by_user_id, deleted_at, edited_at FROM messages WHERE id = ?1"
         )?;
 
         let message = stmt.query_row(params![message_id.to_string()], |row| {
             let deleted_by_user_id: Option<String> = row.get(5)?;
             let deleted_at: Option<String> = row.get(6)?;
+            let edited_at: Option<String> = row.get(7)?;
             
             Ok(Message {
                 id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
@@ -505,9 +515,26 @@ impl Database {
                 created_at: row.get::<_, String>(4)?.parse().unwrap(),
                 deleted_by_user_id: deleted_by_user_id.and_then(|s| Uuid::parse_str(&s).ok()),
                 deleted_at: deleted_at.and_then(|s| s.parse().ok()),
+                edited_at: edited_at.and_then(|s| s.parse().ok()),
             })
         }).optional()?;
 
         Ok(message)
+    }
+
+    pub fn update_message_content(&self, message_id: Uuid, content: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let edited_at = Utc::now();
+        
+        conn.execute(
+            "UPDATE messages SET content = ?1, edited_at = ?2 WHERE id = ?3",
+            params![
+                content,
+                edited_at.to_rfc3339(),
+                message_id.to_string(),
+            ],
+        )?;
+
+        Ok(())
     }
 }

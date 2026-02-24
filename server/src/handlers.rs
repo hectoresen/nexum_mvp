@@ -46,6 +46,7 @@ pub async fn handle_message(
                 ClientMessage::LeaveChannel(p) => handle_leave_channel(sid, p, state, tx).await,
                 ClientMessage::SendMessage(p) => handle_send_message(sid, p, state, tx).await,
                 ClientMessage::DeleteMessage(p) => handle_delete_message(sid, p, state, tx).await,
+                ClientMessage::EditMessage(p) => handle_edit_message(sid, p, state, tx).await,
                 ClientMessage::JoinVoice(p) => handle_join_voice(sid, p, state, tx).await,
                 ClientMessage::LeaveVoice(p) => handle_leave_voice(sid, p, state, tx).await,
                 ClientMessage::AuthenticateAdmin(p) => handle_authenticate_admin(sid, p, state, tx).await,
@@ -379,6 +380,48 @@ async fn handle_delete_message(
         channel_id: message.channel_id,
         deleted_by_user_id: user_id,
         deleted_by_username: user.username,
+    });
+
+    broadcast_to_channel(&state.session_manager, message.channel_id, &msg);
+
+    Ok(())
+}
+
+async fn handle_edit_message(
+    session_id: Uuid,
+    payload: EditMessagePayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let user_id = state.session_manager.get_session(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    // Validate content length
+    if payload.content.is_empty() || payload.content.len() > 2000 {
+        send_error(tx, ErrorCode::InvalidPayload, "Message content must be 1-2000 characters")?;
+        return Ok(());
+    }
+
+    // Get the message to check ownership
+    let message = state.db.get_message(payload.message_id)?
+        .ok_or_else(|| anyhow::anyhow!("Message not found"))?;
+    
+    // Verify the user owns the message
+    if message.user_id != user_id {
+        send_error(tx, ErrorCode::Unauthorized, "You can only edit your own messages")?;
+        return Ok(());
+    }
+
+    // Update message content
+    state.db.update_message_content(payload.message_id, &payload.content)?;
+
+    // Broadcast edited message to channel
+    let edited_at = chrono::Utc::now();
+    let msg = ServerMessage::MessageEdited(MessageEditedPayload {
+        message_id: payload.message_id,
+        channel_id: message.channel_id,
+        content: payload.content,
+        edited_at: edited_at.to_rfc3339(),
     });
 
     broadcast_to_channel(&state.session_manager, message.channel_id, &msg);

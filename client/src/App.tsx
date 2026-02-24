@@ -443,6 +443,25 @@ function App() {
           messages: deletedMessages,
         }
 
+      case 'MESSAGE_EDITED':
+        // Update message content and mark as edited
+        const editedMessages = new Map(connection.messages)
+        const channelEditMsgs = editedMessages.get(message.payload.channel_id) || []
+        const updatedEditMsgs = channelEditMsgs.map(msg =>
+          msg.id === message.payload.message_id
+            ? {
+                ...msg,
+                content: message.payload.content,
+                edited_at: message.payload.edited_at,
+              }
+            : msg,
+        )
+        editedMessages.set(message.payload.channel_id, updatedEditMsgs)
+        return {
+          ...connection,
+          messages: editedMessages,
+        }
+
       case 'ADMIN_AUTHENTICATED':
         // User authenticated as admin - close modal and clear error
         setShowAdminAuthModal(false)
@@ -556,6 +575,18 @@ function App() {
       type: 'DELETE_MESSAGE',
       payload: {
         message_id: messageId,
+      },
+    })
+  }
+
+  const handleEditMessage = (messageId: string, content: string) => {
+    if (view.type !== 'connected') return
+
+    view.connection.client.send({
+      type: 'EDIT_MESSAGE',
+      payload: {
+        message_id: messageId,
+        content,
       },
     })
   }
@@ -749,6 +780,7 @@ function App() {
         onJoinChannel={handleJoinChannel}
         onSendMessage={handleSendMessage}
         onDeleteMessage={handleDeleteMessage}
+        onEditMessage={handleEditMessage}
         onAuthenticateAdmin={() => setShowAdminAuthModal(true)}
         onOpenServerSettings={handleGetServerSettings}
         onOpenClientSettings={section => setClientSettingsSection(section)}

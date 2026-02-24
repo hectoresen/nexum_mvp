@@ -11,15 +11,18 @@ interface ChatAreaProps {
   serverUsers: User[] | null // List of all server users for profile modal
   onSendMessage: (content: string) => void
   onDeleteMessage?: (messageId: string) => void // Callback for deleting messages
+  onEditMessage?: (messageId: string, content: string) => void // Callback for editing messages
 }
 
-export default function ChatArea({ channel, messages, currentUserId: _currentUserId, serverAddress, serverUsers, onSendMessage, onDeleteMessage }: ChatAreaProps) {
+export default function ChatArea({ channel, messages, currentUserId: _currentUserId, serverAddress, serverUsers, onSendMessage, onDeleteMessage, onEditMessage }: ChatAreaProps) {
   const { tw } = useAppTheme()
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  const [editContent, setEditContent] = useState('')
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -58,6 +61,24 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
       onDeleteMessage(messageId)
     }
     setDeleteConfirmId(null)
+  }
+
+  const handleEditMessage = (message: Message) => {
+    setEditingMessageId(message.id)
+    setEditContent(message.content)
+  }
+
+  const saveEditMessage = (messageId: string) => {
+    if (onEditMessage && editContent.trim() && editContent !== messages.find(m => m.id === messageId)?.content) {
+      onEditMessage(messageId, editContent.trim())
+    }
+    setEditingMessageId(null)
+    setEditContent('')
+  }
+
+  const cancelEdit = () => {
+    setEditingMessageId(null)
+    setEditContent('')
   }
 
   return (
@@ -144,25 +165,76 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
                       {displayName}
                     </span>
                     <span className={`text-xs ${tw.textMuted}`}>{formatTime(message.created_at)}</span>
+                    {message.edited_at && !isDeleted && (
+                      <span className={`text-xs ${tw.textMuted} italic`}>(edited)</span>
+                    )}
                   </div>
                   {isDeleted ? (
                     <p className={`${tw.textMuted} italic mt-1`}>Message deleted by: {message.deleted_by_username}</p>
+                  ) : editingMessageId === message.id ? (
+                    <div className="mt-1">
+                      <input
+                        type="text"
+                        value={editContent}
+                        onChange={e => setEditContent(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            saveEditMessage(message.id)
+                          } else if (e.key === 'Escape') {
+                            cancelEdit()
+                          }
+                        }}
+                        autoFocus
+                        className={`w-full px-3 py-1.5 ${tw.bgInput} ${tw.textPrimary} rounded border ${tw.borderDefault} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                      />
+                      <div className="flex gap-2 mt-2 text-xs">
+                        <button
+                          onClick={() => saveEditMessage(message.id)}
+                          className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={cancelEdit}
+                          className={`px-2 py-1 ${tw.btnSecondary} ${tw.textPrimary} rounded hover:${tw.bgHoverSubtle} transition-colors`}
+                        >
+                          Cancel
+                        </button>
+                        <span className={tw.textMuted}>Press Enter to save • Esc to cancel</span>
+                      </div>
+                    </div>
                   ) : (
                     <p className={`${tw.textSecondary} mt-1 break-words`}>{message.content}</p>
                   )}
                 </div>
 
-                {/* Delete button - show on hover if user owns the message and it's not deleted */}
-                {!isDeleted && hoveredMessageId === message.id && message.user_id === _currentUserId && onDeleteMessage && (
-                  <button
-                    onClick={() => handleDeleteMessage(message.id)}
-                    className="absolute right-0 top-0 p-1.5 hover:bg-red-600 bg-gray-600 rounded transition-colors"
-                    title="Delete message"
-                  >
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
+                {/* Action buttons - show on hover if user owns the message and it's not deleted and not editing */}
+                {!isDeleted && !editingMessageId && hoveredMessageId === message.id && message.user_id === _currentUserId && (
+                  <div className="absolute right-0 top-0 flex gap-1">
+                    {onEditMessage && (
+                      <button
+                        onClick={() => handleEditMessage(message)}
+                        className="p-1.5 hover:bg-gray-500 bg-gray-600 rounded transition-colors"
+                        title="Edit message"
+                      >
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    )}
+                    {onDeleteMessage && (
+                      <button
+                        onClick={() => handleDeleteMessage(message.id)}
+                        className="p-1.5 hover:bg-red-600 bg-gray-600 rounded transition-colors"
+                        title="Delete message"
+                      >
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )
