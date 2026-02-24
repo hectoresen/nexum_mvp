@@ -6,44 +6,48 @@ All notable changes and completed tasks are documented here.
 
 **Type:** Feature Enhancement + Bug Fixes  
 **Branch:** `feature/message-system-enhancements`  
-**Status:** 🚧 Work in Progress
+**Status:** 🚧 Ready for Testing & Merge
 
 ### 🐛 Bug Fixes
 
-- [ ] **Avatar display in text messages** - Fixed user avatars not showing in chat (was showing default avatar instead of uploaded avatar)
+- [x] **Avatar display in text messages** - Fixed user avatars not showing in chat (was showing default avatar instead of uploaded avatar)
   - Fixed avatar URL construction in message rendering
   - Ensured `avatar_url`/`avatar_path` properly propagated from server to client
   - Updated ChatArea component to correctly display user avatars
+  - Commit: `dbe7db2`
 
 ### ✨ New Features
 
-- [ ] **User Profile Modal** - Click on any user to view their profile information
+- [x] **User Profile Modal** - Click on any user to view their profile information
   - Displays: Username, role badge, join date
   - Accessible from: Right sidebar member list OR clicking username in messages
   - Clean modal design with backdrop and close button
   - Foundation for future profile features (stats, permissions, etc.)
+  - Commit: `11ec55c`
 
-- [ ] **Message Deletion** - Users can delete their own messages
+- [x] **Message Deletion** - Users can delete their own messages
   - Hover over message to reveal delete button (trash icon, red on hover)
   - Confirmation dialog before deletion
   - Deleted messages show: "Message deleted by: [username]"
   - Message structure preserved (keeps timestamp and username, grayed out)
   - Server tracks deletion metadata (deleted_by_user_id, deleted_at)
   - Foundation for future mod/admin deletion capabilities
+  - Commit: `517bebf`
 
-- [ ] **Message Editing** - Users can edit their own messages
-  - Hover over message to reveal edit button (pencil icon)
+- [x] **Message Editing** - Users can edit their own messages
+  - Hover over message to reveal edit button (pencil icon, gray)
   - Inline editing with input field (Enter to save, Escape to cancel)
-  - Edited messages show "Edited" label in italics below content
+  - Edited messages show "(edited)" label next to timestamp
   - Server broadcasts edited message to all channel members
   - Server stores edit timestamp (edited_at)
   - Foundation for future edit history feature
+  - Commit: `3f7c5f1`
 
 ### 🔧 Technical Changes
 
 **Protocol Extensions:**
-- Added `DELETE_MESSAGE` WebSocket message type
-- Added `EDIT_MESSAGE` WebSocket message type
+- Added `DELETE_MESSAGE` and `MESSAGE_DELETED` WebSocket message types
+- Added `EDIT_MESSAGE` and `MESSAGE_EDITED` WebSocket message types
 - Extended `Message` model with deletion and edit metadata
 
 **Database Schema Updates:**
@@ -68,16 +72,18 @@ ALTER TABLE messages ADD COLUMN edited_at INTEGER;
 
 ### 📋 Documentation Updates
 
-- [ ] Simplified releases folder structure (consolidated README files)
-- [ ] Updated todo.md with message system tasks
-- [ ] Updated changelog.md with v0.1.2 entry
+- [x] Simplified releases folder structure (consolidated README files)
+  - Commit: `f8a8e67`
+- [x] Updated todo.md with message system progress and server detection task
+  - Commit: `ac4ce61`
+- [x] Updated changelog.md with v0.1.2 entry (this document)
 
 ### 🏗️ Build Validation
 
-- [ ] Client build validation
-- [ ] Server build validation
+- [x] Client build validation - ✅ 235.70 kB JS, 23.77 kB CSS
+- [x] Server build validation - ✅ 5 warnings (unused code only)
 - [ ] Protocol compatibility testing
-- [ ] Message CRUD operations testing
+- [ ] Message CRUD operations testing (edit, delete)
 
 ---
 

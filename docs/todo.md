@@ -88,9 +88,9 @@ Analyze and implement light theme support across entire application.
 **Classes Modified:** 500+ Tailwind classes  
 **Build Status:** ✅ Clean client & server builds
 
-### 0.5.5 Message System Enhancements 🚧
+### 0.5.5 Message System Enhancements ✅
 
-**Priority: HIGH - In Progress**
+**Priority: HIGH - Completed**
 
 Improve messaging system with avatar display, user profiles, and message management.
 
@@ -124,13 +124,14 @@ Improve messaging system with avatar display, user profiles, and message managem
   - ✅ Commit: `517bebf` - "feat: Implement message deletion"
   - Future: Mod/admin can delete any message
 
-- [ ] **Message editing** — Users can edit their own messages
-  - Add edit icon on message hover (pencil icon)
-  - Inline edit with input field (Enter to save, Escape to cancel)
-  - Server: `EDIT_MESSAGE` WebSocket event
-  - Show "Edited" label below message in italics
-  - Server: Store edit history (edited_at timestamp) in DB
-  - Broadcast updated message to all channel members
+- [x] **Message editing** — Users can edit their own messages
+  - ✅ Add edit icon on message hover (pencil icon)
+  - ✅ Inline edit with input field (Enter to save, Escape to cancel)
+  - ✅ Server: `EDIT_MESSAGE` WebSocket event
+  - ✅ Show "(edited)" label next to timestamp
+  - ✅ Server: Store edit history (edited_at timestamp) in DB
+  - ✅ Broadcast updated message to all channel members
+  - ✅ Commit: `3f7c5f1` - "feat: Implement message editing"
   - Future: Show edit history on hover
 
 #### Technical Implementation
@@ -138,16 +139,16 @@ Improve messaging system with avatar display, user profiles, and message managem
 **Protocol Changes:**
 - ✅ `DELETE_MESSAGE` client message type + DeleteMessagePayload
 - ✅ `MESSAGE_DELETED` server message type + MessageDeletedPayload
-- [ ] `EDIT_MESSAGE` client message type + EditMessagePayload
-- [ ] `MESSAGE_EDITED` server message type + MessageEditedPayload
+- ✅ `EDIT_MESSAGE` client message type + EditMessagePayload
+- ✅ `MESSAGE_EDITED` server message type + MessageEditedPayload
 - ✅ Extended `Message` model with `deleted_by`, `deleted_at` fields
-- [ ] Add `edited_at` field to `Message` model
+- ✅ Added `edited_at` field to `Message` model
 
 **Database Schema:**
 ```sql
 ✅ ALTER TABLE messages ADD COLUMN deleted_by_user_id TEXT;
 ✅ ALTER TABLE messages ADD COLUMN deleted_at INTEGER;
-[ ] ALTER TABLE messages ADD COLUMN edited_at INTEGER;
+✅ ALTER TABLE messages ADD COLUMN edited_at INTEGER;
 ```
 
 **Component Updates:**
@@ -155,8 +156,8 @@ Improve messaging system with avatar display, user profiles, and message managem
 - ✅ `UserProfileModal.tsx` (NEW) - Modal showing user details
 - ✅ Message hover state with delete action button
 - ✅ Avatar rendering fix in message component
-- [ ] Add edit button to message hover state
-- [ ] Add inline edit mode for messages
+- ✅ Add edit button to message hover state
+- ✅ Add inline edit mode for messages
 
 ### 0.5.6 Documentation & Release Structure ✅
 
