@@ -12,13 +12,13 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 
 ## 📦 Download Links
 
-### Client Application
+### Client Application (Desktop)
 
 - **Windows MSI Installer** (Recommended)
   - File: `Nexum_0.1.0_x64_en-US.msi`
   - Size: ~7.2 MB
   - SHA-256: (calculate after final build)
-  - Best for standard Windows installations
+  - Best for standard Windows installations with start menu integration
 
 - **Windows NSIS Installer**
   - File: `Nexum_0.1.0_x64-setup.exe`
@@ -26,14 +26,30 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
   - SHA-256: (calculate after final build)
   - Portable installation option
 
-### Server Application
+### Server Application (Standalone)
 
-The server is included with the client installation and can be managed directly from the Nexum client application:
-- Automatic detection and startup
-- Configuration through client UI
-- No separate installation required
+- **Windows Server Executable**
+  - File: `Nexum-Server_0.1.0_x64.exe`
+  - Size: ~7.5 MB
+  - SHA-256: (calculate after final build)
+  - Standalone server for dedicated hosting or manual deployment
 
-**For manual server deployment:** See the [Server Deployment Guide](../../docs/server_deployment.md) for standalone server installation instructions.
+**Deployment Options:**
+
+1. **Integrated (Recommended for desktop users):**
+   - The server is bundled with the client installation
+   - Managed directly from the Nexum client application
+   - Automatic detection and startup
+   - Configuration through client UI
+   - No separate installation required
+
+2. **Standalone (For dedicated servers or advanced users):**
+   - Download `Nexum-Server_0.1.0_x64.exe`
+   - Place in any directory
+   - Run with `--help` to see configuration options
+   - First run: `Nexum-Server_0.1.0_x64.exe --admin-password <your-password>`
+   - Subsequent runs: `Nexum-Server_0.1.0_x64.exe` or use as Windows Service
+   - See [Server Deployment Guide](../../docs/server_deployment.md) for details
 
 ---
 
