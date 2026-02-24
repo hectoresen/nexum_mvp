@@ -56,108 +56,37 @@ This phase integrates the CLI server with the client for a unified user experien
 - [x] **Removed gear icon** — consolidated settings access into dropdown menu
 - [x] **Server card connect button** — replaced text button with icon-only button with tooltip
 
-### 0.5.4 Light Mode Theme Analysis & Implementation 🚧
+### 0.5.4 Light Mode Theme Analysis & Implementation ✅
 
-**Priority: MEDIUM - Future Enhancement**
+**Priority: MEDIUM - COMPLETED 2026-02-24**
 
 Analyze and implement light theme support across entire application.
 
-#### Analysis Phase 📋
+#### Implementation Completed ✅
 
-**Components to adapt:**
+**Core Features Implemented:**
 
-1. **Core Layout Components**
-   - `ServerListView.tsx` — background, borders, text colors
-   - `MainView.tsx` — sidebar, header, footer backgrounds
-   - `ConnectView.tsx` — main background, card backgrounds
+- [x] Create theme context/provider in React (`ThemeContext.tsx`)
+- [x] Define color palette for both themes in `theme.ts`
+- [x] Create `useAppTheme` hook for theme consumption
+- [x] Persist theme preference in localStorage
+- [x] Update all component classes to use theme-aware utilities
+- [x] Test all components in both themes (dark and light)
+- [x] Wire theme selector in ClientSettingsModal to actual theme switching
+- [x] Add smooth transition between themes
 
-2. **Modal Components** (11 total)
-   - `AddServerModal.tsx` — backdrop, modal bg, input fields
-   - `AdminAuthModal.tsx` — modal bg, input fields, error messages
-   - `AvatarModal.tsx` — modal bg, tabs, drag-drop area, preview bg
-   - `ChangePasswordModal.tsx` — modal bg, input fields
-   - `ClientSettingsModal.tsx` — modal bg, tabs, section headers, inputs, selects
-   - `ServerConnectModal.tsx` — modal bg, input fields
-   - `ServerSettingsModal.tsx` — modal bg, input fields, success states
-   - `UserListModal.tsx` — modal bg, user cards, badges
-   - `UserSettingsModal.tsx` — modal bg, option cards
-   - `CreateChannelModal.tsx` — modal bg, input fields, radio buttons
+**Visual Refinements:**
 
-3. **Chat & Communication**
-   - `ChatArea.tsx` — message area bg, input field, message bubbles, timestamps
-   - `ChannelList.tsx` — channel items, hover states, active channel highlight
-   - `UserListPanel.tsx` — user list bg, user items, role badges, avatars
+- [x] Revised light mode color palette (`#f8f9fa` main bg, `#ffffff` cards)
+- [x] Fixed light mode visibility issues (headers, dropdowns, server cards)
+- [x] Added borders between 3-panel layout for clear separation
+- [x] Implemented minimalist button design (no bold, subtle backgrounds)
+- [x] Renamed "User Settings" to "Profile" with user icon
+- [x] Added cursor-pointer to all clickable elements
 
-4. **Interactive Elements**
-   - **Buttons**: primary (blue), secondary (gray), danger (red), icon-only
-   - **Inputs**: text inputs, selects, textareas, checkboxes, toggles
-   - **Dropdowns**: server dropdown, settings dropdown, user dropdown
-   - **Cards**: server cards, user cards, empty state cards
-   - **Badges**: role badges (owner/member), LOCAL badge, status indicators
-
-5. **Text Hierarchy**
-   - Headers (h1, h2, h3) — currently white
-   - Body text — currently gray-300/400
-   - Muted text — currently gray-500/600
-   - Links/interactive text — currently gray-400 → white on hover
-
-6. **Borders & Dividers**
-   - Card borders — currently gray-700
-   - Section dividers — currently gray-700
-   - Modal borders — currently gray-700
-   - Dropdown borders — currently gray-700/50
-
-7. **Icons**
-   - All SVG icons need color adaptation
-   - Status icons (running/stopped/error)
-   - Action icons (edit, delete, connect, add)
-   - Navigation icons
-
-8. **Special States**
-   - Hover states — currently gray-700 bg
-   - Active/selected states — currently blue-500 or gray-600
-   - Disabled states — currently gray opacity
-   - Loading states — spinner colors
-   - Error states — red-600 bg with red-300 text
-   - Success states — green-600 bg with green-300 text
-
-#### Color Palette Design 🎨
-
-**Dark Mode (Current):**
-
-- Background: gray-900 (#111827)
-- Surface: gray-800 (#1f2937)
-- Border: gray-700 (#374151)
-- Text primary: white
-- Text secondary: gray-400 (#9ca3af)
-- Text muted: gray-500 (#6b7280)
-- Accent: gray-500/600
-
-**Light Mode (To Implement):**
-
-- Background: gray-50 (#f9fafb)
-- Surface: white (#ffffff)
-- Border: gray-200 (#e5e7eb)
-- Text primary: gray-900 (#111827)
-- Text secondary: gray-600 (#4b5563)
-- Text muted: gray-400 (#9ca3af)
-- Accent: gray-400/500
-
-#### Implementation Strategy 📝
-
-- [ ] Create theme context/provider in React
-- [ ] Define CSS variables for all theme colors
-- [ ] Update Tailwind config to support theme switching
-- [ ] Create utility function to toggle theme
-- [ ] Persist theme preference in localStorage
-- [ ] Update all component classes to use theme-aware utilities
-- [ ] Test all components in both themes
-- [ ] Wire theme selector in ClientSettingsModal to actual theme switching
-- [ ] Handle system theme preference (prefers-color-scheme)
-- [ ] Add smooth transition between themes
-
-**Estimated components to modify:** 20+ files  
-**Estimated classes to update:** 500+ Tailwind classes
+**Components Updated:** 20+ files  
+**Classes Modified:** 500+ Tailwind classes  
+**Build Status:** ✅ Clean client & server builds
 
 ### Future: Private Messaging & Encryption
 

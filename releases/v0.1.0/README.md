@@ -16,25 +16,24 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 
 - **Windows MSI Installer** (Recommended)
   - File: `Nexum_0.1.0_x64_en-US.msi`
-  - Size: 6.12 MB
-  - Location: `client/src-tauri/target/release/bundle/msi/`
+  - Size: ~7.2 MB
+  - SHA-256: (calculate after final build)
+  - Best for standard Windows installations
 
 - **Windows NSIS Installer**
   - File: `Nexum_0.1.0_x64-setup.exe`
-  - Size: 4.05 MB
-  - Location: `client/src-tauri/target/release/bundle/nsis/`
-
-- **Standalone Executable**
-  - File: `voice-client.exe`
-  - Size: 10.68 MB
-  - Location: `client/src-tauri/target/release/`
+  - Size: ~4.9 MB
+  - SHA-256: (calculate after final build)
+  - Portable installation option
 
 ### Server Application
 
-- **Server Executable**
-  - File: `voice-server.exe`
-  - Size: 7.2 MB
-  - Location: `server/target/release/`
+The server is included with the client installation and can be managed directly from the Nexum client application:
+- Automatic detection and startup
+- Configuration through client UI
+- No separate installation required
+
+**For manual server deployment:** See the [Server Deployment Guide](../../docs/server_deployment.md) for standalone server installation instructions.
 
 ---
 

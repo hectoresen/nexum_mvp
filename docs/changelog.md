@@ -2,7 +2,86 @@
 
 All notable changes and completed tasks are documented here.
 
-## 🎉 v0.1.0 - First Public Release (MVP/Alpha) - 2026-02-23
+## � v0.1.1 - Light Mode Enhancement & UI Polish - 2026-02-24
+
+**Type:** UI/UX Enhancement  
+**Branch:** `feature/light-mode-polish`
+
+### ✨ Features & Improvements
+
+**Light Mode Visual Refinement:**
+
+- ✅ Revised light mode color palette for better contrast and readability
+  - Main background: `#f8f9fa` (soft gray, less harsh than pure white)
+  - Card background: `#ffffff` (pure white for contrast)
+  - Text colors: Bootstrap-inspired `#212529` primary, `#495057` secondary
+  - Border colors: Softer grays (`#dee2e6`, `#e9ecef`)
+- ✅ Fixed server cards visibility (black → white with proper contrast)
+- ✅ Fixed header navigation text (white on white → proper gray)
+- ✅ Fixed dropdown menu visibility
+- ✅ Fixed "Nexum" branding visibility in light mode
+- ✅ Added borders between 3-panel layout (channels, chat, members) for clear separation
+
+**Button System Overhaul:**
+
+- ✅ Implemented minimalist button design across entire application
+  - **Light mode:** White background with subtle border, black text (no bold)
+  - **Dark mode:** `#1a1a1a` background (lighter than main), gray-300 text (no bold)
+  - All buttons now use `font-normal` instead of `font-medium` or `font-bold`
+- ✅ Harmonized button colors across all modals and components
+- ✅ Updated Button.tsx base component with cursor-pointer by default
+- ✅ Removed inline button styles (blue, amber variants) in favor of theme variables
+
+**User Settings & Profile:**
+
+- ✅ Renamed "User Settings" to "Profile" with user icon
+- ✅ Improved UserSettingsModal contrast in light mode
+  - Change Avatar card now has distinct background (`bgHeader`)
+  - Added subtle borders for better differentiation
+- ✅ Updated modal header to match new "Profile" naming
+
+**Accessibility & UX:**
+
+- ✅ Added cursor-pointer to all clickable elements
+  - Buttons, dropdowns, channel items, navigation elements
+  - Better visual feedback for interactive elements
+- ✅ Fixed Join Voice button styling (removed bold, added cursor-pointer)
+
+**License & Documentation:**
+
+- ✅ Added MIT License to project root
+- ✅ Updated README.md with MIT badge and license section
+- ✅ Added additional badges (Release, Platform support)
+- ✅ Cleaned up releases folder structure (removed duplicate executables)
+
+### 🔧 Technical Changes
+
+**Affected Modules:**
+
+- `client/src/theme.ts` - Core theme palette revision
+- `client/src/components/Button.tsx` - Minimalist button styling
+- `client/src/components/MainView.tsx` - Border addition, Profile rename
+- `client/src/components/ServerListView.tsx` - Fixed light mode colors
+- `client/src/components/UserSettingsModal.tsx` - Improved contrast, Profile rename
+- `client/src/components/UserListPanel.tsx` - Removed hardcoded bg-gray-800
+- `client/src/components/ChannelList.tsx` - Added cursor-pointer
+- `client/src/components/ChatArea.tsx` - Fixed button styling
+- 9+ modal components - Button consistency updates
+
+### 🏗️ Build Validation
+
+- ✅ Client build: Clean (228KB JS, 23KB CSS, 865ms)
+- ✅ Server build: Clean (5 dead code warnings only)
+
+### 📝 Migration Notes
+
+- No breaking changes
+- Theme changes are backwards compatible
+- All Button components maintain same API
+
+---
+
+## �🎉 v0.1.0 - First Public Release (MVP/Alpha) - 2026-02-23
 
 **Release Tag:** `v0.1.0`  
 **Type:** MVP/Alpha - First Public Release

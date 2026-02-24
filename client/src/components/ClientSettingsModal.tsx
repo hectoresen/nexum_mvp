@@ -1,8 +1,7 @@
 import { useState } from 'react'
+import { useAppTheme } from '../hooks/useAppTheme'
 
 type SettingsSection = 'general' | 'voice-video'
-
-import { theme, tw } from '../theme'
 
 interface ClientSettingsModalProps {
   onClose: () => void
@@ -10,16 +9,16 @@ interface ClientSettingsModalProps {
 }
 
 export default function ClientSettingsModal({ onClose, initialSection = 'general' }: ClientSettingsModalProps) {
+  const { theme, tw, mode, setMode } = useAppTheme()
   const [currentSection, setCurrentSection] = useState<SettingsSection>(initialSection)
   const [autoStart, setAutoStart] = useState(false)
-  const [themeMode, setThemeMode] = useState('dark')
   const [language, setLanguage] = useState('en')
   const [audioInputDevice, setAudioInputDevice] = useState('default')
   const [audioOutputDevice, setAudioOutputDevice] = useState('default')
 
   const handleSave = () => {
     // TODO: Implement settings persistence
-    console.log('Settings saved:', { autoStart, themeMode, language, audioInputDevice, audioOutputDevice })
+    console.log('Settings saved:', { autoStart, themeMode: mode, language, audioInputDevice, audioOutputDevice })
     onClose()
   }
 
@@ -101,14 +100,12 @@ export default function ClientSettingsModal({ onClose, initialSection = 'general
                   <div>
                     <label className={`block text-sm font-medium ${tw.textSecondary} mb-2`}>Theme</label>
                     <select
-                      value={themeMode}
-                      onChange={e => setThemeMode(e.target.value)}
+                      value={mode}
+                      onChange={e => setMode(e.target.value as 'light' | 'dark')}
                       className={`w-full px-3 py-2 ${tw.bgInput} border ${tw.borderDefault} rounded-md ${tw.textPrimary} focus:outline-none`}
                       style={{ '--tw-ring-color': theme.border.focus } as React.CSSProperties}>
                       <option value="dark">Dark</option>
-                      <option value="light" disabled>
-                        Light (Coming Soon)
-                      </option>
+                      <option value="light">Light</option>
                       <option value="auto" disabled>
                         Auto (Coming Soon)
                       </option>
@@ -171,10 +168,10 @@ export default function ClientSettingsModal({ onClose, initialSection = 'general
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
-          <button onClick={onClose} className={`px-6 py-2 ${tw.btnSecondary} ${tw.textSecondary} rounded-md transition-colors`}>
+          <button onClick={onClose} className={`px-6 py-2 ${tw.btnSecondary} rounded-md transition-colors cursor-pointer`}>
             Cancel
           </button>
-          <button onClick={handleSave} className={`px-6 py-2 ${tw.btnPrimary} ${tw.textPrimary} font-medium rounded-md transition-colors`}>
+          <button onClick={handleSave} className={`px-6 py-2 ${tw.btnPrimary} text-white rounded-md transition-colors cursor-pointer`}>
             Save
           </button>
         </div>

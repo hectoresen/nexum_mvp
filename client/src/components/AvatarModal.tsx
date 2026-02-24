@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { theme, tw } from '../theme'
+import { useAppTheme } from '../hooks/useAppTheme'
 import { PrimaryButton, SecondaryButton, CancelButton } from './Button'
 
 interface AvatarModalProps {
@@ -17,6 +17,7 @@ const MAX_FILE_SIZE = 200 * 1024 // 200KB
 const AVATAR_SIZE = 256 // 256x256 pixels
 
 export default function AvatarModal({ currentAvatar, serverAddress, sessionId, userId, onClose, onSave }: AvatarModalProps) {
+  const { theme, tw } = useAppTheme()
   const [activeTab, setActiveTab] = useState<TabType>('upload')
   const [avatarUrl, setAvatarUrl] = useState(currentAvatar || '')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
