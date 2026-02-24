@@ -30,6 +30,9 @@ export interface Message {
   content: string;
   created_at: string;
   username?: string; // Optional: populated from MessagePayload
+  avatar_url?: string; // Optional: populated from MessagePayload
+  avatar_path?: string; // Optional: populated from MessagePayload
+  avatar_version?: number; // Optional: populated from MessagePayload
 }
 
 // ============================================================================
@@ -178,6 +181,9 @@ export interface UserLeftPayload {
 export interface MessagePayload {
   message: Message;
   username: string;
+  avatar_url?: string;
+  avatar_path?: string;
+  avatar_version: number;
 }
 
 export interface MessageHistoryPayload {

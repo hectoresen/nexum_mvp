@@ -412,10 +412,10 @@ impl Database {
         Ok(messages)
     }
 
-    pub fn get_message_history(&self, channel_id: Uuid, limit: usize) -> Result<Vec<(Message, String)>> {
+    pub fn get_message_history(&self, channel_id: Uuid, limit: usize) -> Result<Vec<(Message, String, Option<String>, Option<String>, i32)>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT m.id, m.channel_id, m.user_id, m.content, m.created_at, u.username
+            "SELECT m.id, m.channel_id, m.user_id, m.content, m.created_at, u.username, u.avatar_url, u.avatar_path, u.avatar_version
              FROM messages m
              JOIN users u ON m.user_id = u.id
              WHERE m.channel_id = ?1 
@@ -432,7 +432,10 @@ impl Database {
                 created_at: row.get::<_, String>(4)?.parse().unwrap(),
             };
             let username: String = row.get(5)?;
-            Ok((message, username))
+            let avatar_url: Option<String> = row.get(6)?;
+            let avatar_path: Option<String> = row.get(7)?;
+            let avatar_version: i32 = row.get(8)?;
+            Ok((message, username, avatar_url, avatar_path, avatar_version))
         })?
         .collect::<Result<Vec<_>, _>>()?;
 

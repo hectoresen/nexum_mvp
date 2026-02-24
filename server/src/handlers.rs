@@ -250,7 +250,13 @@ async fn handle_join_channel(
     // Load message history (last 50 messages)
     let history = state.db.get_message_history(payload.channel_id, 50)?;
     let message_payloads: Vec<MessagePayload> = history.into_iter()
-        .map(|(message, username)| MessagePayload { message, username })
+        .map(|(message, username, avatar_url, avatar_path, avatar_version)| MessagePayload { 
+            message, 
+            username,
+            avatar_url,
+            avatar_path,
+            avatar_version,
+        })
         .collect();
 
     // Send history to the user who joined
@@ -330,6 +336,9 @@ async fn handle_send_message(
     let msg = ServerMessage::Message(MessagePayload {
         message,
         username: user.username,
+        avatar_url: user.avatar_url,
+        avatar_path: user.avatar_path,
+        avatar_version: user.avatar_version,
     });
 
     broadcast_to_channel(&state.session_manager, payload.channel_id, &msg);

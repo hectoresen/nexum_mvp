@@ -393,10 +393,13 @@ function App() {
       case 'MESSAGE':
         const channelMessages = connection.messages.get(message.payload.message.channel_id) || []
         const newMessages = new Map(connection.messages)
-        // Extend message with username from payload
+        // Extend message with username and avatar from payload
         const enrichedMessage = {
           ...message.payload.message,
           username: message.payload.username,
+          avatar_url: message.payload.avatar_url,
+          avatar_path: message.payload.avatar_path,
+          avatar_version: message.payload.avatar_version,
         }
         newMessages.set(message.payload.message.channel_id, [...channelMessages, enrichedMessage])
         return {
@@ -410,6 +413,9 @@ function App() {
         const enrichedHistory = message.payload.messages.map(mp => ({
           ...mp.message,
           username: mp.username,
+          avatar_url: mp.avatar_url,
+          avatar_path: mp.avatar_path,
+          avatar_version: mp.avatar_version,
         }))
         historyMessages.set(message.payload.channel_id, enrichedHistory)
         return {

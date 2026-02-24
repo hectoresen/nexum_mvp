@@ -244,7 +244,7 @@ export default function MainView({
       {/* Main content area */}
       <div className="flex-1 flex flex-col">
         {currentChannel ? (
-          <ChatArea channel={currentChannel} messages={currentMessages} currentUserId={state.userId || ''} onSendMessage={onSendMessage} />
+          <ChatArea channel={currentChannel} messages={currentMessages} currentUserId={state.userId || ''} serverAddress={serverAddress} onSendMessage={onSendMessage} />
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className={`text-center ${tw.textMuted}`}>

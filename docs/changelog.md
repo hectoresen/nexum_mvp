@@ -2,7 +2,86 @@
 
 All notable changes and completed tasks are documented here.
 
-## � v0.1.1 - Light Mode Enhancement & UI Polish - 2026-02-24
+## 🚧 v0.1.2 - Message System Enhancements - In Progress
+
+**Type:** Feature Enhancement + Bug Fixes  
+**Branch:** `feature/message-system-enhancements`  
+**Status:** 🚧 Work in Progress
+
+### 🐛 Bug Fixes
+
+- [ ] **Avatar display in text messages** - Fixed user avatars not showing in chat (was showing default avatar instead of uploaded avatar)
+  - Fixed avatar URL construction in message rendering
+  - Ensured `avatar_url`/`avatar_path` properly propagated from server to client
+  - Updated ChatArea component to correctly display user avatars
+
+### ✨ New Features
+
+- [ ] **User Profile Modal** - Click on any user to view their profile information
+  - Displays: Username, role badge, join date
+  - Accessible from: Right sidebar member list OR clicking username in messages
+  - Clean modal design with backdrop and close button
+  - Foundation for future profile features (stats, permissions, etc.)
+
+- [ ] **Message Deletion** - Users can delete their own messages
+  - Hover over message to reveal delete button (trash icon, red on hover)
+  - Confirmation dialog before deletion
+  - Deleted messages show: "Message deleted by: [username]"
+  - Message structure preserved (keeps timestamp and username, grayed out)
+  - Server tracks deletion metadata (deleted_by_user_id, deleted_at)
+  - Foundation for future mod/admin deletion capabilities
+
+- [ ] **Message Editing** - Users can edit their own messages
+  - Hover over message to reveal edit button (pencil icon)
+  - Inline editing with input field (Enter to save, Escape to cancel)
+  - Edited messages show "Edited" label in italics below content
+  - Server broadcasts edited message to all channel members
+  - Server stores edit timestamp (edited_at)
+  - Foundation for future edit history feature
+
+### 🔧 Technical Changes
+
+**Protocol Extensions:**
+- Added `DELETE_MESSAGE` WebSocket message type
+- Added `EDIT_MESSAGE` WebSocket message type
+- Extended `Message` model with deletion and edit metadata
+
+**Database Schema Updates:**
+```sql
+ALTER TABLE messages ADD COLUMN deleted_by_user_id TEXT;
+ALTER TABLE messages ADD COLUMN deleted_at INTEGER;
+ALTER TABLE messages ADD COLUMN edited_at INTEGER;
+```
+
+**Component Updates:**
+- `ChatArea.tsx` - Message hover actions, edit/delete buttons
+- `UserProfileModal.tsx` (NEW) - User information modal
+- Message component refactoring for avatar display fix
+
+**Affected Modules:**
+- `server/src/models.rs` - Extended Message struct
+- `server/src/handlers.rs` - DELETE_MESSAGE and EDIT_MESSAGE handlers
+- `server/src/db.rs` - Message deletion and editing queries
+- `client/src/components/ChatArea.tsx` - Message actions and avatar fix
+- `client/src/components/UserProfileModal.tsx` (NEW)
+- `client/src/types/protocol.ts` - Protocol type extensions
+
+### 📋 Documentation Updates
+
+- [ ] Simplified releases folder structure (consolidated README files)
+- [ ] Updated todo.md with message system tasks
+- [ ] Updated changelog.md with v0.1.2 entry
+
+### 🏗️ Build Validation
+
+- [ ] Client build validation
+- [ ] Server build validation
+- [ ] Protocol compatibility testing
+- [ ] Message CRUD operations testing
+
+---
+
+## 🎨 v0.1.1 - Light Mode Enhancement & UI Polish - 2026-02-24
 
 **Type:** UI/UX Enhancement  
 **Branch:** `feature/light-mode-polish`

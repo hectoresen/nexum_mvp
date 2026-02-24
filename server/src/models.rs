@@ -341,6 +341,10 @@ pub struct UserLeftPayload {
 pub struct MessagePayload {
     pub message: Message,
     pub username: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
+    pub avatar_path: Option<String>,
+    pub avatar_version: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

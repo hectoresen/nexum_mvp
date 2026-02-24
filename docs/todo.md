@@ -88,6 +88,77 @@ Analyze and implement light theme support across entire application.
 **Classes Modified:** 500+ Tailwind classes  
 **Build Status:** ✅ Clean client & server builds
 
+### 0.5.5 Message System Enhancements 🚧
+
+**Priority: HIGH - In Progress**
+
+Improve messaging system with avatar display, user profiles, and message management.
+
+#### Bug Fixes
+
+- [ ] **Avatar display in messages** — User avatars not showing in text channel messages (showing default instead of uploaded avatar)
+  - Investigate message component avatar rendering
+  - Ensure avatarUrl/avatarPath properly passed from server
+  - Fix avatar URL construction in ChatArea component
+
+#### New Features
+
+- [ ] **User profile modal (clickable users)** — Click on user in member list or message shows user info popup
+  - Display: Username, role badge, join date
+  - Trigger: Click on username in message OR click on user in right sidebar
+  - Modal positioning: Center screen with backdrop
+  - Close on outside click or X button
+  - Future: Add more stats (message count, last seen, etc.)
+
+- [ ] **Message deletion** — Users can delete their own messages
+  - Add delete icon on message hover (trash icon, red on hover)
+  - Confirm deletion with dialog
+  - Server: `DELETE_MESSAGE` WebSocket event
+  - Replace message content with: "Message deleted by: ${username}"
+  - Keep message structure (timestamp, username) but gray out
+  - Server: Store deletion info (deleted_by_user_id, deleted_at) in DB
+  - Future: Mod/admin can delete any message
+
+- [ ] **Message editing** — Users can edit their own messages
+  - Add edit icon on message hover (pencil icon)
+  - inline edit with input field (Enter to save, Escape to cancel)
+  - Server: `EDIT_MESSAGE` WebSocket event
+  - Show "Edited" label below message in italics
+  - Server: Store edit history (edited_at timestamp) in DB
+  - Broadcast updated message to all channel members
+  - Future: Show edit history on hover
+
+#### Technical Implementation
+
+**Protocol Changes:**
+- Add `DELETE_MESSAGE` server message type
+- Add `EDIT_MESSAGE` server message type
+- Extend `Message` model with `deleted_by`, `deleted_at`, `edited_at` fields
+- Update `ChatMessage` client event handlers
+
+**Database Schema:**
+```sql
+ALTER TABLE messages ADD COLUMN deleted_by_user_id TEXT;
+ALTER TABLE messages ADD COLUMN deleted_at INTEGER;
+ALTER TABLE messages ADD COLUMN edited_at INTEGER;
+```
+
+**Component Updates:**
+- `ChatArea.tsx` - Add message action buttons (edit, delete)
+- `UserProfileModal.tsx` (NEW) - Modal showing user details
+- Message hover state with action buttons
+- Avatar rendering fix in message component
+
+### 0.5.6 Documentation & Release Structure 🚧
+
+**Priority: LOW - Housekeeping**
+
+- [ ] **Simplify releases structure** — Consolidate README files
+  - Remove redundant `releases/README.md` (generic overview)
+  - Keep `releases/v0.X.X/README.md` for version-specific release notes
+  - Update release workflow to only maintain version-specific READMEs
+  - Generic release info should be in main project README
+
 ### Future: Private Messaging & Encryption
 
 - [ ] Add private message functionality (click user in sidebar to DM)

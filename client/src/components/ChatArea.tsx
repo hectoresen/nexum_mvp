@@ -6,10 +6,11 @@ interface ChatAreaProps {
   channel: Channel
   messages: Message[]
   currentUserId: string
+  serverAddress?: string // Server address for avatar URLs
   onSendMessage: (content: string) => void
 }
 
-export default function ChatArea({ channel, messages, onSendMessage }: ChatAreaProps) {
+export default function ChatArea({ channel, messages, currentUserId: _currentUserId, serverAddress, onSendMessage }: ChatAreaProps) {
   const { tw } = useAppTheme()
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -65,11 +66,19 @@ export default function ChatArea({ channel, messages, onSendMessage }: ChatAreaP
           messages.map(message => {
             const displayName = message.username || `User ${message.user_id.substring(0, 8)}`
             const avatarInitial = message.username ? message.username[0]?.toUpperCase() : message.user_id[0]?.toUpperCase()
+            
+            // Construct avatar URL if avatar_path is available
+            const avatarUrl = message.avatar_url || (message.avatar_path && serverAddress ? `http://${serverAddress}/${message.avatar_path}` : null)
 
             return (
               <div key={message.id} className="flex gap-3">
-                <div className={`w-10 h-10 rounded-full ${tw.bgInput} flex items-center justify-center flex-shrink-0`}>
-                  <span className={`text-sm font-semibold ${tw.textPrimary}`}>{avatarInitial}</span>
+                {/* Avatar */}
+                <div className={`w-10 h-10 rounded-full ${tw.bgInput} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className={`text-sm font-semibold ${tw.textPrimary}`}>{avatarInitial}</span>
+                  )}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-baseline gap-2">
