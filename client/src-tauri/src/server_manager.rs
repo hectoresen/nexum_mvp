@@ -134,7 +134,19 @@ impl ServerManager {
             "nexum-server",
         ];
 
-        // 1. Same directory as the client executable (HIGHEST PRIORITY)
+        // In debug (dev) builds, prefer the freshly built server binary from the
+        // server crate's release output BEFORE checking the same directory as the
+        // Tauri exe. This prevents a stale copy left in target/debug/ from shadowing
+        // the correct binary after a server rebuild.
+        #[cfg(debug_assertions)]
+        {
+            paths.push(PathBuf::from("../server/target/release/voice-server.exe"));
+            paths.push(PathBuf::from("../server/target/debug/voice-server.exe"));
+            paths.push(PathBuf::from("../../server/target/release/voice-server.exe"));
+            paths.push(PathBuf::from("../../server/target/debug/voice-server.exe"));
+        }
+
+        // 1. Same directory as the client executable (HIGHEST PRIORITY in release builds)
         if let Ok(exe_path) = std::env::current_exe() {
             tracing::debug!("Current executable: {:?}", exe_path);
             if let Some(parent) = exe_path.parent() {
