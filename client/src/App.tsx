@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { WebSocketClient } from './lib/websocket'
 import { ServerManager } from './lib/serverManager'
-import { Channel, Message as ProtocolMessage, ServerMessage, UserRole, User, ServerSettingsPayload } from './types/protocol'
+import { Channel, Message as ProtocolMessage, ServerMessage, UserRole, User, ServerSettingsPayload, Category } from './types/protocol'
 import { SavedServer, LocalServerStatus } from './types/server'
 import ServerListView from './components/ServerListView'
 import ServerConnectModal from './components/ServerConnectModal'
@@ -42,6 +42,7 @@ interface ActiveConnection {
   role: UserRole | null
   serverName: string
   channels: Channel[]
+  categories: Category[]
   messages: Map<string, ProtocolMessage[]>
   currentChannelId: string | null
   error: string | null
@@ -163,6 +164,7 @@ function App() {
         role: null,
         serverName: 'Connecting...',
         channels: [],
+        categories: [],
         messages: new Map(),
         currentChannelId: null,
         error: null,
@@ -279,6 +281,7 @@ function App() {
         role: null,
         serverName: 'Connecting...',
         channels: [],
+        categories: [],
         messages: new Map(),
         currentChannelId: null,
         error: null,
@@ -374,6 +377,7 @@ function App() {
           role: message.payload.role,
           serverName: message.payload.server_name,
           channels: message.payload.channels,
+          categories: message.payload.categories,
           error: null,
         }
 
@@ -531,6 +535,32 @@ function App() {
         // Handle these silently for now
         return connection
 
+      case 'CATEGORY_CREATED':
+        return {
+          ...connection,
+          categories: [...connection.categories, message.payload.category],
+        }
+
+      case 'CATEGORY_DELETED':
+        return {
+          ...connection,
+          categories: connection.categories.filter(c => c.id !== message.payload.category_id),
+          // Unassign channels that were in this category
+          channels: connection.channels.map(ch => (ch.category_id === message.payload.category_id ? { ...ch, category_id: undefined } : ch)),
+        }
+
+      case 'CATEGORY_RENAMED':
+        return {
+          ...connection,
+          categories: connection.categories.map(c => (c.id === message.payload.category_id ? { ...c, name: message.payload.new_name } : c)),
+        }
+
+      case 'CHANNEL_MOVED':
+        return {
+          ...connection,
+          channels: connection.channels.map(ch => (ch.id === message.payload.channel_id ? { ...ch, category_id: message.payload.category_id ?? undefined } : ch)),
+        }
+
       default:
         console.warn('Unknown message type:', message)
         return connection
@@ -647,6 +677,38 @@ function App() {
     view.connection.client.send({
       type: 'RENAME_CHANNEL',
       payload: { channel_id: channelId, new_name: newName },
+    })
+  }
+
+  const handleCreateCategory = (name: string) => {
+    if (view.type !== 'connected') return
+    view.connection.client.send({
+      type: 'CREATE_CATEGORY',
+      payload: { name },
+    })
+  }
+
+  const handleDeleteCategory = (categoryId: string) => {
+    if (view.type !== 'connected') return
+    view.connection.client.send({
+      type: 'DELETE_CATEGORY',
+      payload: { category_id: categoryId },
+    })
+  }
+
+  const handleRenameCategory = (categoryId: string, newName: string) => {
+    if (view.type !== 'connected') return
+    view.connection.client.send({
+      type: 'RENAME_CATEGORY',
+      payload: { category_id: categoryId, new_name: newName },
+    })
+  }
+
+  const handleMoveChannelToCategory = (channelId: string, categoryId: string | null) => {
+    if (view.type !== 'connected') return
+    view.connection.client.send({
+      type: 'MOVE_CHANNEL_TO_CATEGORY',
+      payload: { channel_id: channelId, category_id: categoryId },
     })
   }
 
@@ -909,9 +971,7 @@ function App() {
               <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
                 <div className="flex items-center gap-2">
                   <h2 className="text-base font-semibold text-white">Local Server</h2>
-                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
-                    localServerStatus.running ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-400'
-                  }`}>
+                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${localServerStatus.running ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-400'}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${localServerStatus.running ? 'bg-green-400' : 'bg-gray-500'}`}></span>
                     {localServerStatus.running ? 'Running' : 'Stopped'}
                   </span>
@@ -928,11 +988,13 @@ function App() {
                 {(['overview', 'reset-password', 'delete-data'] as const).map(tab => (
                   <button
                     key={tab}
-                    onClick={() => { setManageModalTab(tab); setManageResetError(null); setManageDeleteConfirm(false) }}
+                    onClick={() => {
+                      setManageModalTab(tab)
+                      setManageResetError(null)
+                      setManageDeleteConfirm(false)
+                    }}
                     className={`py-2.5 px-1 mr-5 text-xs font-medium border-b-2 transition-colors cursor-pointer ${
-                      manageModalTab === tab
-                        ? 'border-white/60 text-white'
-                        : 'border-transparent text-gray-500 hover:text-gray-300'
+                      manageModalTab === tab ? 'border-white/60 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'
                     }`}>
                     {tab === 'overview' ? 'Overview' : tab === 'reset-password' ? 'Reset Password' : 'Delete Data'}
                   </button>
@@ -941,14 +1003,15 @@ function App() {
 
               {/* Tab content */}
               <div className="px-6 py-5">
-
                 {/* Overview tab */}
                 {manageModalTab === 'overview' && (
                   <>
                     <div className="mb-4 text-xs text-gray-500 bg-white/5 rounded-lg p-3">
                       <p className="font-medium text-gray-400 mb-1">Data directory</p>
                       <code className="text-gray-300 break-all">~/.nexum/server/</code>
-                      <p className="mt-1 text-gray-500">Contains <code>server.toml</code> (config) and <code>data/server.db</code> (database).</p>
+                      <p className="mt-1 text-gray-500">
+                        Contains <code>server.toml</code> (config) and <code>data/server.db</code> (database).
+                      </p>
                     </div>
                     <div className="flex gap-3 justify-end">
                       <button onClick={() => setShowLocalServerManageModal(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors cursor-pointer">
@@ -956,13 +1019,19 @@ function App() {
                       </button>
                       {localServerStatus.running ? (
                         <button
-                          onClick={async () => { setShowLocalServerManageModal(false); await handleStopLocalServer() }}
+                          onClick={async () => {
+                            setShowLocalServerManageModal(false)
+                            await handleStopLocalServer()
+                          }}
                           className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium rounded-lg transition-colors cursor-pointer">
                           Stop Server
                         </button>
                       ) : (
                         <button
-                          onClick={async () => { setShowLocalServerManageModal(false); await handleLaunchLocalServer() }}
+                          onClick={async () => {
+                            setShowLocalServerManageModal(false)
+                            await handleLaunchLocalServer()
+                          }}
                           className="px-4 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-300 text-sm font-medium rounded-lg transition-colors cursor-pointer">
                           Start Server
                         </button>
@@ -981,7 +1050,10 @@ function App() {
                         <input
                           type="text"
                           value={manageResetPassword}
-                          onChange={e => { setManageResetPassword(e.target.value); setManageResetError(null) }}
+                          onChange={e => {
+                            setManageResetPassword(e.target.value)
+                            setManageResetError(null)
+                          }}
                           placeholder="Enter or generate a password..."
                           className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-white/30"
                         />
@@ -1021,7 +1093,9 @@ function App() {
                             Cancel
                           </button>
                           <button
-                            onClick={async () => { await handleStopLocalServer() }}
+                            onClick={async () => {
+                              await handleStopLocalServer()
+                            }}
                             className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium rounded-lg transition-colors cursor-pointer">
                             Stop Server Now
                           </button>
@@ -1032,22 +1106,24 @@ function App() {
                         {/* Step 2: server is stopped, allow deletion */}
                         <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
                           <p className="text-sm text-red-300 font-medium mb-1">⚠️ This cannot be undone</p>
-                          <p className="text-xs text-red-400">Deletes <code>~/.nexum/server/data/</code> — all users, messages, and channels will be permanently removed. Server config (<code>server.toml</code>) is kept.</p>
+                          <p className="text-xs text-red-400">
+                            Deletes <code>~/.nexum/server/data/</code> — all users, messages, and channels will be permanently removed. Server config (<code>server.toml</code>) is kept.
+                          </p>
                         </div>
                         {!manageDeleteConfirm ? (
                           <div className="flex gap-3 justify-end">
                             <button onClick={() => setShowLocalServerManageModal(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors cursor-pointer">
                               Cancel
                             </button>
-                            <button
-                              onClick={() => setManageDeleteConfirm(true)}
-                              className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium rounded-lg transition-colors cursor-pointer">
+                            <button onClick={() => setManageDeleteConfirm(true)} className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium rounded-lg transition-colors cursor-pointer">
                               Delete All Data
                             </button>
                           </div>
                         ) : (
                           <>
-                            <p className="text-sm text-gray-300 mb-3">Type <strong className="text-white">DELETE</strong> to confirm:</p>
+                            <p className="text-sm text-gray-300 mb-3">
+                              Type <strong className="text-white">DELETE</strong> to confirm:
+                            </p>
                             <input
                               type="text"
                               value={manageDeleteText}
@@ -1056,7 +1132,13 @@ function App() {
                               className="w-full bg-white/5 border border-red-500/30 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-red-500/60 mb-4"
                             />
                             <div className="flex gap-3 justify-end">
-                              <button onClick={() => { setManageDeleteConfirm(false); setManageDeleteText('') }} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors cursor-pointer" disabled={manageDeleteLoading}>
+                              <button
+                                onClick={() => {
+                                  setManageDeleteConfirm(false)
+                                  setManageDeleteText('')
+                                }}
+                                className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
+                                disabled={manageDeleteLoading}>
                                 Cancel
                               </button>
                               <button
@@ -1072,7 +1154,6 @@ function App() {
                     )}
                   </>
                 )}
-
               </div>
             </div>
           </div>
@@ -1159,6 +1240,7 @@ function App() {
           currentChannelId: conn.currentChannelId,
           error: conn.error,
         }}
+        categories={conn.categories}
         serverName={conn.serverName}
         serverAddress={conn.server.address}
         currentUserAvatar={currentUserAvatar}
@@ -1176,6 +1258,10 @@ function App() {
         onDeleteChannel={handleDeleteChannel}
         onViewUsers={handleGetUsers}
         onOpenUserSettings={() => setShowUserSettingsModal(true)}
+        onCreateCategory={handleCreateCategory}
+        onDeleteCategory={handleDeleteCategory}
+        onRenameCategory={handleRenameCategory}
+        onMoveChannelToCategory={handleMoveChannelToCategory}
       />
 
       {showAdminAuthModal && (

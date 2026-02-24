@@ -223,9 +223,9 @@ After implementing the right sidebar user list in 0.5.2, the "View Users" button
 - `App.tsx` - Remove handleGetUsers function and modal state
 - Clean up unused imports and props
 
-### 0.5.9 Channel Categories & Organization 🚧
+### 0.5.9 Channel Categories & Organization ✅
 
-**Priority: MEDIUM - Feature Enhancement**
+**Priority: MEDIUM - Feature Enhancement - COMPLETED**
 
 #### Problem
 
@@ -243,72 +243,33 @@ Implement collapsible channel categories similar to Discord's approach:
 
 #### Tasks
 
-- [ ] **Database schema update** — Add category support
+- [x] **Database schema update** — Add category support
   - Add `category_id` (optional) to channels table
   - Create `categories` table: `id`, `name`, `position`, `created_at`
-  - Add `category_position` to channels for ordering within category
   - Migration script for existing channels (all uncategorized initially)
 
-- [ ] **Backend protocol changes** — Category CRUD operations
+- [x] **Backend protocol changes** — Category CRUD operations
   - Add `CREATE_CATEGORY` client message
   - Add `DELETE_CATEGORY` client message
   - Add `RENAME_CATEGORY` client message
   - Add `MOVE_CHANNEL_TO_CATEGORY` client message
-  - Add corresponding server broadcast messages
+  - Add corresponding server broadcast messages (`CATEGORY_CREATED`, `CATEGORY_DELETED`, `CATEGORY_RENAMED`, `CHANNEL_MOVED`)
   - Update `WELCOME` payload to include categories
 
-- [ ] **Frontend UI implementation** — Category display and interaction
+- [x] **Frontend UI implementation** — Category display and interaction
   - Update ChannelList to render categories with channels inside
-  - Add collapse/expand icon (chevron) next to category name
+  - Add collapse/expand chevron next to category name
   - Store collapsed state per category in localStorage
-  - Add "Create Category" button for owners
-  - Add category context menu (rename, delete for owners)
-  - Update channel creation modal to allow category selection
+  - Add "Add Category" button for owners (inline creation)
+  - Add inline rename/delete controls for category and channel rows
 
-- [ ] **Category management** — Admin controls
-  - Right-click category to rename or delete
-  - Drag-drop channels between categories
+- [x] **Category management** — Admin controls
+  - Inline rename and delete for categories
+  - Drag-drop channels between categories (HTML5 native API)
   - Delete category moves channels to uncategorized
-  - Channels without category_id render in "Uncategorized" section
+  - Channels without category_id render in "Channels" section
 
-**Technical Implementation:**
-
-**Backend (Server):**
-
-```rust
-// models.rs
-pub struct Category {
-    pub id: Uuid,
-    pub name: String,
-    pub position: i32,
-    pub created_at: DateTime<Utc>,
-}
-
-// ClientMessage enum additions
-CreateCategory(CreateCategoryPayload),
-DeleteCategory(DeleteCategoryPayload),
-RenameCategory(RenameCategoryPayload),
-MoveChannelToCategory(MoveChannelPayload),
-```
-
-**Frontend (Client):**
-
-```tsx
-// ChannelList.tsx
-- Render categories with collapsible sections
-- Show uncategorized channels at bottom
-- Category create/edit modals
-
-// localStorage
-- Store collapsed categories: { categoryId: boolean }
-```
-
-**User Experience:**
-
-- Collapsed categories show channel count badge
-- Drag-drop visual feedback
-- Smooth expand/collapse animations
-- Preserve scroll position when toggling categories
+**Build Status:** ✅ Clean client & server builds
 
 ### 0.5.10 Auto-start on System Boot 🚧
 
@@ -433,6 +394,52 @@ Once the local server was running, the "Configure Server" button in the dropdown
 - [ ] Add private message functionality (click user in sidebar to DM)
 - [ ] Implement end-to-end encryption for private messages
 - [ ] Add encryption indicator in private chat UI
+
+### 0.5.12 Moderation System 🚧
+
+**Priority: MEDIUM - Safety & Administration**
+
+Enable server owners to manage disruptive users.
+
+#### Tasks
+
+- [ ] **Kick user** — owner can remove a user from the server (disconnects them; they can rejoin)
+- [ ] **Ban user** — owner can permanently ban by user ID + IP address; banned users cannot reconnect
+- [ ] **Voice mute** — owner mutes a specific user's microphone (they hear others but nobody hears them)
+- [ ] **Text mute** — owner restricts a user from sending messages in text channels
+- [ ] **Ban list** — admin panel tab showing all bans with username, IP, date; ability to unban
+- [ ] **Protocol changes** — `KICK_USER`, `BAN_USER`, `UNBAN_USER`, `MUTE_USER`, `UNMUTE_USER` client messages + server broadcasts
+- [ ] **Persistence** — bans stored in SQLite `bans` table (`user_id`, `ip_address`, `banned_at`, `reason`)
+- [ ] **Connection check** — server checks ban list on every new connection attempt
+
+### 0.5.13 Server Join Password 🚧
+
+**Priority: LOW - Privacy Feature**
+
+Allow server owners to require a password for joining, making the server private.
+
+#### Tasks
+
+- [ ] **Config field** — add optional `join_password` to `server.toml` and `ServerConfig`
+- [ ] **Protocol change** — `CONNECT` payload gains optional `join_password` field; server rejects with `UNAUTHORIZED` if wrong
+- [ ] **UI — join flow** — when connecting to a server that requires a password, show a password prompt before sending `CONNECT`
+- [ ] **Server settings** — owner can set/clear the join password in `ServerSettingsModal`
+- [ ] **Password indicator** — server card on home screen shows a lock icon if join password is set - needs a `GET_SERVER_INFO` unauthenticated endpoint
+- [ ] **Empty = open** — empty string / absent field means no password required
+
+### 0.5.14 Notification System 🚧
+
+**Priority: LOW - User Convenience**
+
+Notify users of activity while the app is in the background.
+
+#### Tasks
+
+- [ ] **System tray icon** — app stays in tray when window is closed (instead of exiting)
+- [ ] **Desktop notification** — show OS notification when a message arrives in a channel the user has joined while the window is not focused
+- [ ] **Tray badge / unread count** — tray icon shows badge or tooltip with unread message count
+- [ ] **Do-not-disturb setting** — toggle in Client Settings to suppress all notifications
+- [ ] **Mention detection** — highlight messages that contain `@username` in a different color; trigger notification even if window is focused
 
 ### 0.5.3 Server Detection ✅
 

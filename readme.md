@@ -242,18 +242,18 @@ Nexum is perfect for:
 **Version:** 0.5 (MVP Complete - Text Chat)  
 **Release:** Beta / Active Development
 
-| Component             | Status                          |
-| --------------------- | ------------------------------- |
-| Text Chat             | ✅ Production-ready             |
-| User Management       | ✅ Fully functional             |
-| Channel System        | ✅ Create, rename, delete       |
-| Avatar System         | ✅ Upload & URL support         |
-| Server Settings       | ✅ Editable from UI             |
-| Local Server Mgmt     | ✅ Start/Stop/Reset/Wipe        |
-| Dark & Light Themes   | ✅ Persistent preference        |
-| Desktop Client        | ✅ Windows/macOS/Linux          |
-| Voice Chat            | 🚧 UI ready, audio pending      |
-| Mobile Apps           | 📋 Future consideration         |
+| Component           | Status                     |
+| ------------------- | -------------------------- |
+| Text Chat           | ✅ Production-ready        |
+| User Management     | ✅ Fully functional        |
+| Channel System      | ✅ Create, rename, delete  |
+| Avatar System       | ✅ Upload & URL support    |
+| Server Settings     | ✅ Editable from UI        |
+| Local Server Mgmt   | ✅ Start/Stop/Reset/Wipe   |
+| Dark & Light Themes | ✅ Persistent preference   |
+| Desktop Client      | ✅ Windows/macOS/Linux     |
+| Voice Chat          | 🚧 UI ready, audio pending |
+| Mobile Apps         | 📋 Future consideration    |
 
 **Latest builds:** Check [Releases](../../releases) (coming soon)
 

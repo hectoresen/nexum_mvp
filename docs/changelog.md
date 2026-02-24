@@ -56,7 +56,7 @@ All notable changes and completed tasks are documented here.
   - Affected: `client/src/components/ServerListView.tsx`, `client/src/App.tsx`
 
 - [x] **Connecting to an offline server gave no feedback** — When a saved server had a stored `lastUserId`, the client would attempt auto-reconnect via `handleConnectWithUserId`; on failure the catch block set `connectionError` but never set `connectingServer`, so `ServerConnectModal` never opened and the error was invisible
-  - Fix: Added `setConnectingServer(server)` in the catch block so the connection modal appears with a clear message: *"Could not reach \<address\>. Make sure the server is running."
+  - Fix: Added `setConnectingServer(server)` in the catch block so the connection modal appears with a clear message: \*"Could not reach \<address\>. Make sure the server is running."
   - Commit: `45a7647`
   - Affected: `client/src/App.tsx`
 

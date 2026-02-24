@@ -106,6 +106,7 @@ export function getTw(mode: ThemeMode) {
       bgInput: 'bg-[#111111]',
       bgHover: 'hover:bg-[#1f1f1f]',
       bgHoverSubtle: 'hover:bg-gray-800',
+      bgActive: 'bg-gray-800',
       // Borders
       borderDefault: 'border-gray-800',
       borderSubtle: 'border-gray-700',
@@ -130,6 +131,7 @@ export function getTw(mode: ThemeMode) {
     bgInput: 'bg-white',
     bgHover: 'hover:bg-[#f1f3f5]',
     bgHoverSubtle: 'hover:bg-[#f1f3f5]',
+    bgActive: 'bg-[#f1f3f5]',
     // Borders
     borderDefault: 'border-[#dee2e6]',
     borderSubtle: 'border-[#e9ecef]',

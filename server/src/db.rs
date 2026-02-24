@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 use chrono::Utc;
 
-use crate::models::{User, UserRole, Channel, ChannelType, Message};
+use crate::models::{User, UserRole, Channel, ChannelType, Message, Category};
 
 #[derive(Clone)]
 pub struct Database {
@@ -47,6 +47,14 @@ impl Database {
                 name TEXT NOT NULL,
                 type TEXT NOT NULL,
                 max_users INTEGER,
+                category_id TEXT,
+                created_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS categories (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                position INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL
             );
 
@@ -98,6 +106,24 @@ impl Database {
         if !columns.contains(&"edited_at".to_string()) {
             conn.execute("ALTER TABLE messages ADD COLUMN edited_at TEXT", [])?;
         }
+
+        // Migration: Add category_id to channels if it doesn't exist
+        let channel_columns: Vec<String> = conn.prepare("PRAGMA table_info(channels)")?
+            .query_map([], |row| row.get(1))?
+            .collect::<Result<Vec<_>, _>>()?;
+        if !channel_columns.contains(&"category_id".to_string()) {
+            conn.execute("ALTER TABLE channels ADD COLUMN category_id TEXT", [])?;
+        }
+
+        // Ensure categories table exists (may be missing on old DBs)
+        conn.execute_batch(
+            r#"CREATE TABLE IF NOT EXISTS categories (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                position INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            );"#
+        )?;
 
         Ok(())
     }
@@ -291,17 +317,19 @@ impl Database {
             name: name.to_string(),
             channel_type,
             max_users,
+            category_id: None,
             created_at: Utc::now(),
         };
 
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT INTO channels (id, name, type, max_users, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT INTO channels (id, name, type, max_users, category_id, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params![
                 channel.id.to_string(),
                 &channel.name,
                 channel.channel_type.to_string(),
                 channel.max_users.map(|u| u as i64),
+                channel.category_id.map(|id| id.to_string()),
                 channel.created_at.to_rfc3339(),
             ],
         )?;
@@ -312,16 +340,18 @@ impl Database {
     pub fn get_channel(&self, channel_id: Uuid) -> Result<Option<Channel>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, name, type, max_users, created_at FROM channels WHERE id = ?1"
+            "SELECT id, name, type, max_users, category_id, created_at FROM channels WHERE id = ?1"
         )?;
 
         let channel = stmt.query_row(params![channel_id.to_string()], |row| {
+            let category_id_str: Option<String> = row.get(4)?;
             Ok(Channel {
                 id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
                 name: row.get(1)?,
                 channel_type: ChannelType::from_string(&row.get::<_, String>(2)?),
                 max_users: row.get::<_, Option<i64>>(3)?.map(|u| u as usize),
-                created_at: row.get::<_, String>(4)?.parse().unwrap(),
+                category_id: category_id_str.and_then(|s| Uuid::parse_str(&s).ok()),
+                created_at: row.get::<_, String>(5)?.parse().unwrap(),
             })
         }).optional()?;
 
@@ -331,16 +361,18 @@ impl Database {
     pub fn list_channels(&self) -> Result<Vec<Channel>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, name, type, max_users, created_at FROM channels ORDER BY created_at"
+            "SELECT id, name, type, max_users, category_id, created_at FROM channels ORDER BY created_at"
         )?;
 
         let channels = stmt.query_map([], |row| {
+            let category_id_str: Option<String> = row.get(4)?;
             Ok(Channel {
                 id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
                 name: row.get(1)?,
                 channel_type: ChannelType::from_string(&row.get::<_, String>(2)?),
                 max_users: row.get::<_, Option<i64>>(3)?.map(|u| u as usize),
-                created_at: row.get::<_, String>(4)?.parse().unwrap(),
+                category_id: category_id_str.and_then(|s| Uuid::parse_str(&s).ok()),
+                created_at: row.get::<_, String>(5)?.parse().unwrap(),
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -364,18 +396,114 @@ impl Database {
             params![new_name, channel_id.to_string()],
         )?;
         let mut stmt = conn.prepare(
-            "SELECT id, name, type, max_users, created_at FROM channels WHERE id = ?1"
+            "SELECT id, name, type, max_users, category_id, created_at FROM channels WHERE id = ?1"
         )?;
         let channel = stmt.query_row(params![channel_id.to_string()], |row| {
+            let category_id_str: Option<String> = row.get(4)?;
             Ok(Channel {
                 id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
                 name: row.get(1)?,
                 channel_type: ChannelType::from_string(&row.get::<_, String>(2)?),
                 max_users: row.get::<_, Option<i64>>(3)?.map(|u| u as usize),
-                created_at: row.get::<_, String>(4)?.parse().unwrap(),
+                category_id: category_id_str.and_then(|s| Uuid::parse_str(&s).ok()),
+                created_at: row.get::<_, String>(5)?.parse().unwrap(),
             })
         })?;
         Ok(channel)
+    }
+
+    pub fn update_channel_category(&self, channel_id: Uuid, category_id: Option<Uuid>) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE channels SET category_id = ?1 WHERE id = ?2",
+            params![category_id.map(|id| id.to_string()), channel_id.to_string()],
+        )?;
+        Ok(())
+    }
+
+    // ========================================================================
+    // Category Operations
+    // ========================================================================
+
+    pub fn create_category(&self, name: &str) -> Result<Category> {
+        let conn = self.conn.lock().unwrap();
+        let position: i64 = conn.query_row(
+            "SELECT COALESCE(MAX(position), -1) + 1 FROM categories",
+            [],
+            |row| row.get(0),
+        ).unwrap_or(0);
+
+        let category = Category {
+            id: Uuid::new_v4(),
+            name: name.to_string(),
+            position,
+            created_at: Utc::now(),
+        };
+
+        conn.execute(
+            "INSERT INTO categories (id, name, position, created_at) VALUES (?1, ?2, ?3, ?4)",
+            params![
+                category.id.to_string(),
+                &category.name,
+                category.position,
+                category.created_at.to_rfc3339(),
+            ],
+        )?;
+
+        Ok(category)
+    }
+
+    pub fn list_categories(&self) -> Result<Vec<Category>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, name, position, created_at FROM categories ORDER BY position ASC, created_at ASC"
+        )?;
+
+        let categories = stmt.query_map([], |row| {
+            Ok(Category {
+                id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                name: row.get(1)?,
+                position: row.get(2)?,
+                created_at: row.get::<_, String>(3)?.parse().unwrap(),
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(categories)
+    }
+
+    pub fn delete_category(&self, category_id: Uuid) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        // Remove category from channels first (set to NULL)
+        conn.execute(
+            "UPDATE channels SET category_id = NULL WHERE category_id = ?1",
+            params![category_id.to_string()],
+        )?;
+        conn.execute(
+            "DELETE FROM categories WHERE id = ?1",
+            params![category_id.to_string()],
+        )?;
+        Ok(())
+    }
+
+    pub fn rename_category(&self, category_id: Uuid, new_name: &str) -> Result<Category> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE categories SET name = ?1 WHERE id = ?2",
+            params![new_name, category_id.to_string()],
+        )?;
+        let mut stmt = conn.prepare(
+            "SELECT id, name, position, created_at FROM categories WHERE id = ?1"
+        )?;
+        let category = stmt.query_row(params![category_id.to_string()], |row| {
+            Ok(Category {
+                id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                name: row.get(1)?,
+                position: row.get(2)?,
+                created_at: row.get::<_, String>(3)?.parse().unwrap(),
+            })
+        })?;
+        Ok(category)
     }
 
     // ========================================================================

@@ -20,6 +20,14 @@ export interface Channel {
   name: string;
   channel_type: ChannelType;
   max_users?: number;
+  category_id?: string;
+  created_at: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  position: number;
   created_at: string;
 }
 
@@ -60,6 +68,10 @@ export type ClientMessage =
   | { type: 'UPDATE_SERVER_SETTINGS'; payload: UpdateServerSettingsPayload }
   | { type: 'GET_USERS' }
   | { type: 'UPDATE_AVATAR'; payload: UpdateAvatarPayload }
+  | { type: 'CREATE_CATEGORY'; payload: CreateCategoryPayload }
+  | { type: 'DELETE_CATEGORY'; payload: DeleteCategoryPayload }
+  | { type: 'RENAME_CATEGORY'; payload: RenameCategoryPayload }
+  | { type: 'MOVE_CHANNEL_TO_CATEGORY'; payload: MoveChannelToCategoryPayload }
   | { type: 'PING' };
 
 export interface ConnectPayload {
@@ -148,6 +160,10 @@ export type ServerMessage =
   | { type: 'SERVER_USERS'; payload: ServerUsersPayload }
   | { type: 'USER_AVATAR_UPDATED'; payload: UserAvatarUpdatedPayload }
   | { type: 'USER_UPDATED'; payload: UserUpdatedPayload }
+  | { type: 'CATEGORY_CREATED'; payload: CategoryCreatedPayload }
+  | { type: 'CATEGORY_DELETED'; payload: CategoryDeletedPayload }
+  | { type: 'CATEGORY_RENAMED'; payload: CategoryRenamedPayload }
+  | { type: 'CHANNEL_MOVED'; payload: ChannelMovedPayload }
   | { type: 'PONG' };
 
 export interface WelcomePayload {
@@ -158,6 +174,7 @@ export interface WelcomePayload {
   server_name: string;
   role: UserRole;
   channels: Channel[];
+  categories: Category[];
 }
 
 export interface ErrorPayload {
@@ -267,4 +284,40 @@ export interface UserAvatarUpdatedPayload {
 export interface UserUpdatedPayload {
   user_id: string;
   avatar_version: number;
+}
+
+export interface CreateCategoryPayload {
+  name: string;
+}
+
+export interface DeleteCategoryPayload {
+  category_id: string;
+}
+
+export interface RenameCategoryPayload {
+  category_id: string;
+  new_name: string;
+}
+
+export interface MoveChannelToCategoryPayload {
+  channel_id: string;
+  category_id: string | null;
+}
+
+export interface CategoryCreatedPayload {
+  category: Category;
+}
+
+export interface CategoryDeletedPayload {
+  category_id: string;
+}
+
+export interface CategoryRenamedPayload {
+  category_id: string;
+  new_name: string;
+}
+
+export interface ChannelMovedPayload {
+  channel_id: string;
+  category_id: string | null;
 }

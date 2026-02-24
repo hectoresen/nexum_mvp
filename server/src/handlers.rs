@@ -54,6 +54,10 @@ pub async fn handle_message(
                 ClientMessage::UpdateServerSettings(p) => handle_update_server_settings(sid, p, state, tx).await,
                 ClientMessage::GetUsers => handle_get_users(sid, state, tx).await,
                 ClientMessage::UpdateAvatar(p) => handle_update_avatar(sid, p, state, tx).await,
+                ClientMessage::CreateCategory(p) => handle_create_category(sid, p, state, tx).await,
+                ClientMessage::DeleteCategory(p) => handle_delete_category(sid, p, state, tx).await,
+                ClientMessage::RenameCategory(p) => handle_rename_category(sid, p, state, tx).await,
+                ClientMessage::MoveChannelToCategory(p) => handle_move_channel_to_category(sid, p, state, tx).await,
                 ClientMessage::Ping => handle_ping(tx).await,
                 _ => unreachable!(),
             }?;
@@ -134,6 +138,9 @@ async fn handle_connect(
     // Get all channels
     let channels = state.db.list_channels()?;
 
+    // Get all categories
+    let categories = state.db.list_categories()?;
+
     // Get server name from config
     let server_name = state.config.read().unwrap().server.name.clone();
 
@@ -146,6 +153,7 @@ async fn handle_connect(
         server_name,
         role: user.role,
         channels,
+        categories,
     });
 
     send_message(tx, &welcome)?;
@@ -691,6 +699,120 @@ async fn handle_update_avatar(
         avatar_url: payload.avatar_url,
     });
 
+    broadcast_message(&state.session_manager, &msg);
+
+    Ok(())
+}
+
+async fn handle_create_category(
+    session_id: Uuid,
+    payload: CreateCategoryPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can create categories")?;
+        return Ok(());
+    }
+
+    if payload.name.trim().is_empty() {
+        send_error(tx, ErrorCode::InvalidPayload, "Category name cannot be empty")?;
+        return Ok(());
+    }
+
+    let category = state.db.create_category(payload.name.trim())?;
+    info!("Category created: {} ({})", category.name, category.id);
+
+    let msg = ServerMessage::CategoryCreated(CategoryCreatedPayload { category });
+    broadcast_message(&state.session_manager, &msg);
+
+    Ok(())
+}
+
+async fn handle_delete_category(
+    session_id: Uuid,
+    payload: DeleteCategoryPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can delete categories")?;
+        return Ok(());
+    }
+
+    state.db.delete_category(payload.category_id)?;
+    info!("Category deleted: {}", payload.category_id);
+
+    let msg = ServerMessage::CategoryDeleted(CategoryDeletedPayload {
+        category_id: payload.category_id,
+    });
+    broadcast_message(&state.session_manager, &msg);
+
+    Ok(())
+}
+
+async fn handle_rename_category(
+    session_id: Uuid,
+    payload: RenameCategoryPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can rename categories")?;
+        return Ok(());
+    }
+
+    if payload.new_name.trim().is_empty() {
+        send_error(tx, ErrorCode::InvalidPayload, "Category name cannot be empty")?;
+        return Ok(());
+    }
+
+    state.db.rename_category(payload.category_id, payload.new_name.trim())?;
+    info!("Category renamed: {} -> {}", payload.category_id, payload.new_name);
+
+    let msg = ServerMessage::CategoryRenamed(CategoryRenamedPayload {
+        category_id: payload.category_id,
+        new_name: payload.new_name,
+    });
+    broadcast_message(&state.session_manager, &msg);
+
+    Ok(())
+}
+
+async fn handle_move_channel_to_category(
+    session_id: Uuid,
+    payload: MoveChannelToCategoryPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can move channels")?;
+        return Ok(());
+    }
+
+    // Verify channel exists
+    state.db.get_channel(payload.channel_id)?
+        .ok_or_else(|| anyhow::anyhow!("Channel not found"))?;
+
+    state.db.update_channel_category(payload.channel_id, payload.category_id)?;
+    info!("Channel {} moved to category {:?}", payload.channel_id, payload.category_id);
+
+    let msg = ServerMessage::ChannelMoved(ChannelMovedPayload {
+        channel_id: payload.channel_id,
+        category_id: payload.category_id,
+    });
     broadcast_message(&state.session_manager, &msg);
 
     Ok(())

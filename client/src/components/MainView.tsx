@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { AppState } from '../App'
-import { Channel, User } from '../types/protocol'
+import { Channel, Category, User } from '../types/protocol'
 import ChannelList from './ChannelList'
 import ChatArea from './ChatArea'
 import UserListPanel from './UserListPanel'
@@ -9,6 +9,7 @@ import { useAppTheme } from '../hooks/useAppTheme'
 
 interface MainViewProps {
   state: AppState
+  categories: Category[]
   serverName?: string // Optional server name to display
   serverAddress?: string // Server address for avatar URLs
   currentUserAvatar?: string | null // Current user's avatar URL
@@ -26,10 +27,15 @@ interface MainViewProps {
   onDeleteChannel?: (channelId: string) => void
   onViewUsers?: () => void
   onOpenUserSettings?: () => void
+  onCreateCategory?: (name: string) => void
+  onDeleteCategory?: (categoryId: string) => void
+  onRenameCategory?: (categoryId: string, newName: string) => void
+  onMoveChannelToCategory?: (channelId: string, categoryId: string | null) => void
 }
 
 export default function MainView({
   state,
+  categories,
   serverName = 'Voice Server',
   serverAddress,
   currentUserAvatar,
@@ -47,6 +53,10 @@ export default function MainView({
   onDeleteChannel,
   onViewUsers,
   onOpenUserSettings,
+  onCreateCategory,
+  onDeleteCategory,
+  onRenameCategory,
+  onMoveChannelToCategory,
 }: MainViewProps) {
   const { tw } = useAppTheme()
   const [showCreateChannel, setShowCreateChannel] = useState(false)
@@ -165,7 +175,19 @@ export default function MainView({
               </form>
             )}
 
-            <ChannelList channels={state.channels} currentChannelId={state.currentChannelId} role={state.role} onSelectChannel={onJoinChannel} onRenameChannel={onRenameChannel} onDeleteChannel={onDeleteChannel} />
+            <ChannelList
+              channels={state.channels}
+              categories={categories}
+              currentChannelId={state.currentChannelId}
+              role={state.role}
+              onSelectChannel={onJoinChannel}
+              onRenameChannel={onRenameChannel}
+              onDeleteChannel={onDeleteChannel}
+              onCreateCategory={onCreateCategory}
+              onDeleteCategory={onDeleteCategory}
+              onRenameCategory={onRenameCategory}
+              onMoveChannelToCategory={onMoveChannelToCategory}
+            />
           </div>
         </div>
 
