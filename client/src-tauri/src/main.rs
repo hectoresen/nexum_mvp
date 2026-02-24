@@ -79,6 +79,21 @@ fn clear_configured_server_path(state: State<AppState>) {
     manager.clear_configured_path();
 }
 
+/// Reset admin password: stops server and deletes server.toml so the next
+/// launch triggers the first-launch setup flow.
+#[tauri::command]
+fn reset_admin_password(state: State<AppState>) -> Result<(), String> {
+    let manager = state.server_manager.lock().unwrap();
+    manager.reset_admin_password().map_err(|e| e.to_string())
+}
+
+/// Delete server data directory (wipes the database). Keeps server.toml.
+#[tauri::command]
+fn delete_server_data(state: State<AppState>) -> Result<(), String> {
+    let manager = state.server_manager.lock().unwrap();
+    manager.delete_server_data().map_err(|e| e.to_string())
+}
+
 fn main() {
     // Initialize the server manager
     let server_manager = ServerManager::new();
@@ -101,6 +116,8 @@ fn main() {
             set_server_path,
             get_configured_server_path,
             clear_configured_server_path,
+            reset_admin_password,
+            delete_server_data,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

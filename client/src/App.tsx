@@ -72,6 +72,13 @@ function App() {
   const [localSetupError, setLocalSetupError] = useState<string | null>(null)
   const [localSetupLaunching, setLocalSetupLaunching] = useState(false)
   const [showLocalServerManageModal, setShowLocalServerManageModal] = useState(false)
+  const [manageModalTab, setManageModalTab] = useState<'overview' | 'reset-password' | 'delete-data'>('overview')
+  const [manageResetPassword, setManageResetPassword] = useState('')
+  const [manageResetError, setManageResetError] = useState<string | null>(null)
+  const [manageResetLoading, setManageResetLoading] = useState(false)
+  const [manageDeleteConfirm, setManageDeleteConfirm] = useState(false)
+  const [manageDeleteLoading, setManageDeleteLoading] = useState(false)
+  const [manageDeleteText, setManageDeleteText] = useState('')
   const [localServerStatus, setLocalServerStatus] = useState<LocalServerStatus>({
     installed: false,
     running: false,
@@ -238,7 +245,9 @@ function App() {
       setIsConnecting(false)
     } catch (error) {
       console.error('Connection error:', error)
-      setConnectionError(`Failed to connect to ${server.address}. Make sure the server is running.`)
+      // Show modal with the error so the user gets feedback
+      setConnectingServer(server)
+      setConnectionError(`Could not reach ${server.address}. Make sure the server is running.`)
       setIsConnecting(false)
     }
   }
@@ -754,6 +763,11 @@ function App() {
   }
 
   const handleManageLocalServer = () => {
+    setManageModalTab('overview')
+    setManageResetPassword('')
+    setManageResetError(null)
+    setManageDeleteConfirm(false)
+    setManageDeleteText('')
     setShowLocalServerManageModal(true)
   }
 
@@ -765,6 +779,50 @@ function App() {
     } catch (error) {
       alert(`Failed to stop server: ${error}`)
     }
+  }
+
+  const handleResetAdminPassword = async () => {
+    if (!manageResetPassword || manageResetPassword.length < 8) {
+      setManageResetError('Password must be at least 8 characters.')
+      return
+    }
+    setManageResetError(null)
+    setManageResetLoading(true)
+    try {
+      // Deletes server.toml and stops server
+      await invoke('reset_admin_password')
+      // Re-launch with new password
+      await invoke('start_local_server', { adminPassword: manageResetPassword })
+      await checkLocalServerStatus()
+      setShowLocalServerManageModal(false)
+      setManageResetPassword('')
+    } catch (error) {
+      setManageResetError(`Failed: ${error}`)
+    } finally {
+      setManageResetLoading(false)
+    }
+  }
+
+  const handleDeleteServerData = async () => {
+    setManageDeleteLoading(true)
+    try {
+      await invoke('delete_server_data')
+      await checkLocalServerStatus()
+      setShowLocalServerManageModal(false)
+      setManageDeleteConfirm(false)
+      setManageDeleteText('')
+    } catch (error) {
+      alert(`Failed to delete server data: ${error}`)
+    } finally {
+      setManageDeleteLoading(false)
+    }
+  }
+
+  const generateManagePassword = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+    let pwd = ''
+    for (let i = 0; i < 16; i++) pwd += chars.charAt(Math.floor(Math.random() * chars.length))
+    setManageResetPassword(pwd)
   }
 
   const handleConfigureServerPath = async () => {
@@ -844,9 +902,18 @@ function App() {
         {/* Local Server Manage Modal */}
         {showLocalServerManageModal && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-            <div className="bg-[#1e2128] border border-white/10 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-white">⚙️ Local Server</h2>
+            <div className="bg-[#1e2128] border border-white/10 rounded-xl shadow-2xl w-full max-w-md mx-4">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-semibold text-white">Local Server</h2>
+                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+                    localServerStatus.running ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-400'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${localServerStatus.running ? 'bg-green-400' : 'bg-gray-500'}`}></span>
+                    {localServerStatus.running ? 'Running' : 'Stopped'}
+                  </span>
+                </div>
                 <button onClick={() => setShowLocalServerManageModal(false)} className="text-gray-400 hover:text-gray-200 transition-colors cursor-pointer" aria-label="Close">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -854,44 +921,133 @@ function App() {
                 </button>
               </div>
 
-              <div className="mb-4 flex items-center gap-2">
-                <span className={`inline-block w-2.5 h-2.5 rounded-full ${localServerStatus.running ? 'bg-green-400' : 'bg-gray-500'}`}></span>
-                <span className="text-sm text-gray-300">{localServerStatus.running ? 'Running' : 'Stopped'}</span>
+              {/* Tabs */}
+              <div className="flex border-b border-white/10 px-6">
+                {(['overview', 'reset-password', 'delete-data'] as const).map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => { setManageModalTab(tab); setManageResetError(null); setManageDeleteConfirm(false) }}
+                    className={`py-2.5 px-1 mr-5 text-xs font-medium border-b-2 transition-colors cursor-pointer ${
+                      manageModalTab === tab
+                        ? 'border-white/60 text-white'
+                        : 'border-transparent text-gray-500 hover:text-gray-300'
+                    }`}>
+                    {tab === 'overview' ? 'Overview' : tab === 'reset-password' ? 'Reset Password' : 'Delete Data'}
+                  </button>
+                ))}
               </div>
 
-              <div className="mb-5 text-xs text-gray-500 bg-white/5 rounded-lg p-3">
-                <p className="font-medium text-gray-400 mb-1">Data directory</p>
-                <code className="text-gray-300">~/.nexum/server/</code>
-                <p className="mt-1">
-                  Contains <code>server.toml</code> (config) and <code>data/server.db</code> (database).
-                </p>
-              </div>
+              {/* Tab content */}
+              <div className="px-6 py-5">
 
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => setShowLocalServerManageModal(false)}
-                  className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors cursor-pointer">
-                  Close
-                </button>
-                {localServerStatus.running ? (
-                  <button
-                    onClick={async () => {
-                      setShowLocalServerManageModal(false)
-                      await handleStopLocalServer()
-                    }}
-                    className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium rounded-lg transition-colors cursor-pointer">
-                    Stop Server
-                  </button>
-                ) : (
-                  <button
-                    onClick={async () => {
-                      setShowLocalServerManageModal(false)
-                      await handleLaunchLocalServer()
-                    }}
-                    className="px-4 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-300 text-sm font-medium rounded-lg transition-colors cursor-pointer">
-                    Start Server
-                  </button>
+                {/* Overview tab */}
+                {manageModalTab === 'overview' && (
+                  <>
+                    <div className="mb-4 text-xs text-gray-500 bg-white/5 rounded-lg p-3">
+                      <p className="font-medium text-gray-400 mb-1">Data directory</p>
+                      <code className="text-gray-300 break-all">~/.nexum/server/</code>
+                      <p className="mt-1 text-gray-500">Contains <code>server.toml</code> (config) and <code>data/server.db</code> (database).</p>
+                    </div>
+                    <div className="flex gap-3 justify-end">
+                      <button onClick={() => setShowLocalServerManageModal(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors cursor-pointer">
+                        Close
+                      </button>
+                      {localServerStatus.running ? (
+                        <button
+                          onClick={async () => { setShowLocalServerManageModal(false); await handleStopLocalServer() }}
+                          className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium rounded-lg transition-colors cursor-pointer">
+                          Stop Server
+                        </button>
+                      ) : (
+                        <button
+                          onClick={async () => { setShowLocalServerManageModal(false); await handleLaunchLocalServer() }}
+                          className="px-4 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-300 text-sm font-medium rounded-lg transition-colors cursor-pointer">
+                          Start Server
+                        </button>
+                      )}
+                    </div>
+                  </>
                 )}
+
+                {/* Reset Password tab */}
+                {manageModalTab === 'reset-password' && (
+                  <>
+                    <p className="text-sm text-gray-400 mb-4">Stops the server, clears the current config, and relaunches with a new admin password.</p>
+                    <div className="mb-4">
+                      <label className="block text-xs text-gray-400 mb-1 uppercase tracking-wide">New Admin Password</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={manageResetPassword}
+                          onChange={e => { setManageResetPassword(e.target.value); setManageResetError(null) }}
+                          placeholder="Enter or generate a password..."
+                          className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-white/30"
+                        />
+                        <button onClick={generateManagePassword} className="px-3 py-2 bg-white/10 hover:bg-white/15 text-gray-300 text-sm rounded-lg transition-colors cursor-pointer">
+                          Generate
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Minimum 8 characters. Save this — you'll need it to authenticate as admin.</p>
+                    </div>
+                    {manageResetError && <p className="text-red-400 text-sm mb-3">{manageResetError}</p>}
+                    <div className="flex gap-3 justify-end">
+                      <button onClick={() => setShowLocalServerManageModal(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors cursor-pointer" disabled={manageResetLoading}>
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleResetAdminPassword}
+                        disabled={manageResetLoading || !manageResetPassword}
+                        className="px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 text-sm font-medium rounded-lg transition-colors cursor-pointer disabled:opacity-40">
+                        {manageResetLoading ? 'Resetting...' : 'Reset & Relaunch'}
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* Delete Data tab */}
+                {manageModalTab === 'delete-data' && (
+                  <>
+                    <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                      <p className="text-sm text-red-300 font-medium mb-1">⚠️ This cannot be undone</p>
+                      <p className="text-xs text-red-400">Deletes <code>~/.nexum/server/data/</code> — all users, messages, and channels will be permanently removed. Server config (<code>server.toml</code>) is kept.</p>
+                    </div>
+                    {!manageDeleteConfirm ? (
+                      <div className="flex gap-3 justify-end">
+                        <button onClick={() => setShowLocalServerManageModal(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors cursor-pointer">
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => setManageDeleteConfirm(true)}
+                          className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium rounded-lg transition-colors cursor-pointer">
+                          Delete All Data
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm text-gray-300 mb-3">Type <strong className="text-white">DELETE</strong> to confirm:</p>
+                        <input
+                          type="text"
+                          value={manageDeleteText}
+                          onChange={e => setManageDeleteText(e.target.value)}
+                          placeholder="DELETE"
+                          className="w-full bg-white/5 border border-red-500/30 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-red-500/60 mb-4"
+                        />
+                        <div className="flex gap-3 justify-end">
+                          <button onClick={() => { setManageDeleteConfirm(false); setManageDeleteText('') }} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors cursor-pointer" disabled={manageDeleteLoading}>
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleDeleteServerData}
+                            disabled={manageDeleteLoading || manageDeleteText !== 'DELETE'}
+                            className="px-4 py-2 bg-red-600/40 hover:bg-red-600/60 text-red-200 text-sm font-medium rounded-lg transition-colors cursor-pointer disabled:opacity-40">
+                            {manageDeleteLoading ? 'Deleting...' : 'Confirm Delete'}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+
               </div>
             </div>
           </div>

@@ -380,6 +380,54 @@ impl ServerManager {
         dirs::home_dir().map(|h| h.join(".nexum").join("server"))
     }
 
+    /// Reset admin password: stop server if running, delete server.toml so the
+    /// next launch triggers the first-launch setup flow with a new password.
+    pub fn reset_admin_password(&self) -> Result<()> {
+        // Stop server if it's running
+        {
+            let process = self.process.lock().unwrap();
+            if process.is_some() {
+                drop(process);
+                self.stop_server()?;
+            }
+        }
+
+        let server_dir = Self::get_server_data_dir()
+            .context("Failed to get home directory")?;
+        let config_path = server_dir.join("server.toml");
+
+        if config_path.exists() {
+            std::fs::remove_file(&config_path)
+                .context("Failed to delete server.toml")?;
+        }
+
+        Ok(())
+    }
+
+    /// Delete server data: stop server if running, wipe the data/ directory
+    /// (database). Keeps server.toml (config) intact.
+    pub fn delete_server_data(&self) -> Result<()> {
+        // Stop server if it's running
+        {
+            let process = self.process.lock().unwrap();
+            if process.is_some() {
+                drop(process);
+                self.stop_server()?;
+            }
+        }
+
+        let server_dir = Self::get_server_data_dir()
+            .context("Failed to get home directory")?;
+        let data_dir = server_dir.join("data");
+
+        if data_dir.exists() {
+            std::fs::remove_dir_all(&data_dir)
+                .context("Failed to delete server data directory")?;
+        }
+
+        Ok(())
+    }
+
     /// Check if server.toml exists in the server's working directory.
     /// The server always runs from ~/.nexum/server/ when launched from the client,
     /// so server.toml and data/ are created there.
