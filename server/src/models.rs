@@ -193,6 +193,8 @@ pub struct ConnectPayload {
 pub struct CreateChannelPayload {
     pub name: String,
     pub channel_type: ChannelType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

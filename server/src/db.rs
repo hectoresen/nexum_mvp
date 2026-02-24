@@ -311,13 +311,13 @@ impl Database {
     // Channel Operations
     // ========================================================================
 
-    pub fn create_channel(&self, name: &str, channel_type: ChannelType, max_users: Option<usize>) -> Result<Channel> {
+    pub fn create_channel(&self, name: &str, channel_type: ChannelType, max_users: Option<usize>, category_id: Option<Uuid>) -> Result<Channel> {
         let channel = Channel {
             id: Uuid::new_v4(),
             name: name.to_string(),
             channel_type,
             max_users,
-            category_id: None,
+            category_id,
             created_at: Utc::now(),
         };
 

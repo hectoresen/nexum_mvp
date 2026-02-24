@@ -582,7 +582,7 @@ function App() {
     setServers(ServerManager.loadServers())
   }
 
-  const handleCreateChannel = (name: string, type: 'text' | 'voice') => {
+  const handleCreateChannel = (name: string, type: 'text' | 'voice', categoryId?: string) => {
     if (view.type !== 'connected') return
 
     view.connection.client.send({
@@ -590,6 +590,7 @@ function App() {
       payload: {
         name,
         channel_type: type,
+        ...(categoryId ? { category_id: categoryId } : {}),
       },
     })
   }

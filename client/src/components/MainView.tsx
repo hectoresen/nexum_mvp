@@ -15,7 +15,7 @@ interface MainViewProps {
   currentUserAvatar?: string | null // Current user's avatar URL
   serverUsers: User[] | null // List of all server users
   onDisconnect: () => void
-  onCreateChannel: (name: string, type: 'text' | 'voice') => void
+  onCreateChannel: (name: string, type: 'text' | 'voice', categoryId?: string) => void
   onJoinChannel: (channelId: string) => void
   onSendMessage: (content: string) => void
   onDeleteMessage?: (messageId: string) => void // New: Delete message handler
@@ -62,6 +62,7 @@ export default function MainView({
   const [showCreateChannel, setShowCreateChannel] = useState(false)
   const [newChannelName, setNewChannelName] = useState('')
   const [newChannelType, setNewChannelType] = useState<'text' | 'voice'>('text')
+  const [newChannelCategoryId, setNewChannelCategoryId] = useState<string | null>(null)
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -80,10 +81,16 @@ export default function MainView({
   const handleCreateChannel = (e: React.FormEvent) => {
     e.preventDefault()
     if (newChannelName.trim()) {
-      onCreateChannel(newChannelName.trim(), newChannelType)
+      onCreateChannel(newChannelName.trim(), newChannelType, newChannelCategoryId ?? undefined)
       setNewChannelName('')
+      setNewChannelCategoryId(null)
       setShowCreateChannel(false)
     }
+  }
+
+  const handleRequestCreateChannelInCategory = (categoryId: string) => {
+    setNewChannelCategoryId(categoryId)
+    setShowCreateChannel(true)
   }
 
   const currentChannel = state.channels.find((ch: Channel) => ch.id === state.currentChannelId)
@@ -164,11 +171,22 @@ export default function MainView({
                     Voice
                   </label>
                 </div>
+                {categories.length > 0 && (
+                  <select
+                    value={newChannelCategoryId ?? ''}
+                    onChange={e => setNewChannelCategoryId(e.target.value || null)}
+                    className={`w-full px-2 py-1 mb-2 text-xs ${tw.bgInput} border ${tw.borderDefault} rounded ${tw.textPrimary}`}>
+                    <option value="">No category</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                )}
                 <div className="flex gap-2">
                   <button type="submit" className={`flex-1 px-2 py-1 text-xs ${tw.btnSecondary} ${tw.textPrimary} rounded`}>
                     Create
                   </button>
-                  <button type="button" onClick={() => setShowCreateChannel(false)} className={`flex-1 px-2 py-1 text-xs ${tw.btnSecondary} ${tw.textPrimary} rounded`}>
+                  <button type="button" onClick={() => { setShowCreateChannel(false); setNewChannelCategoryId(null) }} className={`flex-1 px-2 py-1 text-xs ${tw.btnSecondary} ${tw.textPrimary} rounded`}>
                     Cancel
                   </button>
                 </div>
@@ -187,6 +205,7 @@ export default function MainView({
               onDeleteCategory={onDeleteCategory}
               onRenameCategory={onRenameCategory}
               onMoveChannelToCategory={onMoveChannelToCategory}
+              onRequestCreateChannelInCategory={handleRequestCreateChannelInCategory}
             />
           </div>
         </div>

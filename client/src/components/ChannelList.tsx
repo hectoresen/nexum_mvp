@@ -14,6 +14,7 @@ interface ChannelListProps {
   onDeleteCategory?: (categoryId: string) => void
   onRenameCategory?: (categoryId: string, newName: string) => void
   onMoveChannelToCategory?: (channelId: string, categoryId: string | null) => void
+  onRequestCreateChannelInCategory?: (categoryId: string) => void
 }
 
 const STORAGE_KEY = 'nexum_collapsed_categories'
@@ -59,6 +60,7 @@ export default function ChannelList({
   onDeleteCategory,
   onRenameCategory,
   onMoveChannelToCategory,
+  onRequestCreateChannelInCategory,
 }: ChannelListProps) {
   const { tw } = useAppTheme()
   const isOwner = role === 'owner'
@@ -254,6 +256,14 @@ export default function ChannelList({
               {isOwner && (
                 <span className="hidden group-hover:flex items-center gap-1 flex-shrink-0">
                   <button
+                    title="Add channel to category"
+                    onClick={() => onRequestCreateChannelInCategory?.(cat.id)}
+                    className={`${tw.textTertiary} hover:${tw.textPrimary} transition-colors`}>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </button>
+                  <button
                     title="Rename category"
                     onClick={() => { setRenamingCategoryId(cat.id); setRenameCategoryValue(cat.name) }}
                     className={`${tw.textTertiary} hover:${tw.textPrimary} transition-colors`}>
@@ -305,25 +315,7 @@ export default function ChannelList({
           onDrop={isOwner ? e => handleDrop(e, null) : undefined}
           onDragLeave={isOwner ? handleDragLeave : undefined}
           className={`rounded transition-colors ${isDragTargetUncategorized ? 'bg-white/10 ring-1 ring-white/20' : ''}`}>
-          {/* Uncategorized header – only show if there are categories to avoid redundancy */}
-          {categories.length > 0 && (
-            <div className="flex items-center gap-1 px-2 py-1">
-              <button
-                onClick={() => toggleCollapse('__uncategorized__')}
-                className={`flex-shrink-0 ${tw.textTertiary} hover:${tw.textPrimary} transition-colors`}>
-                <svg className={`w-3 h-3 transition-transform ${collapsed.has('__uncategorized__') ? '-rotate-90' : ''}`} fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-              <span className={`text-xs font-semibold ${tw.textTertiary} uppercase tracking-wide`}>Channels</span>
-            </div>
-          )}
-
-          {!collapsed.has('__uncategorized__') && (
-            <div className={categories.length > 0 ? 'pl-2' : ''}>
-              {uncategorized.map(renderChannel)}
-            </div>
-          )}
+          {uncategorized.map(renderChannel)}
         </div>
       )}
 

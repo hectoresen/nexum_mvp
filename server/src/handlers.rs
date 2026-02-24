@@ -181,6 +181,7 @@ async fn handle_create_channel(
         &payload.name,
         payload.channel_type,
         None,
+        payload.category_id,
     )?;
 
     info!("Channel created: {} ({})", channel.name, channel.id);
