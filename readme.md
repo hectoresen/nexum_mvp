@@ -11,6 +11,14 @@
 
 ---
 
+## 🖥️ Preview
+
+<p align="center">
+  <img src="demo/img/2.png" width="1000" />
+</p>
+
+---
+
 ## 🎯 What is Nexum?
 
 Nexum is a **lightweight, self-hosted communication platform** that gives you complete control over your conversations. Think Discord or TeamSpeak, but without corporate servers, data collection, or vendor lock-in.
