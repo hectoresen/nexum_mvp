@@ -50,11 +50,26 @@ All notable changes and completed tasks are documented here.
   - Root cause: Single button rendered for both running and stopped states with shared `onClick`
   - Fix: Split into a three-way ternary — running: shows "Stop Server" (red) + "Configure Server" (gear icon) buttons; installed: shows "Start Server"; not installed: existing "Server Not Found" + "Configure Server Path"
   - Added `handleStopLocalServer()` — invokes `stop_local_server`, updates `localServerStatus.running = false`, re-checks status
-  - Added `handleManageLocalServer()` — opens new `showLocalServerManageModal` with status indicator, data directory path, and Stop/Start toggle
+  - Added `handleManageLocalServer()` — opens `LocalServerManageModal` (tabbed: Overview / Reset Password / Delete Data)
   - Added `onStopLocalServer` and `onManageLocalServer` props to `ServerListViewProps`
+  - Commits: `7097a7e`, `45a7647`
   - Affected: `client/src/components/ServerListView.tsx`, `client/src/App.tsx`
 
+- [x] **Connecting to an offline server gave no feedback** — When a saved server had a stored `lastUserId`, the client would attempt auto-reconnect via `handleConnectWithUserId`; on failure the catch block set `connectionError` but never set `connectingServer`, so `ServerConnectModal` never opened and the error was invisible
+  - Fix: Added `setConnectingServer(server)` in the catch block so the connection modal appears with a clear message: *"Could not reach \<address\>. Make sure the server is running."
+  - Commit: `45a7647`
+  - Affected: `client/src/App.tsx`
+
 ### ✨ New Features
+
+- [x] **Local Server Management Modal** — "Configure Server" (gear icon) opens a 3-tab management panel
+  - **Overview tab**: running/stopped status badge, data directory path (`~/.nexum/server/`), Stop/Start toggle
+  - **Reset Password tab**: new password input + Generate button; calls `reset_admin_password` Tauri command (stops server, deletes `server.toml`), then relaunches with the new password
+  - **Delete Data tab**: requires server to be stopped first (explicit "Stop Server Now" button shown if running); two-step confirmation requiring user to type `DELETE`; calls `delete_server_data` (wipes `data/` directory, keeps `server.toml`)
+  - New Tauri commands: `reset_admin_password`, `delete_server_data`
+  - New Rust methods: `ServerManager::reset_admin_password()`, `ServerManager::delete_server_data()`
+  - Commits: `7097a7e`, `45a7647`
+  - Affected: `client/src/App.tsx`, `client/src-tauri/src/server_manager.rs`, `client/src-tauri/src/main.rs`
 
 - [x] **First-launch admin password modal** — When launching the local server for the first time (no `server.toml` exists), the client now shows a setup modal instead of silently generating a random password
   - Password input field with "Generate" button (16-char alphanumeric)

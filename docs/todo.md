@@ -403,51 +403,25 @@ const handleAutoStartToggle = async () => {
 - Test portable vs installed versions
 - Verify cleanup on uninstall
 
-### 0.5.11 Local Server Management UI ⏳
+### 0.5.11 Local Server Management UI ✅
 
-**Priority: MEDIUM - UX Enhancement**
+**Priority: MEDIUM - Completed**
 
 #### Problem
 
-Once the local server is running, the "Configure Server" button in the dropdown does nothing. There is no way to stop the server, reset/regenerate the admin password, or wipe and reinitialize the server data from the client UI.
+Once the local server was running, the "Configure Server" button in the dropdown did nothing. There was no way to stop the server, reset the admin password, or wipe server data from the client UI.
 
-#### Tasks
+#### Implemented ✅
 
-- [ ] **"Configure Server" modal** — Open a management panel when server is running
-  - Show current status: Running / Stopped + PID + ports (WS, UDP)
-  - Start / Stop button (single toggle based on state)
-  - Show data directory path (`~/.nexum/server/`)
-
-- [ ] **Reset admin password** — Allow regenerating the admin password
-  - Input field with "Generate" button (same pattern as first-launch modal)
-  - Calls a new `reset_server_password(new_password: String)` Tauri command
-  - Command rewrites `admin_password` in `~/.nexum/server/server.toml` via `Config::save()`
-  - Only works when server is stopped (avoid live config races)
-
-- [ ] **Wipe server data** — Destructive reset option
-  - "Delete Server Data" button with confirmation dialog
-  - Stops server process if running
-  - Deletes `~/.nexum/server/data/server.db`
-  - Keeps `server.toml` (config) so server can restart without re-setup
-  - Or offer full wipe (also deletes `server.toml`, triggers first-launch setup on next start)
-
-- [ ] **Quick Start/Stop button** — In the server card / dropdown, not just inside the modal
-  - When server status shows "Running": show a ⏹ Stop button
-  - When server status shows "Stopped" / "Installed": show a ▶ Start button
-  - Updates status indicator in real time (poll every ~2s)
-
-**Technical Implementation:**
-
-**Backend (Tauri):**
-
-- Add `reset_server_password(new_password: String)` command — reads `server.toml`, updates `admin_password`, saves
-- Existing `stop_local_server` and `start_local_server` commands already available
-- Add `delete_server_data(full: bool)` command — stops process, removes `server.db` (and optionally `server.toml`)
-
-**Frontend (React):**
-
-- New `LocalServerManageModal.tsx` component (or inline panel in dropdown)
-- Wires into existing `localServerStatus` state
+- [x] **Server dropdown three-way split** — running: Stop Server (red) + Configure Server (gear); installed+stopped: Start Server; not installed: existing path controls
+- [x] **Local Server Management Modal** — tabbed panel opened by "Configure Server" when running
+  - ✅ Overview tab: running/stopped badge, data directory path, Stop/Start toggle
+  - ✅ Reset Password tab: password input + Generate; stops server, deletes `server.toml`, relaunches with new password
+  - ✅ Delete Data tab: requires server to be **stopped first** (explicit blocking step), two-step confirmation (type `DELETE`), wipes `~/.nexum/server/data/`, keeps `server.toml`
+- [x] **Auto-connect error feedback** — When a saved server is unreachable, the connection modal now opens with a clear error message instead of failing silently
+- [x] **New Tauri commands**: `reset_admin_password`, `delete_server_data`
+- [x] **New Rust methods**: `ServerManager::reset_admin_password()`, `ServerManager::delete_server_data()`
+- Commits: `7097a7e`, `45a7647`, `(delete-data-ux)`
 - Starts polling server health when modal is open
 
 **Edge cases:**

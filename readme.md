@@ -101,13 +101,14 @@ npm run tauri dev
 ✅ **Auto-reconnection** with exponential backoff  
 ✅ **Avatar system** with file upload & URL support  
 ✅ **Server management** from client UI  
+✅ **Local server management** — start/stop, reset admin password, wipe data, all from client  
+✅ **Dark & light themes** with persistent preference  
 ✅ **Cross-platform** desktop builds
 
 ### In Development
 
 🚧 **Voice chat** audio implementation (UI ready)  
-🚧 **Unified installer** (client + server bundled)  
-🚧 **Light theme** mode
+🚧 **Unified installer** (client + server bundled)
 
 ### Planned
 
@@ -241,16 +242,18 @@ Nexum is perfect for:
 **Version:** 0.5 (MVP Complete - Text Chat)  
 **Release:** Beta / Active Development
 
-| Component       | Status                     |
-| --------------- | -------------------------- |
-| Text Chat       | ✅ Production-ready        |
-| User Management | ✅ Fully functional        |
-| Channel System  | ✅ Create, rename, delete  |
-| Avatar System   | ✅ Upload & URL support    |
-| Server Settings | ✅ Editable from UI        |
-| Desktop Client  | ✅ Windows/macOS/Linux     |
-| Voice Chat      | 🚧 UI ready, audio pending |
-| Mobile Apps     | 📋 Future consideration    |
+| Component             | Status                          |
+| --------------------- | ------------------------------- |
+| Text Chat             | ✅ Production-ready             |
+| User Management       | ✅ Fully functional             |
+| Channel System        | ✅ Create, rename, delete       |
+| Avatar System         | ✅ Upload & URL support         |
+| Server Settings       | ✅ Editable from UI             |
+| Local Server Mgmt     | ✅ Start/Stop/Reset/Wipe        |
+| Dark & Light Themes   | ✅ Persistent preference        |
+| Desktop Client        | ✅ Windows/macOS/Linux          |
+| Voice Chat            | 🚧 UI ready, audio pending      |
+| Mobile Apps           | 📋 Future consideration         |
 
 **Latest builds:** Check [Releases](../../releases) (coming soon)
 
@@ -304,7 +307,7 @@ A: Yes! Open source and free forever. Run as many servers as you want.
 A: No accounts needed. Just pick a username when connecting to a server.
 
 **Q: Where is my data stored?**  
-A: Locally on the server machine in a SQLite database. You have full control.
+A: Locally on the server machine. When the server is launched from the client it stores all data at `~/.nexum/server/` (`server.toml` for config, `data/server.db` for the database). You have full control — the client lets you reset the admin password or wipe all data directly from the UI.
 
 **Q: Can I use this for my team/community?**  
 A: Absolutely! That's exactly what it's designed for.

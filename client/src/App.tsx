@@ -1007,42 +1007,65 @@ function App() {
                 {/* Delete Data tab */}
                 {manageModalTab === 'delete-data' && (
                   <>
-                    <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                      <p className="text-sm text-red-300 font-medium mb-1">⚠️ This cannot be undone</p>
-                      <p className="text-xs text-red-400">Deletes <code>~/.nexum/server/data/</code> — all users, messages, and channels will be permanently removed. Server config (<code>server.toml</code>) is kept.</p>
-                    </div>
-                    {!manageDeleteConfirm ? (
-                      <div className="flex gap-3 justify-end">
-                        <button onClick={() => setShowLocalServerManageModal(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors cursor-pointer">
-                          Cancel
-                        </button>
-                        <button
-                          onClick={() => setManageDeleteConfirm(true)}
-                          className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium rounded-lg transition-colors cursor-pointer">
-                          Delete All Data
-                        </button>
-                      </div>
-                    ) : (
+                    {/* Step 1: server must be stopped first */}
+                    {localServerStatus.running ? (
                       <>
-                        <p className="text-sm text-gray-300 mb-3">Type <strong className="text-white">DELETE</strong> to confirm:</p>
-                        <input
-                          type="text"
-                          value={manageDeleteText}
-                          onChange={e => setManageDeleteText(e.target.value)}
-                          placeholder="DELETE"
-                          className="w-full bg-white/5 border border-red-500/30 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-red-500/60 mb-4"
-                        />
+                        <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                          <p className="text-sm text-yellow-300 font-medium mb-1">⏹ Server must be stopped first</p>
+                          <p className="text-xs text-yellow-400/80">You must stop the local server before deleting its data. Stop it below, then return to this tab.</p>
+                        </div>
                         <div className="flex gap-3 justify-end">
-                          <button onClick={() => { setManageDeleteConfirm(false); setManageDeleteText('') }} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors cursor-pointer" disabled={manageDeleteLoading}>
+                          <button onClick={() => setShowLocalServerManageModal(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors cursor-pointer">
                             Cancel
                           </button>
                           <button
-                            onClick={handleDeleteServerData}
-                            disabled={manageDeleteLoading || manageDeleteText !== 'DELETE'}
-                            className="px-4 py-2 bg-red-600/40 hover:bg-red-600/60 text-red-200 text-sm font-medium rounded-lg transition-colors cursor-pointer disabled:opacity-40">
-                            {manageDeleteLoading ? 'Deleting...' : 'Confirm Delete'}
+                            onClick={async () => { await handleStopLocalServer() }}
+                            className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium rounded-lg transition-colors cursor-pointer">
+                            Stop Server Now
                           </button>
                         </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* Step 2: server is stopped, allow deletion */}
+                        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                          <p className="text-sm text-red-300 font-medium mb-1">⚠️ This cannot be undone</p>
+                          <p className="text-xs text-red-400">Deletes <code>~/.nexum/server/data/</code> — all users, messages, and channels will be permanently removed. Server config (<code>server.toml</code>) is kept.</p>
+                        </div>
+                        {!manageDeleteConfirm ? (
+                          <div className="flex gap-3 justify-end">
+                            <button onClick={() => setShowLocalServerManageModal(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors cursor-pointer">
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => setManageDeleteConfirm(true)}
+                              className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium rounded-lg transition-colors cursor-pointer">
+                              Delete All Data
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-sm text-gray-300 mb-3">Type <strong className="text-white">DELETE</strong> to confirm:</p>
+                            <input
+                              type="text"
+                              value={manageDeleteText}
+                              onChange={e => setManageDeleteText(e.target.value)}
+                              placeholder="DELETE"
+                              className="w-full bg-white/5 border border-red-500/30 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-red-500/60 mb-4"
+                            />
+                            <div className="flex gap-3 justify-end">
+                              <button onClick={() => { setManageDeleteConfirm(false); setManageDeleteText('') }} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors cursor-pointer" disabled={manageDeleteLoading}>
+                                Cancel
+                              </button>
+                              <button
+                                onClick={handleDeleteServerData}
+                                disabled={manageDeleteLoading || manageDeleteText !== 'DELETE'}
+                                className="px-4 py-2 bg-red-600/40 hover:bg-red-600/60 text-red-200 text-sm font-medium rounded-lg transition-colors cursor-pointer disabled:opacity-40">
+                                {manageDeleteLoading ? 'Deleting...' : 'Confirm Delete'}
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </>
                     )}
                   </>
