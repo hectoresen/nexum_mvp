@@ -178,7 +178,9 @@ export default function MainView({
                     className={`w-full px-2 py-1 mb-2 text-xs ${tw.bgInput} border ${tw.borderDefault} rounded ${tw.textPrimary}`}>
                     <option value="">No category</option>
                     {categories.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
                     ))}
                   </select>
                 )}
@@ -186,7 +188,13 @@ export default function MainView({
                   <button type="submit" className={`flex-1 px-2 py-1 text-xs ${tw.btnSecondary} ${tw.textPrimary} rounded`}>
                     Create
                   </button>
-                  <button type="button" onClick={() => { setShowCreateChannel(false); setNewChannelCategoryId(null) }} className={`flex-1 px-2 py-1 text-xs ${tw.btnSecondary} ${tw.textPrimary} rounded`}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateChannel(false)
+                      setNewChannelCategoryId(null)
+                    }}
+                    className={`flex-1 px-2 py-1 text-xs ${tw.btnSecondary} ${tw.textPrimary} rounded`}>
                     Cancel
                   </button>
                 </div>
