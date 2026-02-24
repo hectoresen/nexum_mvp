@@ -139,6 +139,8 @@ function App() {
   }
 
   const handleConnectWithUserId = async (server: SavedServer, userId: string) => {
+    // Open the modal immediately so the user sees the connecting spinner right away
+    setConnectingServer(server)
     setIsConnecting(true)
     setConnectionError(null)
 
@@ -241,12 +243,12 @@ function App() {
       })
 
       // Change to connected view
+      setConnectingServer(null)
       setView({ type: 'connected', connection })
       setIsConnecting(false)
     } catch (error) {
       console.error('Connection error:', error)
-      // Show modal with the error so the user gets feedback
-      setConnectingServer(server)
+      // Modal is already open (set at function start); just update the error
       setConnectionError(`Could not reach ${server.address}. Make sure the server is running.`)
       setIsConnecting(false)
     }
