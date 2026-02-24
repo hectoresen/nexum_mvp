@@ -31,6 +31,7 @@ pub struct ServerManager {
     process: Arc<Mutex<Option<Child>>>,
     status: Arc<Mutex<ServerStatus>>,
     binary_path: Arc<Mutex<Option<PathBuf>>>,
+    configured_path: Arc<Mutex<Option<PathBuf>>>, // Manual configuration
 }
 
 impl ServerManager {
@@ -39,36 +40,74 @@ impl ServerManager {
             process: Arc::new(Mutex::new(None)),
             status: Arc::new(Mutex::new(ServerStatus::NotInstalled)),
             binary_path: Arc::new(Mutex::new(None)),
+            configured_path: Arc::new(Mutex::new(None)),
         }
     }
 
     /// Detect if the server binary exists and where it is located
     pub fn detect_server(&self) -> Result<ServerInfo> {
-        let possible_paths = self.get_possible_server_paths();
-
-        for path in possible_paths {
-            if path.exists() && path.is_file() {
-                // Found server binary
-                let mut binary_path = self.binary_path.lock().unwrap();
-                *binary_path = Some(path.clone());
-
-                let mut status = self.status.lock().unwrap();
-                if *status == ServerStatus::NotInstalled {
-                    *status = ServerStatus::Stopped;
-                }
-
+        tracing::info!("Starting server detection...");
+        
+        // First, check if user has manually configured a path
+        let configured = self.configured_path.lock().unwrap();
+        if let Some(manual_path) = configured.as_ref() {
+            tracing::info!("Checking manually configured path: {:?}", manual_path);
+            if manual_path.exists() && manual_path.is_file() {
+                tracing::info!("Found server at configured path: {:?}", manual_path);
+                *self.binary_path.lock().unwrap() = Some(manual_path.clone());
+                *self.status.lock().unwrap() = ServerStatus::Stopped;
+                
                 return Ok(ServerInfo {
-                    status: status.clone(),
+                    status: ServerStatus::Stopped,
                     installed: true,
-                    binary_path: Some(path.to_string_lossy().to_string()),
+                    binary_path: Some(manual_path.to_string_lossy().to_string()),
                     ws_port: 8080,
                     udp_port: 9000,
                     pid: self.get_process_pid(),
                 });
+            } else {
+                tracing::warn!("Configured path does not exist or is not a file: {:?}", manual_path);
+            }
+        }
+        drop(configured);
+
+        let possible_paths = self.get_possible_server_paths();
+        tracing::info!("Checking {} possible server locations", possible_paths.len());
+
+        for (index, path) in possible_paths.iter().enumerate() {
+            tracing::debug!("[{}] Checking path: {:?}", index + 1, path);
+            
+            if path.exists() {
+                if path.is_file() {
+                    tracing::info!("✓ Found server binary at: {:?}", path);
+                    
+                    // Found server binary
+                    let mut binary_path = self.binary_path.lock().unwrap();
+                    *binary_path = Some(path.clone());
+
+                    let mut status = self.status.lock().unwrap();
+                    if *status == ServerStatus::NotInstalled {
+                        *status = ServerStatus::Stopped;
+                    }
+
+                    return Ok(ServerInfo {
+                        status: status.clone(),
+                        installed: true,
+                        binary_path: Some(path.to_string_lossy().to_string()),
+                        ws_port: 8080,
+                        udp_port: 9000,
+                        pid: self.get_process_pid(),
+                    });
+                } else {
+                    tracing::debug!("  ✗ Path exists but is not a file (directory?)");
+                }
+            } else {
+                tracing::debug!("  ✗ Path does not exist");
             }
         }
 
         // Server not found
+        tracing::warn!("Server binary not found in any of the checked locations");
         *self.status.lock().unwrap() = ServerStatus::NotInstalled;
 
         Ok(ServerInfo {
@@ -84,41 +123,66 @@ impl ServerManager {
     /// Get the list of possible server binary locations
     fn get_possible_server_paths(&self) -> Vec<PathBuf> {
         let mut paths = Vec::new();
+        
+        // Server executable name variations
+        let server_names = vec![
+            "voice-server.exe",
+            "voice-server",
+            "Nexum-Server.exe",
+            "Nexum-Server",
+            "nexum-server.exe",
+            "nexum-server",
+        ];
 
-        // 1. Same directory as the client executable
+        // 1. Same directory as the client executable (HIGHEST PRIORITY)
         if let Ok(exe_path) = std::env::current_exe() {
+            tracing::debug!("Current executable: {:?}", exe_path);
             if let Some(parent) = exe_path.parent() {
-                paths.push(parent.join("voice-server.exe"));
-                paths.push(parent.join("voice-server"));
+                tracing::debug!("Executable parent directory: {:?}", parent);
+                for name in &server_names {
+                    paths.push(parent.join(name));
+                }
             }
         }
 
-        // 2. Resources directory (for bundled apps)
-        if let Ok(exe_path) = std::env::current_exe() {
-            if let Some(parent) = exe_path.parent() {
-                paths.push(parent.join("resources").join("voice-server.exe"));
-                paths.push(parent.join("resources").join("voice-server"));
+        // 2. Current working directory
+        if let Ok(cwd) = std::env::current_dir() {
+            tracing::debug!("Current working directory: {:?}", cwd);
+            for name in &server_names {
+                paths.push(cwd.join(name));
             }
         }
 
-        // 3. Standard installation paths
+        // 3. Resources directory (for bundled apps)
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(parent) = exe_path.parent() {
+                for name in &server_names {
+                    paths.push(parent.join("resources").join(name));
+                }
+            }
+        }
+
+        // 4. Standard installation paths
         #[cfg(target_os = "windows")]
         {
-            paths.push(PathBuf::from("C:\\Program Files\\Nexum\\voice-server.exe"));
-            paths.push(PathBuf::from("C:\\Program Files (x86)\\Nexum\\voice-server.exe"));
+            for name in &server_names {
+                paths.push(PathBuf::from(format!("C:\\Program Files\\Nexum\\{}", name)));
+                paths.push(PathBuf::from(format!("C:\\Program Files (x86)\\Nexum\\{}", name)));
+            }
         }
 
-        // 4. User's home directory
+        // 5. User's home directory
         if let Some(home) = dirs::home_dir() {
-            paths.push(home.join("nexum").join("voice-server.exe"));
-            paths.push(home.join("nexum").join("voice-server"));
+            for name in &server_names {
+                paths.push(home.join("nexum").join(name));
+            }
         }
 
-        // 5. Current working directory (for development)
-        paths.push(PathBuf::from("voice-server.exe"));
-        paths.push(PathBuf::from("voice-server"));
+        // 6. Development paths (relative to client)
         paths.push(PathBuf::from("../server/target/release/voice-server.exe"));
         paths.push(PathBuf::from("../server/target/debug/voice-server.exe"));
+        paths.push(PathBuf::from("../../server/target/release/voice-server.exe"));
+        paths.push(PathBuf::from("../../server/target/debug/voice-server.exe"));
 
         paths
     }
@@ -141,9 +205,23 @@ impl ServerManager {
         // Update status to starting
         *self.status.lock().unwrap() = ServerStatus::Starting;
 
-        // Build command
+        // Create server working directory in user's home
+        // This ensures server.toml and data/ are created in the correct location
+        let server_dir = dirs::home_dir()
+            .context("Failed to get home directory")?
+            .join(".nexum")
+            .join("server");
+        
+        std::fs::create_dir_all(&server_dir)
+            .context("Failed to create server directory")?;
+
+        // Build command with proper working directory
         let mut cmd = Command::new(path);
+        cmd.current_dir(&server_dir);  // CRITICAL: Server runs from its own directory
         cmd.arg("--non-interactive");
+        
+        // Data will be stored in ./data relative to server_dir
+        // No need to specify --data-path, it will use default ./data
 
         // Add admin password if provided (for first-time setup)
         if let Some(password) = admin_password {
@@ -217,6 +295,50 @@ impl ServerManager {
         }
     }
 
+    /// Set a manual server path (for user configuration)
+    pub fn set_configured_path(&self, path: PathBuf) -> Result<()> {
+        tracing::info!("Setting configured server path: {:?}", path);
+        
+        if !path.exists() {
+            anyhow::bail!("Server executable not found at specified path");
+        }
+        
+        if !path.is_file() {
+            anyhow::bail!("Specified path is not a file");
+        }
+        
+        // Validate it's an executable (basic check)
+        #[cfg(target_os = "windows")]
+        {
+            let filename = path.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("");
+            if !filename.ends_with(".exe") {
+                anyhow::bail!("File must be an executable (.exe)");
+            }
+        }
+        
+        *self.configured_path.lock().unwrap() = Some(path.clone());
+        *self.binary_path.lock().unwrap() = Some(path);
+        *self.status.lock().unwrap() = ServerStatus::Stopped;
+        
+        tracing::info!("Configured path set successfully");
+        Ok(())
+    }
+    
+    /// Get the configured server path (manual configuration)
+    pub fn get_configured_path(&self) -> Option<PathBuf> {
+        self.configured_path.lock().unwrap().clone()
+    }
+    
+    /// Clear the configured server path (reset to auto-detect)
+    pub fn clear_configured_path(&self) {
+        tracing::info!("Clearing configured server path");
+        *self.configured_path.lock().unwrap() = None;
+        *self.binary_path.lock().unwrap() = None;
+        *self.status.lock().unwrap() = ServerStatus::NotInstalled;
+    }
+
     /// Check if the server process is still alive
     pub fn check_process_health(&self) -> bool {
         let mut process = self.process.lock().unwrap();
@@ -252,22 +374,76 @@ impl ServerManager {
         process.as_ref().map(|child| child.id())
     }
 
-    /// Check if server.toml exists (indicates server is configured)
-    pub fn is_server_configured(&self) -> bool {
-        let binary_path = self.binary_path.lock().unwrap();
-        
-        if let Some(path) = binary_path.as_ref() {
-            if let Some(parent) = path.parent() {
-                let config_path = parent.join("server.toml");
-                return config_path.exists();
+    /// Returns the canonical working directory where the server stores its data
+    /// when launched from the client: ~/.nexum/server/
+    pub fn get_server_data_dir() -> Option<std::path::PathBuf> {
+        dirs::home_dir().map(|h| h.join(".nexum").join("server"))
+    }
+
+    /// Reset admin password: stop server if running, delete server.toml so the
+    /// next launch triggers the first-launch setup flow with a new password.
+    pub fn reset_admin_password(&self) -> Result<()> {
+        // Stop server if it's running
+        {
+            let process = self.process.lock().unwrap();
+            if process.is_some() {
+                drop(process);
+                self.stop_server()?;
             }
         }
 
-        // Also check relative to executable
-        if let Ok(exe_path) = std::env::current_exe() {
-            if let Some(parent) = exe_path.parent() {
-                let config_path = parent.join("server.toml");
-                if config_path.exists() {
+        let server_dir = Self::get_server_data_dir()
+            .context("Failed to get home directory")?;
+        let config_path = server_dir.join("server.toml");
+
+        if config_path.exists() {
+            std::fs::remove_file(&config_path)
+                .context("Failed to delete server.toml")?;
+        }
+
+        Ok(())
+    }
+
+    /// Delete server data: stop server if running, wipe the data/ directory
+    /// (database). Keeps server.toml (config) intact.
+    pub fn delete_server_data(&self) -> Result<()> {
+        // Stop server if it's running
+        {
+            let process = self.process.lock().unwrap();
+            if process.is_some() {
+                drop(process);
+                self.stop_server()?;
+            }
+        }
+
+        let server_dir = Self::get_server_data_dir()
+            .context("Failed to get home directory")?;
+        let data_dir = server_dir.join("data");
+
+        if data_dir.exists() {
+            std::fs::remove_dir_all(&data_dir)
+                .context("Failed to delete server data directory")?;
+        }
+
+        Ok(())
+    }
+
+    /// Check if server.toml exists in the server's working directory.
+    /// The server always runs from ~/.nexum/server/ when launched from the client,
+    /// so server.toml and data/ are created there.
+    pub fn is_server_configured(&self) -> bool {
+        // Primary check: canonical server data directory (~/.nexum/server/server.toml)
+        if let Some(server_dir) = Self::get_server_data_dir() {
+            if server_dir.join("server.toml").exists() {
+                return true;
+            }
+        }
+
+        // Fallback: next to the server binary (manual / standalone launch)
+        let binary_path = self.binary_path.lock().unwrap();
+        if let Some(path) = binary_path.as_ref() {
+            if let Some(parent) = path.parent() {
+                if parent.join("server.toml").exists() {
                     return true;
                 }
             }

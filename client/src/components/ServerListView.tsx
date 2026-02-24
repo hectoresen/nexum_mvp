@@ -8,11 +8,25 @@ interface ServerListViewProps {
   onAddServer: () => void
   onDeleteServer: (serverId: string) => void
   onLaunchLocalServer: () => void
+  onStopLocalServer: () => void
+  onManageLocalServer: () => void
+  onConfigureServerPath: () => void
   onOpenClientSettings: (section: 'general' | 'voice-video') => void
   localServerStatus: { installed: boolean; running: boolean }
 }
 
-export default function ServerListView({ servers, onSelectServer, onAddServer, onDeleteServer, onLaunchLocalServer, onOpenClientSettings, localServerStatus }: ServerListViewProps) {
+export default function ServerListView({
+  servers,
+  onSelectServer,
+  onAddServer,
+  onDeleteServer,
+  onLaunchLocalServer,
+  onStopLocalServer,
+  onManageLocalServer,
+  onConfigureServerPath,
+  onOpenClientSettings,
+  localServerStatus,
+}: ServerListViewProps) {
   const { tw } = useAppTheme()
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [serverDropdownOpen, setServerDropdownOpen] = useState(false)
@@ -49,6 +63,21 @@ export default function ServerListView({ servers, onSelectServer, onAddServer, o
     onOpenClientSettings(section)
   }
 
+  const handleConfigureServer = () => {
+    setServerDropdownOpen(false)
+    onConfigureServerPath()
+  }
+
+  const handleStopServer = () => {
+    setServerDropdownOpen(false)
+    onStopLocalServer()
+  }
+
+  const handleManageServer = () => {
+    setServerDropdownOpen(false)
+    onManageLocalServer()
+  }
+
   return (
     <div className={`flex flex-col w-full h-full ${tw.bgMain}`}>
       {/* Header */}
@@ -75,27 +104,72 @@ export default function ServerListView({ servers, onSelectServer, onAddServer, o
 
                 {/* Dropdown Options */}
                 <div className="py-2">
-                  {localServerStatus.installed ? (
+                  {localServerStatus.installed && localServerStatus.running ? (
+                    <>
+                      <button onClick={handleStopServer} className={`w-full px-4 py-2 text-left ${tw.textPrimary} hover:bg-red-500/10 transition-colors flex items-center gap-3`}>
+                        <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10h6v4H9z" />
+                        </svg>
+                        <div>
+                          <p className="text-sm font-medium">Stop Server</p>
+                          <p className={`text-xs ${tw.textTertiary}`}>Shut down local instance</p>
+                        </div>
+                      </button>
+                      <button onClick={handleManageServer} className={`w-full px-4 py-2 text-left ${tw.textPrimary} ${tw.bgHover} transition-colors flex items-center gap-3`}>
+                        <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                          />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <div>
+                          <p className="text-sm font-medium">Configure Server</p>
+                          <p className={`text-xs ${tw.textTertiary}`}>Manage local server settings</p>
+                        </div>
+                      </button>
+                    </>
+                  ) : localServerStatus.installed ? (
                     <button onClick={handleLaunchServer} className={`w-full px-4 py-2 text-left ${tw.textPrimary} ${tw.bgHover} transition-colors flex items-center gap-3`}>
                       <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <div>
-                        <p className="text-sm font-medium">{localServerStatus.running ? 'Configure Server' : 'Start Server'}</p>
-                        <p className={`text-xs ${tw.textTertiary}`}>{localServerStatus.running ? 'Manage local server' : 'Launch local instance'}</p>
+                        <p className="text-sm font-medium">Start Server</p>
+                        <p className={`text-xs ${tw.textTertiary}`}>Launch local instance</p>
                       </div>
                     </button>
                   ) : (
-                    <button onClick={handleLaunchServer} className={`w-full px-4 py-2 text-left ${tw.textPrimary} ${tw.bgHover} transition-colors flex items-center gap-3`}>
-                      <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
-                      </svg>
-                      <div>
-                        <p className="text-sm font-medium">Download Server</p>
-                        <p className={`text-xs ${tw.textTertiary}`}>Install server launcher</p>
-                      </div>
-                    </button>
+                    <>
+                      <button onClick={handleLaunchServer} className={`w-full px-4 py-2 text-left ${tw.textPrimary} ${tw.bgHover} transition-colors flex items-center gap-3`}>
+                        <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                          />
+                        </svg>
+                        <div>
+                          <p className="text-sm font-medium">Server Not Found</p>
+                          <p className={`text-xs ${tw.textTertiary}`}>Retry detection or configure manually</p>
+                        </div>
+                      </button>
+
+                      <button onClick={handleConfigureServer} className={`w-full px-4 py-2 text-left ${tw.textPrimary} ${tw.bgHover} transition-colors flex items-center gap-3`}>
+                        <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <div>
+                          <p className="text-sm font-medium">Configure Server Path</p>
+                          <p className={`text-xs ${tw.textTertiary}`}>Manually select server executable</p>
+                        </div>
+                      </button>
+                    </>
                   )}
 
                   <div className={`my-2 border-t ${tw.borderDefault}`}></div>

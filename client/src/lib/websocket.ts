@@ -10,7 +10,7 @@ export class WebSocketClient {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000; // Start with 1 second
-  private shouldReconnect = true;
+  public shouldReconnect = true; // Made public so it can be controlled externally
   private serverUrl: string = '';
 
   public status: ConnectionStatus = 'disconnected';

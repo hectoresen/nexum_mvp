@@ -75,6 +75,6 @@ See [Server Deployment Guide](../docs/server_deployment.md) for advanced setup.
 
 ## 🔖 Version History
 
-| Version | Date | Type | Notes |
-|---------|------|------|-------|
+| Version           | Date       | Type      | Notes                |
+| ----------------- | ---------- | --------- | -------------------- |
 | [v0.1.0](v0.1.0/) | 2026-02-23 | MVP/Alpha | First public release |

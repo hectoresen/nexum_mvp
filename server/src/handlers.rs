@@ -103,19 +103,6 @@ async fn handle_connect(
             }
         }
     } else {
-        // New connection: check if this IP already has a user
-        if let Some(ip) = client_ip {
-            if let Some(existing_user) = state.db.get_user_by_ip(ip)? {
-                // This IP already has a user - reject with error message
-                send_error(
-                    tx, 
-                    ErrorCode::InvalidRequest, 
-                    &format!("This device already has an account with username '{}'. Please reconnect to resume your session.", existing_user.username)
-                )?;
-                bail!("IP already has a user");
-            }
-        }
-
         // Username is required for new connections
         let username = match payload.username {
             Some(name) => name,

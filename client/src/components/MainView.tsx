@@ -82,9 +82,7 @@ export default function MainView({
   return (
     <div className={`flex h-full w-full ${tw.bgMain}`}>
       {/* User profile modal */}
-      {selectedUser && (
-        <UserProfileModal user={selectedUser} serverAddress={serverAddress} currentUserRole={state.role || undefined} onClose={() => setSelectedUser(null)} />
-      )}
+      {selectedUser && <UserProfileModal user={selectedUser} serverAddress={serverAddress} currentUserRole={state.role || undefined} onClose={() => setSelectedUser(null)} />}
 
       {/* Sidebar */}
       <div className={`w-64 ${tw.bgHeader} flex flex-col border-r ${tw.borderDefault}`}>
@@ -255,7 +253,16 @@ export default function MainView({
       {/* Main content area */}
       <div className="flex-1 flex flex-col">
         {currentChannel ? (
-          <ChatArea channel={currentChannel} messages={currentMessages} currentUserId={state.userId || ''} serverAddress={serverAddress} serverUsers={serverUsers} onSendMessage={onSendMessage} onDeleteMessage={onDeleteMessage} onEditMessage={onEditMessage} />
+          <ChatArea
+            channel={currentChannel}
+            messages={currentMessages}
+            currentUserId={state.userId || ''}
+            serverAddress={serverAddress}
+            serverUsers={serverUsers}
+            onSendMessage={onSendMessage}
+            onDeleteMessage={onDeleteMessage}
+            onEditMessage={onEditMessage}
+          />
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className={`text-center ${tw.textMuted}`}>

@@ -65,7 +65,7 @@ impl Default for Config {
 }
 
 impl Config {
-    pub fn load(non_interactive: bool, admin_password: Option<String>) -> Result<Self> {
+    pub fn load(non_interactive: bool, admin_password: Option<String>, data_path: Option<String>) -> Result<Self> {
         // Try to load from file, otherwise use defaults
         let config_path = std::env::var("CONFIG_PATH")
             .unwrap_or_else(|_| "server.toml".to_string());
@@ -75,6 +75,13 @@ impl Config {
                 .with_context(|| format!("Failed to parse config file: {}", config_path))
         } else {
             // First time setup
+            let mut config = Config::default();
+            
+            // Override data_path if provided
+            if let Some(path) = data_path {
+                config.server.data_path = PathBuf::from(path);
+            }
+            
             let password = if let Some(pwd) = admin_password {
                 // Password provided via command line
                 pwd

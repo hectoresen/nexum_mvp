@@ -10,13 +10,74 @@ All notable changes and completed tasks are documented here.
 
 ### 🐛 Bug Fixes
 
-- [x] **Avatar display in text messages** - Fixed user avatars not showing in chat (was showing default avatar instead of uploaded avatar)
-  - Fixed avatar URL construction in message rendering
-  - Ensured `avatar_url`/`avatar_path` properly propagated from server to client
-  - Updated ChatArea component to correctly display user avatars
-  - Commit: `dbe7db2`
+- [x] **Local server process isolation** — Server process was inheriting client's working directory (src-tauri), causing `server.toml` and `data/` to be created inside the client source tree
+  - Root cause: `std::process::Command` inherits CWD of parent process
+  - Fix: Set `cmd.current_dir(~/.nexum/server/)` so server runs from its own directory
+  - Server data now stored at `~/.nexum/server/data/server.db` (user home)
+  - Client source tree remains clean and unmodified by server runtime
+  - Affected: `client/src-tauri/src/server_manager.rs`
+
+- [x] **Server rejecting connections from same IP** — Server blocked second user connecting from same IP (e.g. localhost), logging `IP already has a user`
+  - Root cause: Overly strict IP uniqueness check that assumed 1 IP = 1 user
+  - Fix: Removed IP-based user lookup restriction; username uniqueness check is sufficient
+  - Multiple users behind same NAT or on localhost now work correctly
+  - Affected: `server/src/handlers.rs`
+
+- [x] **Username taken error not shown to client** — When server rejected a duplicate username, the WebSocket would close and the client would auto-reconnect, triggering the same error in a loop
+  - Fix: Added `wsClient.shouldReconnect = false` before disconnect on pre-auth ERROR messages
+  - Client now shows the error and lets user pick a different username
+  - Affected: `client/src/App.tsx`, `client/src/lib/websocket.ts`
+
+- [x] **TypeScript build error in ServerListView.tsx** — Reference to undefined function `handleLaunchLocalServer` (correct name: `handleLaunchServer`)
+  - Fix: Corrected function reference
+  - Affected: `client/src/components/ServerListView.tsx`
+
+- [x] **tauri.conf.json invalid `watch` field** — Added invalid `watch` key attempting to exclude `data/` from hot-reload watcher; Tauri 2.0 does not support this field
+  - Fix: Removed invalid field; solved hot-reload issue at root cause via server CWD isolation instead
+  - Affected: `client/src-tauri/tauri.conf.json`
+
+- [x] **`is_server_configured()` checking wrong path** — The function looked for `server.toml` next to the server binary, but when launched from the client the server runs from `~/.nexum/server/`, so it always returned `false`
+  - Fix: Check `~/.nexum/server/server.toml` first (canonical client-launched location), then fallback to binary's parent dir (standalone mode)
+  - Added `get_server_data_dir()` helper returning the canonical path
+  - Affected: `client/src-tauri/src/server_manager.rs`
+
+- [x] **Avatar not displaying in chat messages** — User avatars showing as default placeholder in text channel messages instead of uploaded avatars
+  - Fixed avatar URL construction in `ChatArea.tsx` message rendering
+  - Ensured `avatar_url`/`avatar_path` fields properly propagated from server message payload to client
+  - Affected: `client/src/components/ChatArea.tsx`, `client/src/types/protocol.ts` — Commit: `dbe7db2`
+
+- [x] **"Configure Server" button did nothing when server was running** — Clicking "Configure Server" in the dropdown called `handleLaunchServer()` (same as "Start Server"), which silently no-oped because the server was already running
+  - Root cause: Single button rendered for both running and stopped states with shared `onClick`
+  - Fix: Split into a three-way ternary — running: shows "Stop Server" (red) + "Configure Server" (gear icon) buttons; installed: shows "Start Server"; not installed: existing "Server Not Found" + "Configure Server Path"
+  - Added `handleStopLocalServer()` — invokes `stop_local_server`, updates `localServerStatus.running = false`, re-checks status
+  - Added `handleManageLocalServer()` — opens `LocalServerManageModal` (tabbed: Overview / Reset Password / Delete Data)
+  - Added `onStopLocalServer` and `onManageLocalServer` props to `ServerListViewProps`
+  - Commits: `7097a7e`, `45a7647`
+  - Affected: `client/src/components/ServerListView.tsx`, `client/src/App.tsx`
+
+- [x] **Connecting to an offline server gave no feedback** — When a saved server had a stored `lastUserId`, the client would attempt auto-reconnect via `handleConnectWithUserId`; on failure the catch block set `connectionError` but never set `connectingServer`, so `ServerConnectModal` never opened and the error was invisible
+  - Fix: Added `setConnectingServer(server)` in the catch block so the connection modal appears with a clear message: *"Could not reach \<address\>. Make sure the server is running."
+  - Commit: `45a7647`
+  - Affected: `client/src/App.tsx`
 
 ### ✨ New Features
+
+- [x] **Local Server Management Modal** — "Configure Server" (gear icon) opens a 3-tab management panel
+  - **Overview tab**: running/stopped status badge, data directory path (`~/.nexum/server/`), Stop/Start toggle
+  - **Reset Password tab**: new password input + Generate button; calls `reset_admin_password` Tauri command (stops server, deletes `server.toml`), then relaunches with the new password
+  - **Delete Data tab**: requires server to be stopped first (explicit "Stop Server Now" button shown if running); two-step confirmation requiring user to type `DELETE`; calls `delete_server_data` (wipes `data/` directory, keeps `server.toml`)
+  - New Tauri commands: `reset_admin_password`, `delete_server_data`
+  - New Rust methods: `ServerManager::reset_admin_password()`, `ServerManager::delete_server_data()`
+  - Commits: `7097a7e`, `45a7647`
+  - Affected: `client/src/App.tsx`, `client/src-tauri/src/server_manager.rs`, `client/src-tauri/src/main.rs`
+
+- [x] **First-launch admin password modal** — When launching the local server for the first time (no `server.toml` exists), the client now shows a setup modal instead of silently generating a random password
+  - Password input field with "Generate" button (16-char alphanumeric)
+  - Shows where data will be stored (`~/.nexum/server/`)
+  - Validating: minimum 8 characters
+  - Password passed to server via `--admin-password` on first launch only
+  - Subsequent launches detect existing `server.toml` and start without prompting
+  - Affected: `client/src/App.tsx`
 
 - [x] **User Profile Modal** - Click on any user to view their profile information
   - Displays: Username, role badge, join date
@@ -46,11 +107,13 @@ All notable changes and completed tasks are documented here.
 ### 🔧 Technical Changes
 
 **Protocol Extensions:**
+
 - Added `DELETE_MESSAGE` and `MESSAGE_DELETED` WebSocket message types
 - Added `EDIT_MESSAGE` and `MESSAGE_EDITED` WebSocket message types
 - Extended `Message` model with deletion and edit metadata
 
 **Database Schema Updates:**
+
 ```sql
 ALTER TABLE messages ADD COLUMN deleted_by_user_id TEXT;
 ALTER TABLE messages ADD COLUMN deleted_at INTEGER;
@@ -58,11 +121,13 @@ ALTER TABLE messages ADD COLUMN edited_at INTEGER;
 ```
 
 **Component Updates:**
+
 - `ChatArea.tsx` - Message hover actions, edit/delete buttons
 - `UserProfileModal.tsx` (NEW) - User information modal
 - Message component refactoring for avatar display fix
 
 **Affected Modules:**
+
 - `server/src/models.rs` - Extended Message struct
 - `server/src/handlers.rs` - DELETE_MESSAGE and EDIT_MESSAGE handlers
 - `server/src/db.rs` - Message deletion and editing queries
