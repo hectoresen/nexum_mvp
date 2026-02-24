@@ -10,7 +10,33 @@ All notable changes and completed tasks are documented here.
 
 ### 🐛 Bug Fixes
 
-- [x] **Avatar display in text messages** - Fixed user avatars not showing in chat (was showing default avatar instead of uploaded avatar)
+- [x] **Local server process isolation** — Server process was inheriting client's working directory (src-tauri), causing `server.toml` and `data/` to be created inside the client source tree
+  - Root cause: `std::process::Command` inherits CWD of parent process
+  - Fix: Set `cmd.current_dir(~/.nexum/server/)` so server runs from its own directory
+  - Server data now stored at `~/.nexum/server/data/server.db` (user home)
+  - Client source tree remains clean and unmodified by server runtime
+  - Affected: `client/src-tauri/src/server_manager.rs`
+
+- [x] **Server rejecting connections from same IP** — Server blocked second user connecting from same IP (e.g. localhost), logging `IP already has a user`
+  - Root cause: Overly strict IP uniqueness check that assumed 1 IP = 1 user
+  - Fix: Removed IP-based user lookup restriction; username uniqueness check is sufficient
+  - Multiple users behind same NAT or on localhost now work correctly
+  - Affected: `server/src/handlers.rs`
+
+- [x] **Username taken error not shown to client** — When server rejected a duplicate username, the WebSocket would close and the client would auto-reconnect, triggering the same error in a loop
+  - Fix: Added `wsClient.shouldReconnect = false` before disconnect on pre-auth ERROR messages
+  - Client now shows the error and lets user pick a different username
+  - Affected: `client/src/App.tsx`, `client/src/lib/websocket.ts`
+
+- [x] **TypeScript build error in ServerListView.tsx** — Reference to undefined function `handleLaunchLocalServer` (correct name: `handleLaunchServer`)
+  - Fix: Corrected function reference
+  - Affected: `client/src/components/ServerListView.tsx`
+
+- [x] **tauri.conf.json invalid `watch` field** — Added invalid `watch` key attempting to exclude `data/` from hot-reload watcher; Tauri 2.0 does not support this field
+  - Fix: Removed invalid field; solved hot-reload issue at root cause via server CWD isolation instead
+  - Affected: `client/src-tauri/tauri.conf.json`
+
+### ✨ New Features
   - Fixed avatar URL construction in message rendering
   - Ensured `avatar_url`/`avatar_path` properly propagated from server to client
   - Updated ChatArea component to correctly display user avatars

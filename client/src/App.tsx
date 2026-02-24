@@ -80,10 +80,19 @@ function App() {
 
   const checkLocalServerStatus = async () => {
     try {
-      const status = await invoke<LocalServerStatus>('check_server_installed')
-      setLocalServerStatus(status)
+      const status = await invoke<any>('detect_local_server')
+      setLocalServerStatus({
+        installed: status.installed,
+        running: status.status === 'running',
+        binaryPath: status.binary_path,
+        port: status.ws_port,
+      })
     } catch (error) {
       console.error('Failed to check server status:', error)
+      setLocalServerStatus({
+        installed: false,
+        running: false,
+      })
     }
   }
 
@@ -150,10 +159,15 @@ function App() {
       // Set up handlers
       let hasReceivedWelcome = false
       wsClient.onMessage((message: ServerMessage) => {
-        // Handle pre-auth errors (e.g., invalid user ID when resuming)
+        // Handle pre-auth errors (e.g., invalid user ID when resuming, username taken)
         if (message.type === 'ERROR' && !hasReceivedWelcome) {
-          // Resume session failed - clear stored userId and fall back to username prompt
-          ServerManager.updateServer(server.id, { lastUserId: undefined })
+          // Disable auto-reconnect to prevent repeated failed attempts
+          wsClient.shouldReconnect = false
+          
+          // Clear stored userId if resume failed
+          if (message.payload.code === 'INVALID_REQUEST' || message.payload.code === 'INVALID_PAYLOAD') {
+            ServerManager.updateServer(server.id, { lastUserId: undefined })
+          }
 
           // Reload the updated server from localStorage to get accurate data
           const updatedServer = ServerManager.getServer(server.id)
@@ -666,22 +680,21 @@ function App() {
 
   const handleLaunchLocalServer = async () => {
     if (!localServerStatus.installed) {
-      // Open download page
-      try {
-        await invoke('open_server_download_page')
-      } catch (error) {
-        console.error('Failed to open download page:', error)
-        alert('Please download the server from the releases page')
+      // Try to detect server again first
+      await checkLocalServerStatus()
+      
+      if (!localServerStatus.installed) {
+        alert('Server not found. Please use "Configure Server Path" to specify the server location manually.')
       }
       return
     }
 
     if (localServerStatus.binaryPath) {
       try {
-        const result = await invoke<string>('launch_local_server', {
-          binaryPath: localServerStatus.binaryPath,
+        await invoke('start_local_server', {
+          adminPassword: null,
         })
-        console.log(result)
+        console.log('Server started successfully')
 
         // Add local server to list if not already there
         const existingLocal = servers.find(s => s.isLocal)
@@ -697,10 +710,41 @@ function App() {
         // Update status
         setLocalServerStatus(prev => ({ ...prev, running: true }))
         alert('Server launched successfully!')
+        
+        // Refresh server list
+        await checkLocalServerStatus()
       } catch (error) {
         console.error('Failed to launch server:', error)
         alert(`Failed to launch server: ${error}`)
       }
+    }
+  }
+
+  const handleConfigureServerPath = async () => {
+    try {
+      // Open file picker dialog using Tauri
+      const { open } = await import('@tauri-apps/plugin-dialog')
+      const selected = await open({
+        multiple: false,
+        filters: [{
+          name: 'Executable',
+          extensions: ['exe']
+        }]
+      })
+      
+      if (selected && typeof selected === 'string') {
+        try {
+          await invoke('set_server_path', { path: selected })
+          alert('Server path configured successfully!')
+          await checkLocalServerStatus()
+        } catch (error) {
+          console.error('Failed to set server path:', error)
+          alert(`Failed to configure server path: ${error}`)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to open file picker:', error)
+      alert(`Failed to open file picker: ${error}`)
     }
   }
 
@@ -725,6 +769,7 @@ function App() {
           onAddServer={() => setShowAddServerModal(true)}
           onDeleteServer={handleDeleteServer}
           onLaunchLocalServer={handleLaunchLocalServer}
+          onConfigureServerPath={handleConfigureServerPath}
           onOpenClientSettings={section => setClientSettingsSection(section)}
           localServerStatus={localServerStatus}
         />
