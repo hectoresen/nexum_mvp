@@ -403,7 +403,58 @@ const handleAutoStartToggle = async () => {
 - Test portable vs installed versions
 - Verify cleanup on uninstall
 
-### Future: Private Messaging & Encryption
+### 0.5.11 Local Server Management UI ⏳
+
+**Priority: MEDIUM - UX Enhancement**
+
+#### Problem
+
+Once the local server is running, the "Configure Server" button in the dropdown does nothing. There is no way to stop the server, reset/regenerate the admin password, or wipe and reinitialize the server data from the client UI.
+
+#### Tasks
+
+- [ ] **"Configure Server" modal** — Open a management panel when server is running
+  - Show current status: Running / Stopped + PID + ports (WS, UDP)
+  - Start / Stop button (single toggle based on state)
+  - Show data directory path (`~/.nexum/server/`)
+
+- [ ] **Reset admin password** — Allow regenerating the admin password
+  - Input field with "Generate" button (same pattern as first-launch modal)
+  - Calls a new `reset_server_password(new_password: String)` Tauri command
+  - Command rewrites `admin_password` in `~/.nexum/server/server.toml` via `Config::save()`
+  - Only works when server is stopped (avoid live config races)
+
+- [ ] **Wipe server data** — Destructive reset option
+  - "Delete Server Data" button with confirmation dialog
+  - Stops server process if running
+  - Deletes `~/.nexum/server/data/server.db`
+  - Keeps `server.toml` (config) so server can restart without re-setup
+  - Or offer full wipe (also deletes `server.toml`, triggers first-launch setup on next start)
+
+- [ ] **Quick Start/Stop button** — In the server card / dropdown, not just inside the modal
+  - When server status shows "Running": show a ⏹ Stop button
+  - When server status shows "Stopped" / "Installed": show a ▶ Start button
+  - Updates status indicator in real time (poll every ~2s)
+
+**Technical Implementation:**
+
+**Backend (Tauri):**
+
+- Add `reset_server_password(new_password: String)` command — reads `server.toml`, updates `admin_password`, saves
+- Existing `stop_local_server` and `start_local_server` commands already available
+- Add `delete_server_data(full: bool)` command — stops process, removes `server.db` (and optionally `server.toml`)
+
+**Frontend (React):**
+
+- New `LocalServerManageModal.tsx` component (or inline panel in dropdown)
+- Wires into existing `localServerStatus` state
+- Starts polling server health when modal is open
+
+**Edge cases:**
+
+- Disable password reset if server is running
+- Show clear warning before data wipe
+- Refresh `localServerStatus` after stop/start actions
 
 - [ ] Add private message functionality (click user in sidebar to DM)
 - [ ] Implement end-to-end encryption for private messages

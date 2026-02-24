@@ -41,6 +41,11 @@ All notable changes and completed tasks are documented here.
   - Added `get_server_data_dir()` helper returning the canonical path
   - Affected: `client/src-tauri/src/server_manager.rs`
 
+- [x] **Avatar not displaying in chat messages** — User avatars showing as default placeholder in text channel messages instead of uploaded avatars
+  - Fixed avatar URL construction in `ChatArea.tsx` message rendering
+  - Ensured `avatar_url`/`avatar_path` fields properly propagated from server message payload to client
+  - Affected: `client/src/components/ChatArea.tsx`, `client/src/types/protocol.ts` — Commit: `dbe7db2`
+
 ### ✨ New Features
 
 - [x] **First-launch admin password modal** — When launching the local server for the first time (no `server.toml` exists), the client now shows a setup modal instead of silently generating a random password
@@ -50,13 +55,6 @@ All notable changes and completed tasks are documented here.
   - Password passed to server via `--admin-password` on first launch only
   - Subsequent launches detect existing `server.toml` and start without prompting
   - Affected: `client/src/App.tsx`
-
-- Fixed avatar URL construction in message rendering
-- Ensured `avatar_url`/`avatar_path` properly propagated from server to client
-- Updated ChatArea component to correctly display user avatars
-- Commit: `dbe7db2`
-
-### ✨ New Features
 
 - [x] **User Profile Modal** - Click on any user to view their profile information
   - Displays: Username, role badge, join date
