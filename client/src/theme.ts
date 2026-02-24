@@ -120,7 +120,7 @@ export function getTw(mode: ThemeMode) {
       btnDanger: 'bg-red-600 hover:bg-red-500',
     }
   }
-  
+
   // Light mode
   return {
     // Backgrounds

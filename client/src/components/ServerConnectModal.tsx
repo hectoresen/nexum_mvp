@@ -82,10 +82,7 @@ export default function ServerConnectModal({ serverName, serverAddress, lastUser
           )}
 
           <div className="flex items-center gap-3 pt-4">
-            <PrimaryButton
-              type="submit"
-              disabled={connecting || !username.trim()}
-              fullWidth>
+            <PrimaryButton type="submit" disabled={connecting || !username.trim()} fullWidth>
               {connecting ? (
                 <div className="flex items-center justify-center gap-2">
                   <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">

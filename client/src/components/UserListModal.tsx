@@ -8,7 +8,7 @@ interface UserListModalProps {
 
 export default function UserListModal({ users, onClose }: UserListModalProps) {
   const { theme, tw } = useAppTheme()
-  
+
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: theme.overlay }}>
       <div className={`${tw.bgCard} rounded-lg p-6 w-[480px] max-h-[70vh] flex flex-col shadow-xl border ${tw.borderDefault}`}>

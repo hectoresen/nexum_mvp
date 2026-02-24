@@ -118,9 +118,7 @@ export default function ChangePasswordModal({ onClose, onSave, error }: ChangePa
 
         <div className="mt-6 flex justify-end gap-3">
           <CancelButton onClick={onClose} />
-          <WarningButton onClick={handleSave}>
-            Change Password
-          </WarningButton>
+          <WarningButton onClick={handleSave}>Change Password</WarningButton>
         </div>
       </div>
     </div>

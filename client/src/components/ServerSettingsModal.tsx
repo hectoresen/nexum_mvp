@@ -167,7 +167,10 @@ export default function ServerSettingsModal({ serverName, settings, onClose, onS
             Close
           </button>
           {settings && (
-            <button onClick={handleSave} className={`px-6 py-2 rounded-md transition-colors cursor-pointer ${saved ? '' : tw.btnPrimary + ' text-white'}`} style={saved ? { backgroundColor: theme.status.success, color: 'white' } : {}}>
+            <button
+              onClick={handleSave}
+              className={`px-6 py-2 rounded-md transition-colors cursor-pointer ${saved ? '' : tw.btnPrimary + ' text-white'}`}
+              style={saved ? { backgroundColor: theme.status.success, color: 'white' } : {}}>
               {saved ? '✓ Saved' : 'Save Changes'}
             </button>
           )}

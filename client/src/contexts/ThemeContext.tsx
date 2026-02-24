@@ -18,7 +18,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   // Load saved theme from localStorage, default to 'dark'
   const [mode, setModeState] = useState<ThemeMode>(() => {
     const saved = localStorage.getItem('theme-mode')
-    return (saved === 'light' || saved === 'dark') ? saved : 'dark'
+    return saved === 'light' || saved === 'dark' ? saved : 'dark'
   })
 
   // Persist theme changes to localStorage
@@ -33,14 +33,10 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   }
 
   const toggleMode = () => {
-    setModeState(prev => prev === 'dark' ? 'light' : 'dark')
+    setModeState(prev => (prev === 'dark' ? 'light' : 'dark'))
   }
 
-  return (
-    <ThemeContext.Provider value={{ mode, setMode, toggleMode }}>
-      {children}
-    </ThemeContext.Provider>
-  )
+  return <ThemeContext.Provider value={{ mode, setMode, toggleMode }}>{children}</ThemeContext.Provider>
 }
 
 export function useTheme() {
