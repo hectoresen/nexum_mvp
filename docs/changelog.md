@@ -80,10 +80,26 @@ ALTER TABLE messages ADD COLUMN edited_at INTEGER;
 
 ### 🏗️ Build Validation
 
-- [x] Client build validation - ✅ 235.70 kB JS, 23.77 kB CSS
+- [x] Client build validation - ✅ 235.93 kB JS, 23.77 kB CSS
 - [x] Server build validation - ✅ 5 warnings (unused code only)
 - [ ] Protocol compatibility testing
 - [ ] Message CRUD operations testing (edit, delete)
+
+### 🎨 UI/UX Improvements
+
+- [x] **Improved click interactions** - Added cursor pointer to avatars and message content
+  - Avatar images are now clickable to view user profile
+  - Message content is clickable to view sender's profile
+  - Consistent hover behavior across all user-related elements
+
+- [x] **Theme default changed** - Dark mode is now the default theme on first launch
+  - Previously defaulted to light mode
+  - Theme preference is still saved to localStorage for subsequent sessions
+
+- [x] **Privacy enhancement** - User ID visibility restricted to owners only
+  - Regular members can no longer see user IDs in profile modals
+  - Only server owners can view user IDs for administration purposes
+  - Improves user privacy while maintaining admin capabilities
 
 ---
 

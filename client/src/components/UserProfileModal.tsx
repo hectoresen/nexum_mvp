@@ -4,10 +4,11 @@ import { useAppTheme } from '../hooks/useAppTheme'
 interface UserProfileModalProps {
   user: User
   serverAddress?: string
+  currentUserRole?: 'owner' | 'member'
   onClose: () => void
 }
 
-export default function UserProfileModal({ user, serverAddress, onClose }: UserProfileModalProps) {
+export default function UserProfileModal({ user, serverAddress, currentUserRole, onClose }: UserProfileModalProps) {
   const { tw } = useAppTheme()
 
   // Construct avatar URL
@@ -59,12 +60,15 @@ export default function UserProfileModal({ user, serverAddress, onClose }: UserP
 
         {/* User info */}
         <div className="p-6 space-y-4">
-          <div>
-            <label className={`text-sm font-semibold ${tw.textTertiary} uppercase tracking-wide`}>
-              User ID
-            </label>
-            <p className={`${tw.textSecondary} font-mono text-sm mt-1 truncate`}>{user.id}</p>
-          </div>
+          {/* Only show User ID to owner users */}
+          {currentUserRole === 'owner' && (
+            <div>
+              <label className={`text-sm font-semibold ${tw.textTertiary} uppercase tracking-wide`}>
+                User ID
+              </label>
+              <p className={`${tw.textSecondary} font-mono text-sm mt-1 truncate`}>{user.id}</p>
+            </div>
+          )}
 
           <div>
             <label className={`text-sm font-semibold ${tw.textTertiary} uppercase tracking-wide`}>

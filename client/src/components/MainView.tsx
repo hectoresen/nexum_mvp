@@ -83,7 +83,7 @@ export default function MainView({
     <div className={`flex h-full w-full ${tw.bgMain}`}>
       {/* User profile modal */}
       {selectedUser && (
-        <UserProfileModal user={selectedUser} serverAddress={serverAddress} onClose={() => setSelectedUser(null)} />
+        <UserProfileModal user={selectedUser} serverAddress={serverAddress} currentUserRole={state.role || undefined} onClose={() => setSelectedUser(null)} />
       )}
 
       {/* Sidebar */}

@@ -159,6 +159,12 @@ Improve messaging system with avatar display, user profiles, and message managem
 - ✅ Add edit button to message hover state
 - ✅ Add inline edit mode for messages
 
+**UI/UX Improvements:**
+- ✅ Added cursor pointer to avatars (clickable to view profile)
+- ✅ Added cursor pointer to message content (clickable to view sender profile)
+- ✅ Changed default theme to dark mode on first launch
+- ✅ Restricted User ID visibility to owners only (privacy enhancement)
+
 ### 0.5.6 Documentation & Release Structure ✅
 
 **Priority: LOW - Housekeeping**

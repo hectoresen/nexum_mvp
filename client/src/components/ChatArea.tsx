@@ -81,11 +81,15 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
     setEditContent('')
   }
 
+  // Get current user role
+  const currentUser = serverUsers?.find(u => u.id === _currentUserId)
+  const currentUserRole = currentUser?.role
+
   return (
     <div className="flex flex-col h-full">
       {/* User profile modal */}
       {selectedUser && (
-        <UserProfileModal user={selectedUser} serverAddress={serverAddress} onClose={() => setSelectedUser(null)} />
+        <UserProfileModal user={selectedUser} serverAddress={serverAddress} currentUserRole={currentUserRole} onClose={() => setSelectedUser(null)} />
       )}
 
       {/* Delete confirmation modal */}
@@ -149,7 +153,10 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
                 onMouseLeave={() => setHoveredMessageId(null)}
               >
                 {/* Avatar */}
-                <div className={`w-10 h-10 rounded-full ${tw.bgInput} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
+                <div 
+                  className={`w-10 h-10 rounded-full ${tw.bgInput} flex items-center justify-center flex-shrink-0 overflow-hidden cursor-pointer`}
+                  onClick={() => handleUsernameClick(message.user_id)}
+                >
                   {avatarUrl ? (
                     <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
                   ) : (
@@ -205,7 +212,12 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
                       </div>
                     </div>
                   ) : (
-                    <p className={`${tw.textSecondary} mt-1 break-words`}>{message.content}</p>
+                    <p 
+                      className={`${tw.textSecondary} mt-1 break-words cursor-pointer`}
+                      onClick={() => handleUsernameClick(message.user_id)}
+                    >
+                      {message.content}
+                    </p>
                   )}
                 </div>
 
