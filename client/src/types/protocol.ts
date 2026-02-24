@@ -30,6 +30,13 @@ export interface Message {
   content: string;
   created_at: string;
   username?: string; // Optional: populated from MessagePayload
+  avatar_url?: string; // Optional: populated from MessagePayload
+  avatar_path?: string; // Optional: populated from MessagePayload
+  avatar_version?: number; // Optional: populated from MessagePayload
+  deleted_by_user_id?: string; // Optional: set when message is deleted
+  deleted_at?: string; // Optional: set when message is deleted
+  deleted_by_username?: string; // Optional: username of deleter (from MessageDeletedPayload)
+  edited_at?: string; // Optional: set when message is edited
 }
 
 // ============================================================================
@@ -44,6 +51,8 @@ export type ClientMessage =
   | { type: 'JOIN_CHANNEL'; payload: JoinChannelPayload }
   | { type: 'LEAVE_CHANNEL'; payload: LeaveChannelPayload }
   | { type: 'SEND_MESSAGE'; payload: SendMessagePayload }
+  | { type: 'DELETE_MESSAGE'; payload: DeleteMessagePayload }
+  | { type: 'EDIT_MESSAGE'; payload: EditMessagePayload }
   | { type: 'JOIN_VOICE'; payload: JoinVoicePayload }
   | { type: 'LEAVE_VOICE'; payload: LeaveVoicePayload }
   | { type: 'AUTHENTICATE_ADMIN'; payload: AuthenticateAdminPayload }
@@ -78,6 +87,15 @@ export interface LeaveChannelPayload {
 
 export interface SendMessagePayload {
   channel_id: string;
+  content: string;
+}
+
+export interface DeleteMessagePayload {
+  message_id: string;
+}
+
+export interface EditMessagePayload {
+  message_id: string;
   content: string;
 }
 
@@ -121,6 +139,8 @@ export type ServerMessage =
   | { type: 'USER_LEFT'; payload: UserLeftPayload }
   | { type: 'MESSAGE'; payload: MessagePayload }
   | { type: 'MESSAGE_HISTORY'; payload: MessageHistoryPayload }
+  | { type: 'MESSAGE_DELETED'; payload: MessageDeletedPayload }
+  | { type: 'MESSAGE_EDITED'; payload: MessageEditedPayload }
   | { type: 'ADMIN_AUTHENTICATED'; payload: AdminAuthenticatedPayload }
   | { type: 'VOICE_JOINED'; payload: VoiceJoinedPayload }
   | { type: 'VOICE_LEFT'; payload: VoiceLeftPayload }
@@ -178,11 +198,28 @@ export interface UserLeftPayload {
 export interface MessagePayload {
   message: Message;
   username: string;
+  avatar_url?: string;
+  avatar_path?: string;
+  avatar_version: number;
 }
 
 export interface MessageHistoryPayload {
   channel_id: string;
   messages: MessagePayload[];
+}
+
+export interface MessageDeletedPayload {
+  message_id: string;
+  channel_id: string;
+  deleted_by_user_id: string;
+  deleted_by_username: string;
+}
+
+export interface MessageEditedPayload {
+  message_id: string;
+  channel_id: string;
+  content: string;
+  edited_at: string;
 }
 
 export interface AdminAuthenticatedPayload {

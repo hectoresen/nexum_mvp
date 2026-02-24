@@ -88,6 +88,149 @@ Analyze and implement light theme support across entire application.
 **Classes Modified:** 500+ Tailwind classes  
 **Build Status:** ✅ Clean client & server builds
 
+### 0.5.5 Message System Enhancements ✅
+
+**Priority: HIGH - Completed**
+
+Improve messaging system with avatar display, user profiles, and message management.
+
+#### Bug Fixes
+
+- [x] **Avatar display in messages** — User avatars not showing in text channel messages (showing default instead of uploaded avatar)
+  - ✅ Extended MessagePayload to include avatar_url, avatar_path, avatar_version
+  - ✅ Updated server to propagate avatar information in message broadcasts
+  - ✅ Modified get_message_history to fetch avatar data from users table
+  - ✅ ChatArea now constructs avatar URLs and displays images
+  - ✅ Commit: `dbe7db2` - "fix: Display user avatars in chat messages"
+
+#### New Features
+
+- [x] **User profile modal (clickable users)** — Click on user in member list or message shows user info popup
+  - ✅ Created UserProfileModal component
+  - ✅ Shows avatar, username, role badge, user ID, join date
+  - ✅ Accessible from message usernames (click)
+  - ✅ Accessible from member list (click)
+  - ✅ Owner users get special badge and info note
+  - ✅ Commit: `11ec55c` - "feat: Add user profile modal"
+
+- [x] **Message deletion** — Users can delete their own messages
+  - ✅ Added DELETE_MESSAGE protocol implementation (client + server)
+  - ✅ Delete button on message hover (trash icon, owner-only)
+  - ✅ Confirmation dialog before deletion
+  - ✅ Soft delete: message kept with deletion metadata
+  - ✅ Display: "Message deleted by: {username}" (gray italic)
+  - ✅ Database migration for deleted_by_user_id, deleted_at
+  - ✅ Real-time broadcast via WebSocket
+  - ✅ Commit: `517bebf` - "feat: Implement message deletion"
+  - Future: Mod/admin can delete any message
+
+- [x] **Message editing** — Users can edit their own messages
+  - ✅ Add edit icon on message hover (pencil icon)
+  - ✅ Inline edit with input field (Enter to save, Escape to cancel)
+  - ✅ Server: `EDIT_MESSAGE` WebSocket event
+  - ✅ Show "(edited)" label next to timestamp
+  - ✅ Server: Store edit history (edited_at timestamp) in DB
+  - ✅ Broadcast updated message to all channel members
+  - ✅ Commit: `3f7c5f1` - "feat: Implement message editing"
+  - Future: Show edit history on hover
+
+#### Technical Implementation
+
+**Protocol Changes:**
+- ✅ `DELETE_MESSAGE` client message type + DeleteMessagePayload
+- ✅ `MESSAGE_DELETED` server message type + MessageDeletedPayload
+- ✅ `EDIT_MESSAGE` client message type + EditMessagePayload
+- ✅ `MESSAGE_EDITED` server message type + MessageEditedPayload
+- ✅ Extended `Message` model with `deleted_by`, `deleted_at` fields
+- ✅ Added `edited_at` field to `Message` model
+
+**Database Schema:**
+```sql
+✅ ALTER TABLE messages ADD COLUMN deleted_by_user_id TEXT;
+✅ ALTER TABLE messages ADD COLUMN deleted_at INTEGER;
+✅ ALTER TABLE messages ADD COLUMN edited_at INTEGER;
+```
+
+**Component Updates:**
+- ✅ `ChatArea.tsx` - Added message delete button
+- ✅ `UserProfileModal.tsx` (NEW) - Modal showing user details
+- ✅ Message hover state with delete action button
+- ✅ Avatar rendering fix in message component
+- ✅ Add edit button to message hover state
+- ✅ Add inline edit mode for messages
+
+**UI/UX Improvements:**
+- ✅ Added cursor pointer to avatars (clickable to view profile)
+- ✅ Added cursor pointer to message content (clickable to view sender profile)
+- ✅ Changed default theme to dark mode on first launch
+- ✅ Restricted User ID visibility to owners only (privacy enhancement)
+
+### 0.5.6 Documentation & Release Structure ✅
+
+**Priority: LOW - Housekeeping**
+
+- [ ] **Simplify releases structure** — Consolidate README files
+  - Remove redundant `releases/README.md` (generic overview)
+  - Keep `releases/v0.X.X/README.md` for version-specific release notes
+  - Update release workflow to only maintain version-specific READMEs
+  - Generic release info should be in main project README
+
+### 0.5.7 Local Server Detection & Configuration 🚧
+
+**Priority: HIGH - Bug Fix + Feature Enhancement**
+
+#### Problem
+
+The local server detection is not working correctly:
+- Client shows "Not installed" even when server is in the same directory
+- Example case: `E:\voice_mvp\` contains `voice-client.exe`, `voice-server.exe`, and `Uninstall Nexum.exe` but detection fails
+- Users cannot manually specify server path if it's in a non-standard location
+
+#### Tasks
+
+- [ ] **Fix automatic server detection** — Improve detection logic
+  - Current detection checks predefined paths but may miss same-directory installations
+  - Add check for server executable in the same directory as the client
+  - Check relative paths: `./`, `../`, `./server/`, etc.
+  - Log detection attempts for debugging
+  - Handle different executable names: `voice-server.exe`, `Nexum-Server.exe`, `nexum-server.exe`
+
+- [ ] **Manual server path configuration** — Allow users to specify custom server location
+  - Add "Configure" or "Browse" button next to "Not installed" message
+  - File picker dialog to select server executable
+  - Save selected path to localStorage or config file
+  - Display configured path in UI
+  - Validate selected file is actually the server executable
+  - "Reset to Auto-detect" option to clear manual configuration
+
+- [ ] **Server status improvements** — Better feedback about server state
+  - Show detected server path when found (e.g., "Detected: C:\Program Files\Nexum\server.exe")
+  - Show configured path when manually set (e.g., "Configured: E:\voice_mvp\voice-server.exe")
+  - Status indicators: "Detected", "Configured", "Not Found", "Running", "Stopped"
+  - Add "Refresh" button to re-run detection
+
+#### Technical Implementation
+
+**Backend (Tauri Rust):**
+- Update `server_manager.rs` detection logic
+- Add `set_server_path(path: String)` command
+- Add `get_configured_server_path()` command
+- Store manual path in AppState or config file
+- Improve `detect_server()` to check client directory first
+
+**Frontend (React):**
+- Update `ServerListView.tsx` or relevant component
+- Add file picker integration (Tauri dialog API)
+- Display server path in UI when detected/configured
+- Show configuration modal or inline form
+- Persist manual configuration to localStorage
+
+**Edge Cases:**
+- Handle spaces in file paths
+- Handle non-English characters in paths
+- Validate executable before saving
+- Handle permission issues (read/execute)
+
 ### Future: Private Messaging & Encryption
 
 - [ ] Add private message functionality (click user in sidebar to DM)

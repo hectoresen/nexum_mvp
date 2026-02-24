@@ -393,10 +393,13 @@ function App() {
       case 'MESSAGE':
         const channelMessages = connection.messages.get(message.payload.message.channel_id) || []
         const newMessages = new Map(connection.messages)
-        // Extend message with username from payload
+        // Extend message with username and avatar from payload
         const enrichedMessage = {
           ...message.payload.message,
           username: message.payload.username,
+          avatar_url: message.payload.avatar_url,
+          avatar_path: message.payload.avatar_path,
+          avatar_version: message.payload.avatar_version,
         }
         newMessages.set(message.payload.message.channel_id, [...channelMessages, enrichedMessage])
         return {
@@ -410,11 +413,53 @@ function App() {
         const enrichedHistory = message.payload.messages.map(mp => ({
           ...mp.message,
           username: mp.username,
+          avatar_url: mp.avatar_url,
+          avatar_path: mp.avatar_path,
+          avatar_version: mp.avatar_version,
         }))
         historyMessages.set(message.payload.channel_id, enrichedHistory)
         return {
           ...connection,
           messages: historyMessages,
+        }
+
+      case 'MESSAGE_DELETED':
+        // Mark message as deleted
+        const deletedMessages = new Map(connection.messages)
+        const channelMsgs = deletedMessages.get(message.payload.channel_id) || []
+        const updatedMsgs = channelMsgs.map(msg =>
+          msg.id === message.payload.message_id
+            ? {
+                ...msg,
+                deleted_by_user_id: message.payload.deleted_by_user_id,
+                deleted_by_username: message.payload.deleted_by_username,
+                deleted_at: new Date().toISOString(),
+              }
+            : msg,
+        )
+        deletedMessages.set(message.payload.channel_id, updatedMsgs)
+        return {
+          ...connection,
+          messages: deletedMessages,
+        }
+
+      case 'MESSAGE_EDITED':
+        // Update message content and mark as edited
+        const editedMessages = new Map(connection.messages)
+        const channelEditMsgs = editedMessages.get(message.payload.channel_id) || []
+        const updatedEditMsgs = channelEditMsgs.map(msg =>
+          msg.id === message.payload.message_id
+            ? {
+                ...msg,
+                content: message.payload.content,
+                edited_at: message.payload.edited_at,
+              }
+            : msg,
+        )
+        editedMessages.set(message.payload.channel_id, updatedEditMsgs)
+        return {
+          ...connection,
+          messages: editedMessages,
         }
 
       case 'ADMIN_AUTHENTICATED':
@@ -518,6 +563,29 @@ function App() {
       type: 'SEND_MESSAGE',
       payload: {
         channel_id: view.connection.currentChannelId,
+        content,
+      },
+    })
+  }
+
+  const handleDeleteMessage = (messageId: string) => {
+    if (view.type !== 'connected') return
+
+    view.connection.client.send({
+      type: 'DELETE_MESSAGE',
+      payload: {
+        message_id: messageId,
+      },
+    })
+  }
+
+  const handleEditMessage = (messageId: string, content: string) => {
+    if (view.type !== 'connected') return
+
+    view.connection.client.send({
+      type: 'EDIT_MESSAGE',
+      payload: {
+        message_id: messageId,
         content,
       },
     })
@@ -711,6 +779,8 @@ function App() {
         onCreateChannel={handleCreateChannel}
         onJoinChannel={handleJoinChannel}
         onSendMessage={handleSendMessage}
+        onDeleteMessage={handleDeleteMessage}
+        onEditMessage={handleEditMessage}
         onAuthenticateAdmin={() => setShowAdminAuthModal(true)}
         onOpenServerSettings={handleGetServerSettings}
         onOpenClientSettings={section => setClientSettingsSection(section)}
