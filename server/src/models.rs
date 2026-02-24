@@ -44,11 +44,21 @@ impl UserRole {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Category {
+    pub id: Uuid,
+    pub name: String,
+    pub position: i64,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Channel {
     pub id: Uuid,
     pub name: String,
     pub channel_type: ChannelType,
     pub max_users: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -82,6 +92,12 @@ pub struct Message {
     pub user_id: Uuid,
     pub content: String,
     pub created_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deleted_by_user_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deleted_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub edited_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -118,6 +134,12 @@ pub enum ClientMessage {
     #[serde(rename = "SEND_MESSAGE")]
     SendMessage(SendMessagePayload),
     
+    #[serde(rename = "DELETE_MESSAGE")]
+    DeleteMessage(DeleteMessagePayload),
+    
+    #[serde(rename = "EDIT_MESSAGE")]
+    EditMessage(EditMessagePayload),
+    
     #[serde(rename = "JOIN_VOICE")]
     JoinVoice(JoinVoicePayload),
     
@@ -144,6 +166,18 @@ pub enum ClientMessage {
     
     #[serde(rename = "PING")]
     Ping,
+    
+    #[serde(rename = "CREATE_CATEGORY")]
+    CreateCategory(CreateCategoryPayload),
+    
+    #[serde(rename = "DELETE_CATEGORY")]
+    DeleteCategory(DeleteCategoryPayload),
+    
+    #[serde(rename = "RENAME_CATEGORY")]
+    RenameCategory(RenameCategoryPayload),
+    
+    #[serde(rename = "MOVE_CHANNEL_TO_CATEGORY")]
+    MoveChannelToCategory(MoveChannelToCategoryPayload),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -159,6 +193,8 @@ pub struct ConnectPayload {
 pub struct CreateChannelPayload {
     pub name: String,
     pub channel_type: ChannelType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -179,6 +215,17 @@ pub struct LeaveChannelPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SendMessagePayload {
     pub channel_id: Uuid,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteMessagePayload {
+    pub message_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EditMessagePayload {
+    pub message_id: Uuid,
     pub content: String,
 }
 
@@ -255,6 +302,12 @@ pub enum ServerMessage {
     #[serde(rename = "MESSAGE_HISTORY")]
     MessageHistory(MessageHistoryPayload),
     
+    #[serde(rename = "MESSAGE_DELETED")]
+    MessageDeleted(MessageDeletedPayload),
+    
+    #[serde(rename = "MESSAGE_EDITED")]
+    MessageEdited(MessageEditedPayload),
+    
     #[serde(rename = "ADMIN_AUTHENTICATED")]
     AdminAuthenticated(AdminAuthenticatedPayload),
     
@@ -281,6 +334,18 @@ pub enum ServerMessage {
     
     #[serde(rename = "PONG")]
     Pong,
+    
+    #[serde(rename = "CATEGORY_CREATED")]
+    CategoryCreated(CategoryCreatedPayload),
+    
+    #[serde(rename = "CATEGORY_DELETED")]
+    CategoryDeleted(CategoryDeletedPayload),
+    
+    #[serde(rename = "CATEGORY_RENAMED")]
+    CategoryRenamed(CategoryRenamedPayload),
+    
+    #[serde(rename = "CHANNEL_MOVED")]
+    ChannelMoved(ChannelMovedPayload),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -292,6 +357,7 @@ pub struct WelcomePayload {
     pub server_name: String,
     pub role: UserRole,
     pub channels: Vec<Channel>,
+    pub categories: Vec<Category>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -341,12 +407,32 @@ pub struct UserLeftPayload {
 pub struct MessagePayload {
     pub message: Message,
     pub username: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
+    pub avatar_path: Option<String>,
+    pub avatar_version: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageHistoryPayload {
     pub channel_id: Uuid,
     pub messages: Vec<MessagePayload>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MessageDeletedPayload {
+    pub message_id: Uuid,
+    pub channel_id: Uuid,
+    pub deleted_by_user_id: Uuid,
+    pub deleted_by_username: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MessageEditedPayload {
+    pub message_id: Uuid,
+    pub channel_id: Uuid,
+    pub content: String,
+    pub edited_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -398,4 +484,48 @@ pub struct UserAvatarUpdatedPayload {
 pub struct UserUpdatedPayload {
     pub user_id: Uuid,
     pub avatar_version: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateCategoryPayload {
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteCategoryPayload {
+    pub category_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RenameCategoryPayload {
+    pub category_id: Uuid,
+    pub new_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MoveChannelToCategoryPayload {
+    pub channel_id: Uuid,
+    pub category_id: Option<Uuid>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CategoryCreatedPayload {
+    pub category: Category,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CategoryDeletedPayload {
+    pub category_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CategoryRenamedPayload {
+    pub category_id: Uuid,
+    pub new_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChannelMovedPayload {
+    pub channel_id: Uuid,
+    pub category_id: Option<Uuid>,
 }

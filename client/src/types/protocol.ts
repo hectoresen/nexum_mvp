@@ -20,6 +20,14 @@ export interface Channel {
   name: string;
   channel_type: ChannelType;
   max_users?: number;
+  category_id?: string;
+  created_at: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  position: number;
   created_at: string;
 }
 
@@ -30,6 +38,13 @@ export interface Message {
   content: string;
   created_at: string;
   username?: string; // Optional: populated from MessagePayload
+  avatar_url?: string; // Optional: populated from MessagePayload
+  avatar_path?: string; // Optional: populated from MessagePayload
+  avatar_version?: number; // Optional: populated from MessagePayload
+  deleted_by_user_id?: string; // Optional: set when message is deleted
+  deleted_at?: string; // Optional: set when message is deleted
+  deleted_by_username?: string; // Optional: username of deleter (from MessageDeletedPayload)
+  edited_at?: string; // Optional: set when message is edited
 }
 
 // ============================================================================
@@ -44,6 +59,8 @@ export type ClientMessage =
   | { type: 'JOIN_CHANNEL'; payload: JoinChannelPayload }
   | { type: 'LEAVE_CHANNEL'; payload: LeaveChannelPayload }
   | { type: 'SEND_MESSAGE'; payload: SendMessagePayload }
+  | { type: 'DELETE_MESSAGE'; payload: DeleteMessagePayload }
+  | { type: 'EDIT_MESSAGE'; payload: EditMessagePayload }
   | { type: 'JOIN_VOICE'; payload: JoinVoicePayload }
   | { type: 'LEAVE_VOICE'; payload: LeaveVoicePayload }
   | { type: 'AUTHENTICATE_ADMIN'; payload: AuthenticateAdminPayload }
@@ -51,6 +68,10 @@ export type ClientMessage =
   | { type: 'UPDATE_SERVER_SETTINGS'; payload: UpdateServerSettingsPayload }
   | { type: 'GET_USERS' }
   | { type: 'UPDATE_AVATAR'; payload: UpdateAvatarPayload }
+  | { type: 'CREATE_CATEGORY'; payload: CreateCategoryPayload }
+  | { type: 'DELETE_CATEGORY'; payload: DeleteCategoryPayload }
+  | { type: 'RENAME_CATEGORY'; payload: RenameCategoryPayload }
+  | { type: 'MOVE_CHANNEL_TO_CATEGORY'; payload: MoveChannelToCategoryPayload }
   | { type: 'PING' };
 
 export interface ConnectPayload {
@@ -62,6 +83,7 @@ export interface ConnectPayload {
 export interface CreateChannelPayload {
   name: string;
   channel_type: ChannelType;
+  category_id?: string;
 }
 
 export interface DeleteChannelPayload {
@@ -78,6 +100,15 @@ export interface LeaveChannelPayload {
 
 export interface SendMessagePayload {
   channel_id: string;
+  content: string;
+}
+
+export interface DeleteMessagePayload {
+  message_id: string;
+}
+
+export interface EditMessagePayload {
+  message_id: string;
   content: string;
 }
 
@@ -121,6 +152,8 @@ export type ServerMessage =
   | { type: 'USER_LEFT'; payload: UserLeftPayload }
   | { type: 'MESSAGE'; payload: MessagePayload }
   | { type: 'MESSAGE_HISTORY'; payload: MessageHistoryPayload }
+  | { type: 'MESSAGE_DELETED'; payload: MessageDeletedPayload }
+  | { type: 'MESSAGE_EDITED'; payload: MessageEditedPayload }
   | { type: 'ADMIN_AUTHENTICATED'; payload: AdminAuthenticatedPayload }
   | { type: 'VOICE_JOINED'; payload: VoiceJoinedPayload }
   | { type: 'VOICE_LEFT'; payload: VoiceLeftPayload }
@@ -128,6 +161,10 @@ export type ServerMessage =
   | { type: 'SERVER_USERS'; payload: ServerUsersPayload }
   | { type: 'USER_AVATAR_UPDATED'; payload: UserAvatarUpdatedPayload }
   | { type: 'USER_UPDATED'; payload: UserUpdatedPayload }
+  | { type: 'CATEGORY_CREATED'; payload: CategoryCreatedPayload }
+  | { type: 'CATEGORY_DELETED'; payload: CategoryDeletedPayload }
+  | { type: 'CATEGORY_RENAMED'; payload: CategoryRenamedPayload }
+  | { type: 'CHANNEL_MOVED'; payload: ChannelMovedPayload }
   | { type: 'PONG' };
 
 export interface WelcomePayload {
@@ -138,6 +175,7 @@ export interface WelcomePayload {
   server_name: string;
   role: UserRole;
   channels: Channel[];
+  categories: Category[];
 }
 
 export interface ErrorPayload {
@@ -178,11 +216,28 @@ export interface UserLeftPayload {
 export interface MessagePayload {
   message: Message;
   username: string;
+  avatar_url?: string;
+  avatar_path?: string;
+  avatar_version: number;
 }
 
 export interface MessageHistoryPayload {
   channel_id: string;
   messages: MessagePayload[];
+}
+
+export interface MessageDeletedPayload {
+  message_id: string;
+  channel_id: string;
+  deleted_by_user_id: string;
+  deleted_by_username: string;
+}
+
+export interface MessageEditedPayload {
+  message_id: string;
+  channel_id: string;
+  content: string;
+  edited_at: string;
 }
 
 export interface AdminAuthenticatedPayload {
@@ -230,4 +285,40 @@ export interface UserAvatarUpdatedPayload {
 export interface UserUpdatedPayload {
   user_id: string;
   avatar_version: number;
+}
+
+export interface CreateCategoryPayload {
+  name: string;
+}
+
+export interface DeleteCategoryPayload {
+  category_id: string;
+}
+
+export interface RenameCategoryPayload {
+  category_id: string;
+  new_name: string;
+}
+
+export interface MoveChannelToCategoryPayload {
+  channel_id: string;
+  category_id: string | null;
+}
+
+export interface CategoryCreatedPayload {
+  category: Category;
+}
+
+export interface CategoryDeletedPayload {
+  category_id: string;
+}
+
+export interface CategoryRenamedPayload {
+  category_id: string;
+  new_name: string;
+}
+
+export interface ChannelMovedPayload {
+  channel_id: string;
+  category_id: string | null;
 }

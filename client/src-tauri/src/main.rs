@@ -57,6 +57,43 @@ fn is_server_configured(state: State<AppState>) -> bool {
     manager.is_server_configured()
 }
 
+/// Set a manual server path (user configuration)
+#[tauri::command]
+fn set_server_path(state: State<AppState>, path: String) -> Result<(), String> {
+    let manager = state.server_manager.lock().unwrap();
+    let path_buf = std::path::PathBuf::from(path);
+    manager.set_configured_path(path_buf).map_err(|e| e.to_string())
+}
+
+/// Get the configured server path (manual configuration)
+#[tauri::command]
+fn get_configured_server_path(state: State<AppState>) -> Option<String> {
+    let manager = state.server_manager.lock().unwrap();
+    manager.get_configured_path().map(|p| p.to_string_lossy().to_string())
+}
+
+/// Clear the configured server path (reset to auto-detect)
+#[tauri::command]
+fn clear_configured_server_path(state: State<AppState>) {
+    let manager = state.server_manager.lock().unwrap();
+    manager.clear_configured_path();
+}
+
+/// Reset admin password: stops server and deletes server.toml so the next
+/// launch triggers the first-launch setup flow.
+#[tauri::command]
+fn reset_admin_password(state: State<AppState>) -> Result<(), String> {
+    let manager = state.server_manager.lock().unwrap();
+    manager.reset_admin_password().map_err(|e| e.to_string())
+}
+
+/// Delete server data directory (wipes the database). Keeps server.toml.
+#[tauri::command]
+fn delete_server_data(state: State<AppState>) -> Result<(), String> {
+    let manager = state.server_manager.lock().unwrap();
+    manager.delete_server_data().map_err(|e| e.to_string())
+}
+
 fn main() {
     // Initialize the server manager
     let server_manager = ServerManager::new();
@@ -68,6 +105,7 @@ fn main() {
     tauri::Builder::default()
         .manage(app_state)
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             detect_local_server,
             get_server_status,
@@ -75,6 +113,11 @@ fn main() {
             stop_local_server,
             check_server_health,
             is_server_configured,
+            set_server_path,
+            get_configured_server_path,
+            clear_configured_server_path,
+            reset_admin_password,
+            delete_server_data,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -88,11 +88,358 @@ Analyze and implement light theme support across entire application.
 **Classes Modified:** 500+ Tailwind classes  
 **Build Status:** ✅ Clean client & server builds
 
-### Future: Private Messaging & Encryption
+### 0.5.5 Message System Enhancements ✅
+
+**Priority: HIGH - Completed**
+
+Improve messaging system with avatar display, user profiles, and message management.
+
+#### Bug Fixes
+
+- [x] **Avatar display in messages** — User avatars not showing in text channel messages (showing default instead of uploaded avatar)
+  - ✅ Extended MessagePayload to include avatar_url, avatar_path, avatar_version
+  - ✅ Updated server to propagate avatar information in message broadcasts
+  - ✅ Modified get_message_history to fetch avatar data from users table
+  - ✅ ChatArea now constructs avatar URLs and displays images
+  - ✅ Commit: `dbe7db2` - "fix: Display user avatars in chat messages"
+
+#### New Features
+
+- [x] **User profile modal (clickable users)** — Click on user in member list or message shows user info popup
+  - ✅ Created UserProfileModal component
+  - ✅ Shows avatar, username, role badge, user ID, join date
+  - ✅ Accessible from message usernames (click)
+  - ✅ Accessible from member list (click)
+  - ✅ Owner users get special badge and info note
+  - ✅ Commit: `11ec55c` - "feat: Add user profile modal"
+
+- [x] **Message deletion** — Users can delete their own messages
+  - ✅ Added DELETE_MESSAGE protocol implementation (client + server)
+  - ✅ Delete button on message hover (trash icon, owner-only)
+  - ✅ Confirmation dialog before deletion
+  - ✅ Soft delete: message kept with deletion metadata
+  - ✅ Display: "Message deleted by: {username}" (gray italic)
+  - ✅ Database migration for deleted_by_user_id, deleted_at
+  - ✅ Real-time broadcast via WebSocket
+  - ✅ Commit: `517bebf` - "feat: Implement message deletion"
+  - Future: Mod/admin can delete any message
+
+- [x] **Message editing** — Users can edit their own messages
+  - ✅ Add edit icon on message hover (pencil icon)
+  - ✅ Inline edit with input field (Enter to save, Escape to cancel)
+  - ✅ Server: `EDIT_MESSAGE` WebSocket event
+  - ✅ Show "(edited)" label next to timestamp
+  - ✅ Server: Store edit history (edited_at timestamp) in DB
+  - ✅ Broadcast updated message to all channel members
+  - ✅ Commit: `3f7c5f1` - "feat: Implement message editing"
+  - Future: Show edit history on hover
+
+#### Technical Implementation
+
+**Protocol Changes:**
+
+- ✅ `DELETE_MESSAGE` client message type + DeleteMessagePayload
+- ✅ `MESSAGE_DELETED` server message type + MessageDeletedPayload
+- ✅ `EDIT_MESSAGE` client message type + EditMessagePayload
+- ✅ `MESSAGE_EDITED` server message type + MessageEditedPayload
+- ✅ Extended `Message` model with `deleted_by`, `deleted_at` fields
+- ✅ Added `edited_at` field to `Message` model
+
+**Database Schema:**
+
+```sql
+✅ ALTER TABLE messages ADD COLUMN deleted_by_user_id TEXT;
+✅ ALTER TABLE messages ADD COLUMN deleted_at INTEGER;
+✅ ALTER TABLE messages ADD COLUMN edited_at INTEGER;
+```
+
+**Component Updates:**
+
+- ✅ `ChatArea.tsx` - Added message delete button
+- ✅ `UserProfileModal.tsx` (NEW) - Modal showing user details
+- ✅ Message hover state with delete action button
+- ✅ Avatar rendering fix in message component
+- ✅ Add edit button to message hover state
+- ✅ Add inline edit mode for messages
+
+**UI/UX Improvements:**
+
+- ✅ Added cursor pointer to avatars (clickable to view profile)
+- ✅ Added cursor pointer to message content (clickable to view sender profile)
+- ✅ Changed default theme to dark mode on first launch
+- ✅ Restricted User ID visibility to owners only (privacy enhancement)
+
+### 0.5.6 Documentation & Release Structure ✅
+
+**Priority: LOW - Housekeeping**
+
+- [ ] **Simplify releases structure** — Consolidate README files
+  - Remove redundant `releases/README.md` (generic overview)
+  - Keep `releases/v0.X.X/README.md` for version-specific release notes
+  - Update release workflow to only maintain version-specific READMEs
+  - Generic release info should be in main project README
+
+### 0.5.7 Local Server Detection & Configuration ✅
+
+**Priority: HIGH - Bug Fix + Feature Enhancement**
+
+#### Problem
+
+The local server detection is not working correctly:
+
+- Client shows "Not installed" even when server is in the same directory
+- Example case: `E:\voice_mvp\` contains `voice-client.exe`, `voice-server.exe`, and `Uninstall Nexum.exe` but detection fails
+- Users cannot manually specify server path if it's in a non-standard location
+
+#### Tasks
+
+- [x] **Fix automatic server detection** — Improved detection with 6 executable name variants and prioritized path order (same dir > CWD > resources > standard paths)
+- [x] **Manual server path configuration** — "Configure Server Path" button with file picker (Tauri dialog plugin)
+- [x] **Server process isolation** — Server now runs from `~/.nexum/server/` instead of inheriting client CWD (was polluting `src-tauri/` with `data/`, `server.toml`)
+- [x] **Fix IP restriction bug** — Removed one-IP-per-user restriction; multiple users from localhost or same NAT now work
+- [x] **Fix username taken error loop** — Client now stops auto-reconnect on pre-auth errors, shows message to user
+- [x] **Add `--data-path` CLI argument to server** — Server accepts custom data directory via `--data-path` argument
+
+### 0.5.8 Remove Redundant "View Users" Button ⏳
+
+**Priority: LOW - UI Cleanup**
+
+#### Problem
+
+After implementing the right sidebar user list in 0.5.2, the "View Users" button in the admin dropdown is now redundant. All users (not just admins) can see the server members in the right panel.
+
+#### Tasks
+
+- [ ] **Remove "View Users" from admin dropdown** — Clean up duplicate functionality
+  - Remove "View Users" button from dropdown menu
+  - Remove UserListModal component (or keep for future use)
+  - Remove onViewUsers prop chain (App → MainView)
+  - Remove GET_USERS handler call from "View Users" button
+  - Update documentation to reflect UI changes
+
+**Technical Implementation:**
+
+- `MainView.tsx` - Remove "View Users" dropdown option
+- `App.tsx` - Remove handleGetUsers function and modal state
+- Clean up unused imports and props
+
+### 0.5.9 Channel Categories & Organization ✅
+
+**Priority: MEDIUM - Feature Enhancement - COMPLETED**
+
+#### Problem
+
+Servers with many channels become cluttered and hard to navigate. Users need a way to organize channels into logical groups.
+
+#### Proposed Solution
+
+Implement collapsible channel categories similar to Discord's approach:
+
+- Categories are visual groupings (not separate entities in DB)
+- Channels can belong to a category or be uncategorized
+- Categories can be collapsed/expanded per user (saved in localStorage)
+- Admins can create, rename, and delete categories
+- Admins can drag channels between categories
+
+#### Tasks
+
+- [x] **Database schema update** — Add category support
+  - Add `category_id` (optional) to channels table
+  - Create `categories` table: `id`, `name`, `position`, `created_at`
+  - Migration script for existing channels (all uncategorized initially)
+
+- [x] **Backend protocol changes** — Category CRUD operations
+  - Add `CREATE_CATEGORY` client message
+  - Add `DELETE_CATEGORY` client message
+  - Add `RENAME_CATEGORY` client message
+  - Add `MOVE_CHANNEL_TO_CATEGORY` client message
+  - Add corresponding server broadcast messages (`CATEGORY_CREATED`, `CATEGORY_DELETED`, `CATEGORY_RENAMED`, `CHANNEL_MOVED`)
+  - Update `WELCOME` payload to include categories
+
+- [x] **Frontend UI implementation** — Category display and interaction
+  - Update ChannelList to render categories with channels inside
+  - Add collapse/expand chevron next to category name
+  - Store collapsed state per category in localStorage
+  - Add "Add Category" button for owners (inline creation)
+  - Add inline rename/delete controls for category and channel rows
+
+- [x] **Category management** — Admin controls
+  - Inline rename and delete for categories
+  - Drag-drop channels between categories (HTML5 native API)
+  - Delete category moves channels to uncategorized
+  - Channels without category_id render in "Channels" section
+
+**Build Status:** ✅ Clean client & server builds
+
+### 0.5.10 Auto-start on System Boot 🚧
+
+**Priority: LOW - User Convenience**
+
+#### Problem
+
+Users must manually launch the app every time they restart their computer. Power users want the app to start automatically when Windows boots.
+
+#### Proposed Solution
+
+Add a toggle in Client Settings that enables/disables auto-start functionality using Windows startup registry keys or startup folder shortcuts.
+
+#### Tasks
+
+- [ ] **Backend implementation** — Tauri commands for auto-start
+  - Create `enable_auto_start()` Tauri command
+  - Create `disable_auto_start()` Tauri command
+  - Create `is_auto_start_enabled()` Tauri command
+  - Use `auto-launch` crate or Windows registry API
+  - Handle Windows startup folder shortcut creation
+  - Test on Windows 10 and Windows 11
+
+- [ ] **Frontend implementation** — Settings UI toggle
+  - Add "Launch on system startup" toggle to General settings tab
+  - Load current auto-start status when settings open
+  - Call enable/disable commands when toggled
+  - Show error message if operation fails (permissions)
+  - Persist toggle state visually (don't rely on localStorage)
+
+- [ ] **Error handling** — Permission and edge cases
+  - Handle UAC/permission errors gracefully
+  - Show informative error messages to user
+  - Test behavior with portable installation
+  - Test uninstall cleanup (remove startup entry)
+
+**Technical Implementation:**
+
+**Backend (Tauri):**
+
+```rust
+// Add to Cargo.toml
+[dependencies]
+auto-launch = "0.5"
+
+// main.rs
+#[tauri::command]
+async fn enable_auto_start(app_handle: tauri::AppHandle) -> Result<(), String> {
+    // Implementation using auto-launch crate
+}
+
+#[tauri::command]
+async fn disable_auto_start() -> Result<(), String> {
+    // Remove from Windows startup
+}
+
+#[tauri::command]
+async fn is_auto_start_enabled() -> Result<bool, String> {
+    // Check registry/startup folder
+}
+```
+
+**Frontend (React):**
+
+```tsx
+// ClientSettingsModal.tsx - General tab
+const [autoStart, setAutoStart] = useState(false)
+
+useEffect(() => {
+  invoke('is_auto_start_enabled').then(setAutoStart)
+}, [])
+
+const handleAutoStartToggle = async () => {
+  try {
+    if (autoStart) {
+      await invoke('disable_auto_start')
+    } else {
+      await invoke('enable_auto_start')
+    }
+    setAutoStart(!autoStart)
+  } catch (error) {
+    alert('Failed to change auto-start setting')
+  }
+}
+```
+
+**Testing:**
+
+- Enable auto-start and reboot to verify
+- Disable and reboot to verify removal
+- Test with non-admin user account
+- Test portable vs installed versions
+- Verify cleanup on uninstall
+
+### 0.5.11 Local Server Management UI ✅
+
+**Priority: MEDIUM - Completed**
+
+#### Problem
+
+Once the local server was running, the "Configure Server" button in the dropdown did nothing. There was no way to stop the server, reset the admin password, or wipe server data from the client UI.
+
+#### Implemented ✅
+
+- [x] **Server dropdown three-way split** — running: Stop Server (red) + Configure Server (gear); installed+stopped: Start Server; not installed: existing path controls
+- [x] **Local Server Management Modal** — tabbed panel opened by "Configure Server" when running
+  - ✅ Overview tab: running/stopped badge, data directory path, Stop/Start toggle
+  - ✅ Reset Password tab: password input + Generate; stops server, deletes `server.toml`, relaunches with new password
+  - ✅ Delete Data tab: requires server to be **stopped first** (explicit blocking step), two-step confirmation (type `DELETE`), wipes `~/.nexum/server/data/`, keeps `server.toml`
+- [x] **Auto-connect error feedback** — When a saved server is unreachable, the connection modal now opens with a clear error message instead of failing silently
+- [x] **New Tauri commands**: `reset_admin_password`, `delete_server_data`
+- [x] **New Rust methods**: `ServerManager::reset_admin_password()`, `ServerManager::delete_server_data()`
+- Commits: `7097a7e`, `45a7647`, `(delete-data-ux)`
+- Starts polling server health when modal is open
+
+**Edge cases:**
+
+- Disable password reset if server is running
+- Show clear warning before data wipe
+- Refresh `localServerStatus` after stop/start actions
 
 - [ ] Add private message functionality (click user in sidebar to DM)
 - [ ] Implement end-to-end encryption for private messages
 - [ ] Add encryption indicator in private chat UI
+
+### 0.5.12 Moderation System 🚧
+
+**Priority: MEDIUM - Safety & Administration**
+
+Enable server owners to manage disruptive users.
+
+#### Tasks
+
+- [ ] **Kick user** — owner can remove a user from the server (disconnects them; they can rejoin)
+- [ ] **Ban user** — owner can permanently ban by user ID + IP address; banned users cannot reconnect
+- [ ] **Voice mute** — owner mutes a specific user's microphone (they hear others but nobody hears them)
+- [ ] **Text mute** — owner restricts a user from sending messages in text channels
+- [ ] **Ban list** — admin panel tab showing all bans with username, IP, date; ability to unban
+- [ ] **Protocol changes** — `KICK_USER`, `BAN_USER`, `UNBAN_USER`, `MUTE_USER`, `UNMUTE_USER` client messages + server broadcasts
+- [ ] **Persistence** — bans stored in SQLite `bans` table (`user_id`, `ip_address`, `banned_at`, `reason`)
+- [ ] **Connection check** — server checks ban list on every new connection attempt
+
+### 0.5.13 Server Join Password 🚧
+
+**Priority: LOW - Privacy Feature**
+
+Allow server owners to require a password for joining, making the server private.
+
+#### Tasks
+
+- [ ] **Config field** — add optional `join_password` to `server.toml` and `ServerConfig`
+- [ ] **Protocol change** — `CONNECT` payload gains optional `join_password` field; server rejects with `UNAUTHORIZED` if wrong
+- [ ] **UI — join flow** — when connecting to a server that requires a password, show a password prompt before sending `CONNECT`
+- [ ] **Server settings** — owner can set/clear the join password in `ServerSettingsModal`
+- [ ] **Password indicator** — server card on home screen shows a lock icon if join password is set - needs a `GET_SERVER_INFO` unauthenticated endpoint
+- [ ] **Empty = open** — empty string / absent field means no password required
+
+### 0.5.14 Notification System 🚧
+
+**Priority: LOW - User Convenience**
+
+Notify users of activity while the app is in the background.
+
+#### Tasks
+
+- [ ] **System tray icon** — app stays in tray when window is closed (instead of exiting)
+- [ ] **Desktop notification** — show OS notification when a message arrives in a channel the user has joined while the window is not focused
+- [ ] **Tray badge / unread count** — tray icon shows badge or tooltip with unread message count
+- [ ] **Do-not-disturb setting** — toggle in Client Settings to suppress all notifications
+- [ ] **Mention detection** — highlight messages that contain `@username` in a different color; trigger notification even if window is focused
 
 ### 0.5.3 Server Detection ✅
 

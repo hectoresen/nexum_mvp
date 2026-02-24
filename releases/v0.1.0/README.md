@@ -8,85 +8,68 @@
 
 ## 🎉 First Public Release
 
-Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and chat communication platform. This MVP/Alpha release includes all core features required for basic voice and text communication.
-
-## 📦 Download Links
-
-### Client Application (Desktop)
-
-- **Windows MSI Installer** (Recommended)
-  - File: `Nexum_0.1.0_x64_en-US.msi`
-  - Size: ~7.2 MB
-  - SHA-256: (calculate after final build)
-  - Best for standard Windows installations with start menu integration
-
-- **Windows NSIS Installer**
-  - File: `Nexum_0.1.0_x64-setup.exe`
-  - Size: ~4.9 MB
-  - SHA-256: (calculate after final build)
-  - Portable installation option
-
-### Server Application (Standalone)
-
-- **Windows Server Executable**
-  - File: `Nexum-Server_0.1.0_x64.exe`
-  - Size: ~7.5 MB
-  - SHA-256: (calculate after final build)
-  - Standalone server for dedicated hosting or manual deployment
-
-**Deployment Options:**
-
-1. **Integrated (Recommended for desktop users):**
-   - The server is bundled with the client installation
-   - Managed directly from the Nexum client application
-   - Automatic detection and startup
-   - Configuration through client UI
-   - No separate installation required
-
-2. **Standalone (For dedicated servers or advanced users):**
-   - Download `Nexum-Server_0.1.0_x64.exe`
-   - Place in any directory
-   - Run with `--help` to see configuration options
-   - First run: `Nexum-Server_0.1.0_x64.exe --admin-password <your-password>`
-   - Subsequent runs: `Nexum-Server_0.1.0_x64.exe` or use as Windows Service
-   - See [Server Deployment Guide](../../docs/server_deployment.md) for details
+Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and chat communication platform. This MVP/Alpha release includes all core features required for basic text communication and the foundation for voice features.
 
 ---
 
-## ✨ Features
+## 📦 Downloads
+
+### Client Application (Desktop)
+
+- **Nexum_0.1.0_x64_en-US.msi** (~7.2 MB)
+  - Windows MSI installer (recommended)
+  - Start menu integration
+  - Includes server binary
+
+- **Nexum_0.1.0_x64-setup.exe** (~4.9 MB)
+  - NSIS installer (portable option)
+
+### Server Application (Standalone)
+
+- **Nexum-Server_0.1.0_x64.exe** (~7.5 MB)
+  - Standalone server executable
+  - For dedicated hosting
+
+**Checksums:** (calculate after final build)
+
+---
+
+## ✨ Features Implemented
 
 ### 🎯 Core Features
 
-- **Self-hosted Architecture** - Complete control over your data
-- **Voice & Text Channels** - Organize communications by topic
-- **User Authentication** - Secure username-based sessions
-- **Avatar System** - Custom user avatars (file upload or URL)
-- **Channel Management** - Create, rename, and delete channels
-- **Real-time Messaging** - WebSocket-based instant messaging
+- ✅ **Self-hosted Architecture** - Complete control over your data
+- ✅ **Text Channels** - Real-time messaging via WebSocket
+- ✅ **Voice Channels** - Channel structure (audio streaming pending)
+- ✅ **User Authentication** - Username-based sessions with persistence
+- ✅ **Avatar System** - Upload images or use external URLs
+- ✅ **Channel Management** - Create, rename, and delete channels (owner only)
+- ✅ **Real-time Sync** - All actions broadcast instantly to connected users
 
 ### 🎨 User Interface
 
-- **Modern Dark Theme** - Professional, consistent design system
-- **Button Component Library** - 9 specialized button variants
-- **Custom App Icons** - Professional headphones icon design
-- **Responsive Layout** - Server list, channels, chat area, user list
-- **User Settings Panel** - Avatar management and preferences
+- ✅ **Modern Dark Theme** - Clean, professional design
+- ✅ **Button Component Library** - 9 specialized button variants
+- ✅ **Custom App Icons** - Professional headphones icon
+- ✅ **Responsive Layout** - Server list, channels, chat, user list
+- ✅ **User Settings Panel** - Avatar management and preferences
+- ✅ **Server Management UI** - Local server control from client
 
 ### 🔧 Administration
 
-- **Admin Authentication** - Password-protected admin actions
-- **Server Settings** - Configurable server parameters
-- **User Management** - View all registered users
-- **Channel Controls** - Owner-based channel management
-- **Password Management** - Change admin password securely
+- ✅ **Admin Authentication** - Password-protected admin actions
+- ✅ **Server Settings** - Configure name, limits, ports
+- ✅ **User Management** - View all registered users
+- ✅ **Channel Controls** - Owner-based permissions
+- ✅ **Password Management** - Change admin password securely
 
 ### 💻 Local Server Management
 
-- **Server Detection** - Automatic local server discovery
-- **One-Click Start/Stop** - Easy server control
-- **First-Time Setup** - Guided admin password configuration
-- **Status Monitoring** - Real-time server health checks
-- **Port Configuration** - WebSocket (8080) and UDP ports
+- ✅ **Server Detection** - Automatic local server discovery
+- ✅ **One-Click Start/Stop** - Easy server control
+- ✅ **First-Time Setup** - Guided admin password configuration
+- ✅ **Status Monitoring** - Real-time health checks
+- ✅ **Port Configuration** - WebSocket (8080) and UDP (8081)
 
 ---
 
@@ -96,9 +79,9 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 
 - **Framework:** Tauri 2.0 (Rust + Web)
 - **UI Library:** React 18 + TypeScript
-- **Styling:** Tailwind CSS with custom theme system
-- **Build Tool:** Vite
-- **Communication:** WebSocket for real-time updates
+- **Styling:** Tailwind CSS
+- **Build:** Vite
+- **Communication:** WebSocket
 
 ### Server
 
@@ -111,169 +94,98 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 
 ---
 
-## 🚀 Getting Started
-
-### Quick Start (Client Only)
-
-1. **Install the client:**
-
-   ```powershell
-   # Run the MSI installer
-   .\Nexum_0.1.0_x64_en-US.msi
-   ```
-
-2. **Connect to a server:**
-   - Enter username
-   - Enter server address (e.g., `localhost:8080`)
-   - Click "Connect"
-
-### Full Setup (Client + Local Server)
-
-1. **Install the client** (includes server binary)
-2. **Launch Nexum** and use the Local Server Panel:
-   - Set admin password (first time only)
-   - Click "Start Server"
-   - Connect to `localhost:8080`
-
-### Server-Only Deployment
-
-1. **Copy the server binary:**
-
-   ```powershell
-   voice-server.exe
-   ```
-
-2. **Run the server:**
-
-   ```powershell
-   .\voice-server.exe
-   ```
-
-3. **Configure in `server.toml`:**
-   ```toml
-   server_name = "My Nexum Server"
-   max_users = 100
-   ws_port = 8080
-   udp_port = 8081
-   ```
-
----
-
-## 📋 System Requirements
-
-### Client
-
-- **OS:** Windows 10/11 (64-bit)
-- **RAM:** 2 GB minimum, 4 GB recommended
-- **Storage:** 50 MB for installation
-- **Network:** Internet connection for remote servers
-
-### Server
-
-- **OS:** Windows 10/11, Linux (via Wine or native build)
-- **RAM:** 512 MB minimum, 1 GB recommended
-- **Storage:** 100 MB (includes database)
-- **Network:** Open ports 8080 (WebSocket) and 8081 (UDP)
-
----
-
-## 🐛 Known Issues
+## 🐛 Known Issues & Limitations
 
 ### Voice Functionality
 
-⚠️ **Voice chat is not yet implemented.** This release includes:
+⚠️ **Voice audio is not yet implemented.** This release includes:
 
-- Voice channel creation and management
-- UI for joining voice channels
-- Placeholder for future voice implementation
+- Voice channel UI and structure
+- Join/leave voice channels
+- Voice channel indicators
+- UDP socket placeholder
 
-### Current Limitations
+**What's missing:**
 
-- No voice audio streaming (UDP implementation pending)
-- No encryption for WebSocket communication
-- SQLite database (single-file, not distributed)
-- Windows-only installers (cross-platform support planned)
+- Audio capture and playback
+- Audio codec implementation
+- UDP audio streaming
+- Voice connection management
+
+### Other Limitations
+
+- No WebSocket encryption (plain WS, not WSS)
+- Single-server only (no federation)
+- Windows-only installers
+- No message editing or deletion
+- No file attachments
+- No notification system
 
 ---
 
 ## 🔒 Security Notice
 
-**Important:** This is an MVP/Alpha release. For production use:
+**This is an MVP/Alpha release.** For production use:
 
-- Use HTTPS/WSS with proper certificates
-- Configure firewall rules for exposed ports
-- Regularly backup the SQLite database
+- ⚠️ WebSocket traffic is NOT encrypted
+- ⚠️ Use behind a VPN or private network
+- ✅ Admin password is required
+- ✅ Sessions persist with secure IDs
+- 🔜 WSS encryption planned for v0.2.0
+
+**Recommendations:**
+
 - Use strong admin passwords
-- Keep the server behind a VPN if possible
+- Keep server behind firewall
+- Backup SQLite database regularly
+- Don't expose to public internet without VPN
 
 ---
 
-## 📖 Documentation
+## 📝 Upgrade Notes
 
-Complete documentation available in the `/docs` folder:
+**First-time installation:** No upgrade considerations.
 
-- **[Quick Start Guide](docs/quickstart.md)** - Get started in 5 minutes
-- **[Architecture Spec](docs/architecture_spec.md)** - Technical architecture
-- **[Changelog](docs/changelog.md)** - Complete change history
-- **[TODO List](docs/todo.md)** - Roadmap and planned features
+**Database:** SQLite database created on first run at:
+
+- Windows: `%APPDATA%/Nexum/data/nexum.db`
+- Manual config: See `server.toml`
 
 ---
 
-## 🗺️ Roadmap
+## 🗺️ What's Next
 
-### v0.2.0 (Planned)
+### Planned for v0.2.0
 
-- ✅ Voice audio implementation (UDP streaming)
+- 🎤 Voice audio implementation (UDP streaming)
 - 🔒 WebSocket encryption (WSS)
-- 🌐 Web client support
-- 📱 Mobile app (Android/iOS)
 - 🎨 Light theme support
+- 💬 Message editing and deletion
+- 📎 File attachments
 
 ### Future Releases
 
 - End-to-end encryption
-- File sharing
+- Mobile apps (Android/iOS)
+- Web client
 - Screen sharing
-- Voice recording
-- Message history
+- Message search
 - User roles and permissions
-- Channel permissions
 
 ---
 
-## 🤝 Contributing
-
-This is currently a private project. Contributions will be accepted once the repository is made public.
-
----
-
-## 📝 License
-
-Copyright © 2026 Nexum Team. All rights reserved.
-
----
-
-## 💬 Support
-
-For issues, questions, or feedback:
-
-- **GitHub Issues:** [Create an issue](https://github.com/hectoresen/nexum_mvp/issues)
-- **Documentation:** Check `/docs` folder in repository
-
----
-
-## 🙏 Acknowledgments
+## 🙏 Credits
 
 Built with:
 
-- [Tauri](https://tauri.app/) - Desktop app framework
-- [Rust](https://www.rust-lang.org/) - System programming language
+- [Tauri](https://tauri.app/) - Desktop framework
+- [Rust](https://www.rust-lang.org/) - Systems language
 - [React](https://react.dev/) - UI library
 - [Axum](https://github.com/tokio-rs/axum) - Web framework
-- [SQLite](https://www.sqlite.org/) - Database engine
+- [SQLite](https://www.sqlite.org/) - Database
 
 ---
 
 **Thank you for trying Nexum v0.1.0!** 🎉
 
-We're excited to bring you this first release and look forward to your feedback as we continue developing the platform.
+See [/docs](../../docs/) for complete documentation or the [parent README](../README.md) for installation instructions.

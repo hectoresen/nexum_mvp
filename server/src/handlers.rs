@@ -45,6 +45,8 @@ pub async fn handle_message(
                 ClientMessage::JoinChannel(p) => handle_join_channel(sid, p, state, tx).await,
                 ClientMessage::LeaveChannel(p) => handle_leave_channel(sid, p, state, tx).await,
                 ClientMessage::SendMessage(p) => handle_send_message(sid, p, state, tx).await,
+                ClientMessage::DeleteMessage(p) => handle_delete_message(sid, p, state, tx).await,
+                ClientMessage::EditMessage(p) => handle_edit_message(sid, p, state, tx).await,
                 ClientMessage::JoinVoice(p) => handle_join_voice(sid, p, state, tx).await,
                 ClientMessage::LeaveVoice(p) => handle_leave_voice(sid, p, state, tx).await,
                 ClientMessage::AuthenticateAdmin(p) => handle_authenticate_admin(sid, p, state, tx).await,
@@ -52,6 +54,10 @@ pub async fn handle_message(
                 ClientMessage::UpdateServerSettings(p) => handle_update_server_settings(sid, p, state, tx).await,
                 ClientMessage::GetUsers => handle_get_users(sid, state, tx).await,
                 ClientMessage::UpdateAvatar(p) => handle_update_avatar(sid, p, state, tx).await,
+                ClientMessage::CreateCategory(p) => handle_create_category(sid, p, state, tx).await,
+                ClientMessage::DeleteCategory(p) => handle_delete_category(sid, p, state, tx).await,
+                ClientMessage::RenameCategory(p) => handle_rename_category(sid, p, state, tx).await,
+                ClientMessage::MoveChannelToCategory(p) => handle_move_channel_to_category(sid, p, state, tx).await,
                 ClientMessage::Ping => handle_ping(tx).await,
                 _ => unreachable!(),
             }?;
@@ -101,19 +107,6 @@ async fn handle_connect(
             }
         }
     } else {
-        // New connection: check if this IP already has a user
-        if let Some(ip) = client_ip {
-            if let Some(existing_user) = state.db.get_user_by_ip(ip)? {
-                // This IP already has a user - reject with error message
-                send_error(
-                    tx, 
-                    ErrorCode::InvalidRequest, 
-                    &format!("This device already has an account with username '{}'. Please reconnect to resume your session.", existing_user.username)
-                )?;
-                bail!("IP already has a user");
-            }
-        }
-
         // Username is required for new connections
         let username = match payload.username {
             Some(name) => name,
@@ -145,6 +138,9 @@ async fn handle_connect(
     // Get all channels
     let channels = state.db.list_channels()?;
 
+    // Get all categories
+    let categories = state.db.list_categories()?;
+
     // Get server name from config
     let server_name = state.config.read().unwrap().server.name.clone();
 
@@ -157,6 +153,7 @@ async fn handle_connect(
         server_name,
         role: user.role,
         channels,
+        categories,
     });
 
     send_message(tx, &welcome)?;
@@ -184,6 +181,7 @@ async fn handle_create_channel(
         &payload.name,
         payload.channel_type,
         None,
+        payload.category_id,
     )?;
 
     info!("Channel created: {} ({})", channel.name, channel.id);
@@ -250,7 +248,13 @@ async fn handle_join_channel(
     // Load message history (last 50 messages)
     let history = state.db.get_message_history(payload.channel_id, 50)?;
     let message_payloads: Vec<MessagePayload> = history.into_iter()
-        .map(|(message, username)| MessagePayload { message, username })
+        .map(|(message, username, avatar_url, avatar_path, avatar_version)| MessagePayload { 
+            message, 
+            username,
+            avatar_url,
+            avatar_path,
+            avatar_version,
+        })
         .collect();
 
     // Send history to the user who joined
@@ -330,9 +334,93 @@ async fn handle_send_message(
     let msg = ServerMessage::Message(MessagePayload {
         message,
         username: user.username,
+        avatar_url: user.avatar_url,
+        avatar_path: user.avatar_path,
+        avatar_version: user.avatar_version,
     });
 
     broadcast_to_channel(&state.session_manager, payload.channel_id, &msg);
+
+    Ok(())
+}
+
+async fn handle_delete_message(
+    session_id: Uuid,
+    payload: DeleteMessagePayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let user_id = state.session_manager.get_session(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    // Get the message to check ownership
+    let message = state.db.get_message(payload.message_id)?
+        .ok_or_else(|| anyhow::anyhow!("Message not found"))?;
+    
+    // Verify the user owns the message (TODO: Allow owners to delete any message)
+    if message.user_id != user_id {
+        send_error(tx, ErrorCode::Unauthorized, "You can only delete your own messages")?;
+        return Ok(());
+    }
+
+    // Mark message as deleted
+    state.db.delete_message(payload.message_id, user_id)?;
+
+    // Get user info for broadcast
+    let user = state.db.get_user(user_id)?
+        .ok_or_else(|| anyhow::anyhow!("User not found"))?;
+
+    // Broadcast deletion to channel
+    let msg = ServerMessage::MessageDeleted(MessageDeletedPayload {
+        message_id: payload.message_id,
+        channel_id: message.channel_id,
+        deleted_by_user_id: user_id,
+        deleted_by_username: user.username,
+    });
+
+    broadcast_to_channel(&state.session_manager, message.channel_id, &msg);
+
+    Ok(())
+}
+
+async fn handle_edit_message(
+    session_id: Uuid,
+    payload: EditMessagePayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let user_id = state.session_manager.get_session(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    // Validate content length
+    if payload.content.is_empty() || payload.content.len() > 2000 {
+        send_error(tx, ErrorCode::InvalidPayload, "Message content must be 1-2000 characters")?;
+        return Ok(());
+    }
+
+    // Get the message to check ownership
+    let message = state.db.get_message(payload.message_id)?
+        .ok_or_else(|| anyhow::anyhow!("Message not found"))?;
+    
+    // Verify the user owns the message
+    if message.user_id != user_id {
+        send_error(tx, ErrorCode::Unauthorized, "You can only edit your own messages")?;
+        return Ok(());
+    }
+
+    // Update message content
+    state.db.update_message_content(payload.message_id, &payload.content)?;
+
+    // Broadcast edited message to channel
+    let edited_at = chrono::Utc::now();
+    let msg = ServerMessage::MessageEdited(MessageEditedPayload {
+        message_id: payload.message_id,
+        channel_id: message.channel_id,
+        content: payload.content,
+        edited_at: edited_at.to_rfc3339(),
+    });
+
+    broadcast_to_channel(&state.session_manager, message.channel_id, &msg);
 
     Ok(())
 }
@@ -612,6 +700,120 @@ async fn handle_update_avatar(
         avatar_url: payload.avatar_url,
     });
 
+    broadcast_message(&state.session_manager, &msg);
+
+    Ok(())
+}
+
+async fn handle_create_category(
+    session_id: Uuid,
+    payload: CreateCategoryPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can create categories")?;
+        return Ok(());
+    }
+
+    if payload.name.trim().is_empty() {
+        send_error(tx, ErrorCode::InvalidPayload, "Category name cannot be empty")?;
+        return Ok(());
+    }
+
+    let category = state.db.create_category(payload.name.trim())?;
+    info!("Category created: {} ({})", category.name, category.id);
+
+    let msg = ServerMessage::CategoryCreated(CategoryCreatedPayload { category });
+    broadcast_message(&state.session_manager, &msg);
+
+    Ok(())
+}
+
+async fn handle_delete_category(
+    session_id: Uuid,
+    payload: DeleteCategoryPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can delete categories")?;
+        return Ok(());
+    }
+
+    state.db.delete_category(payload.category_id)?;
+    info!("Category deleted: {}", payload.category_id);
+
+    let msg = ServerMessage::CategoryDeleted(CategoryDeletedPayload {
+        category_id: payload.category_id,
+    });
+    broadcast_message(&state.session_manager, &msg);
+
+    Ok(())
+}
+
+async fn handle_rename_category(
+    session_id: Uuid,
+    payload: RenameCategoryPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can rename categories")?;
+        return Ok(());
+    }
+
+    if payload.new_name.trim().is_empty() {
+        send_error(tx, ErrorCode::InvalidPayload, "Category name cannot be empty")?;
+        return Ok(());
+    }
+
+    state.db.rename_category(payload.category_id, payload.new_name.trim())?;
+    info!("Category renamed: {} -> {}", payload.category_id, payload.new_name);
+
+    let msg = ServerMessage::CategoryRenamed(CategoryRenamedPayload {
+        category_id: payload.category_id,
+        new_name: payload.new_name,
+    });
+    broadcast_message(&state.session_manager, &msg);
+
+    Ok(())
+}
+
+async fn handle_move_channel_to_category(
+    session_id: Uuid,
+    payload: MoveChannelToCategoryPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can move channels")?;
+        return Ok(());
+    }
+
+    // Verify channel exists
+    state.db.get_channel(payload.channel_id)?
+        .ok_or_else(|| anyhow::anyhow!("Channel not found"))?;
+
+    state.db.update_channel_category(payload.channel_id, payload.category_id)?;
+    info!("Channel {} moved to category {:?}", payload.channel_id, payload.category_id);
+
+    let msg = ServerMessage::ChannelMoved(ChannelMovedPayload {
+        channel_id: payload.channel_id,
+        category_id: payload.category_id,
+    });
     broadcast_message(&state.session_manager, &msg);
 
     Ok(())

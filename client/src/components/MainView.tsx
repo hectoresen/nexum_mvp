@@ -1,21 +1,25 @@
 import { useState, useRef, useEffect } from 'react'
 import { AppState } from '../App'
-import { Channel, User } from '../types/protocol'
+import { Channel, Category, User } from '../types/protocol'
 import ChannelList from './ChannelList'
 import ChatArea from './ChatArea'
 import UserListPanel from './UserListPanel'
+import UserProfileModal from './UserProfileModal'
 import { useAppTheme } from '../hooks/useAppTheme'
 
 interface MainViewProps {
   state: AppState
+  categories: Category[]
   serverName?: string // Optional server name to display
   serverAddress?: string // Server address for avatar URLs
   currentUserAvatar?: string | null // Current user's avatar URL
   serverUsers: User[] | null // List of all server users
   onDisconnect: () => void
-  onCreateChannel: (name: string, type: 'text' | 'voice') => void
+  onCreateChannel: (name: string, type: 'text' | 'voice', categoryId?: string) => void
   onJoinChannel: (channelId: string) => void
   onSendMessage: (content: string) => void
+  onDeleteMessage?: (messageId: string) => void // New: Delete message handler
+  onEditMessage?: (messageId: string, content: string) => void // New: Edit message handler
   onAuthenticateAdmin?: () => void
   onOpenServerSettings?: () => void
   onOpenClientSettings?: (section: 'general' | 'voice-video') => void
@@ -23,10 +27,15 @@ interface MainViewProps {
   onDeleteChannel?: (channelId: string) => void
   onViewUsers?: () => void
   onOpenUserSettings?: () => void
+  onCreateCategory?: (name: string) => void
+  onDeleteCategory?: (categoryId: string) => void
+  onRenameCategory?: (categoryId: string, newName: string) => void
+  onMoveChannelToCategory?: (channelId: string, categoryId: string | null) => void
 }
 
 export default function MainView({
   state,
+  categories,
   serverName = 'Voice Server',
   serverAddress,
   currentUserAvatar,
@@ -35,6 +44,8 @@ export default function MainView({
   onCreateChannel,
   onJoinChannel,
   onSendMessage,
+  onDeleteMessage,
+  onEditMessage,
   onAuthenticateAdmin,
   onOpenServerSettings,
   onOpenClientSettings,
@@ -42,12 +53,18 @@ export default function MainView({
   onDeleteChannel,
   onViewUsers,
   onOpenUserSettings,
+  onCreateCategory,
+  onDeleteCategory,
+  onRenameCategory,
+  onMoveChannelToCategory,
 }: MainViewProps) {
   const { tw } = useAppTheme()
   const [showCreateChannel, setShowCreateChannel] = useState(false)
   const [newChannelName, setNewChannelName] = useState('')
   const [newChannelType, setNewChannelType] = useState<'text' | 'voice'>('text')
+  const [newChannelCategoryId, setNewChannelCategoryId] = useState<string | null>(null)
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Close dropdown when clicking outside
@@ -64,10 +81,16 @@ export default function MainView({
   const handleCreateChannel = (e: React.FormEvent) => {
     e.preventDefault()
     if (newChannelName.trim()) {
-      onCreateChannel(newChannelName.trim(), newChannelType)
+      onCreateChannel(newChannelName.trim(), newChannelType, newChannelCategoryId ?? undefined)
       setNewChannelName('')
+      setNewChannelCategoryId(null)
       setShowCreateChannel(false)
     }
+  }
+
+  const handleRequestCreateChannelInCategory = (categoryId: string) => {
+    setNewChannelCategoryId(categoryId)
+    setShowCreateChannel(true)
   }
 
   const currentChannel = state.channels.find((ch: Channel) => ch.id === state.currentChannelId)
@@ -75,6 +98,9 @@ export default function MainView({
 
   return (
     <div className={`flex h-full w-full ${tw.bgMain}`}>
+      {/* User profile modal */}
+      {selectedUser && <UserProfileModal user={selectedUser} serverAddress={serverAddress} currentUserRole={state.role || undefined} onClose={() => setSelectedUser(null)} />}
+
       {/* Sidebar */}
       <div className={`w-64 ${tw.bgHeader} flex flex-col border-r ${tw.borderDefault}`}>
         {/* Server header */}
@@ -145,18 +171,50 @@ export default function MainView({
                     Voice
                   </label>
                 </div>
+                {categories.length > 0 && (
+                  <select
+                    value={newChannelCategoryId ?? ''}
+                    onChange={e => setNewChannelCategoryId(e.target.value || null)}
+                    className={`w-full px-2 py-1 mb-2 text-xs ${tw.bgInput} border ${tw.borderDefault} rounded ${tw.textPrimary}`}>
+                    <option value="">No category</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <div className="flex gap-2">
                   <button type="submit" className={`flex-1 px-2 py-1 text-xs ${tw.btnSecondary} ${tw.textPrimary} rounded`}>
                     Create
                   </button>
-                  <button type="button" onClick={() => setShowCreateChannel(false)} className={`flex-1 px-2 py-1 text-xs ${tw.btnSecondary} ${tw.textPrimary} rounded`}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateChannel(false)
+                      setNewChannelCategoryId(null)
+                    }}
+                    className={`flex-1 px-2 py-1 text-xs ${tw.btnSecondary} ${tw.textPrimary} rounded`}>
                     Cancel
                   </button>
                 </div>
               </form>
             )}
 
-            <ChannelList channels={state.channels} currentChannelId={state.currentChannelId} role={state.role} onSelectChannel={onJoinChannel} onRenameChannel={onRenameChannel} onDeleteChannel={onDeleteChannel} />
+            <ChannelList
+              channels={state.channels}
+              categories={categories}
+              currentChannelId={state.currentChannelId}
+              role={state.role}
+              onSelectChannel={onJoinChannel}
+              onRenameChannel={onRenameChannel}
+              onDeleteChannel={onDeleteChannel}
+              onCreateCategory={onCreateCategory}
+              onDeleteCategory={onDeleteCategory}
+              onRenameCategory={onRenameCategory}
+              onMoveChannelToCategory={onMoveChannelToCategory}
+              onRequestCreateChannelInCategory={handleRequestCreateChannelInCategory}
+            />
           </div>
         </div>
 
@@ -244,7 +302,16 @@ export default function MainView({
       {/* Main content area */}
       <div className="flex-1 flex flex-col">
         {currentChannel ? (
-          <ChatArea channel={currentChannel} messages={currentMessages} currentUserId={state.userId || ''} onSendMessage={onSendMessage} />
+          <ChatArea
+            channel={currentChannel}
+            messages={currentMessages}
+            currentUserId={state.userId || ''}
+            serverAddress={serverAddress}
+            serverUsers={serverUsers}
+            onSendMessage={onSendMessage}
+            onDeleteMessage={onDeleteMessage}
+            onEditMessage={onEditMessage}
+          />
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className={`text-center ${tw.textMuted}`}>
@@ -263,7 +330,7 @@ export default function MainView({
       </div>
 
       {/* Right sidebar - User list */}
-      <UserListPanel users={serverUsers} currentUserId={state.userId} serverAddress={serverAddress} />
+      <UserListPanel users={serverUsers} currentUserId={state.userId} serverAddress={serverAddress} onUserClick={setSelectedUser} />
     </div>
   )
 }
