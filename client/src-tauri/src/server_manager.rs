@@ -124,15 +124,33 @@ impl ServerManager {
     fn get_possible_server_paths(&self) -> Vec<PathBuf> {
         let mut paths = Vec::new();
         
-        // Server executable name variations
-        let server_names = vec![
-            "voice-server.exe",
-            "voice-server",
-            "Nexum-Server.exe",
-            "Nexum-Server",
-            "nexum-server.exe",
-            "nexum-server",
+        // Server executable name variations — includes versioned release names
+        // e.g. Nexum-Server_0.1.2_x64.exe, Nexum-Server_0.1.0_x64.exe
+        let mut server_names: Vec<String> = vec![
+            "voice-server.exe".into(),
+            "voice-server".into(),
+            "Nexum-Server.exe".into(),
+            "Nexum-Server".into(),
+            "nexum-server.exe".into(),
+            "nexum-server".into(),
         ];
+
+        // Also scan the exe directory for any file matching Nexum-Server_*.exe
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(parent) = exe_path.parent() {
+                if let Ok(entries) = std::fs::read_dir(parent) {
+                    for entry in entries.flatten() {
+                        let name = entry.file_name().to_string_lossy().to_lowercase();
+                        if name.starts_with("nexum-server") && name.ends_with(".exe") {
+                            let original = entry.file_name().to_string_lossy().to_string();
+                            if !server_names.contains(&original) {
+                                server_names.push(original);
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // In debug (dev) builds, prefer the freshly built server binary from the
         // server crate's release output BEFORE checking the same directory as the
