@@ -71,6 +71,7 @@ function App() {
   const [localSetupPassword, setLocalSetupPassword] = useState('')
   const [localSetupError, setLocalSetupError] = useState<string | null>(null)
   const [localSetupLaunching, setLocalSetupLaunching] = useState(false)
+  const [showLocalServerManageModal, setShowLocalServerManageModal] = useState(false)
   const [localServerStatus, setLocalServerStatus] = useState<LocalServerStatus>({
     installed: false,
     running: false,
@@ -752,6 +753,20 @@ function App() {
     setLocalSetupPassword(pwd)
   }
 
+  const handleManageLocalServer = () => {
+    setShowLocalServerManageModal(true)
+  }
+
+  const handleStopLocalServer = async () => {
+    try {
+      await invoke('stop_local_server')
+      setLocalServerStatus(prev => ({ ...prev, running: false }))
+      await checkLocalServerStatus()
+    } catch (error) {
+      alert(`Failed to stop server: ${error}`)
+    }
+  }
+
   const handleConfigureServerPath = async () => {
     try {
       // Open file picker dialog using Tauri
@@ -803,6 +818,8 @@ function App() {
           onAddServer={() => setShowAddServerModal(true)}
           onDeleteServer={handleDeleteServer}
           onLaunchLocalServer={handleLaunchLocalServer}
+          onStopLocalServer={handleStopLocalServer}
+          onManageLocalServer={handleManageLocalServer}
           onConfigureServerPath={handleConfigureServerPath}
           onOpenClientSettings={section => setClientSettingsSection(section)}
           localServerStatus={localServerStatus}
@@ -824,14 +841,68 @@ function App() {
 
         {clientSettingsSection && <ClientSettingsModal initialSection={clientSettingsSection} onClose={() => setClientSettingsSection(null)} />}
 
+        {/* Local Server Manage Modal */}
+        {showLocalServerManageModal && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+            <div className="bg-[#1e2128] border border-white/10 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-white">⚙️ Local Server</h2>
+                <button onClick={() => setShowLocalServerManageModal(false)} className="text-gray-400 hover:text-gray-200 transition-colors cursor-pointer" aria-label="Close">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="mb-4 flex items-center gap-2">
+                <span className={`inline-block w-2.5 h-2.5 rounded-full ${localServerStatus.running ? 'bg-green-400' : 'bg-gray-500'}`}></span>
+                <span className="text-sm text-gray-300">{localServerStatus.running ? 'Running' : 'Stopped'}</span>
+              </div>
+
+              <div className="mb-5 text-xs text-gray-500 bg-white/5 rounded-lg p-3">
+                <p className="font-medium text-gray-400 mb-1">Data directory</p>
+                <code className="text-gray-300">~/.nexum/server/</code>
+                <p className="mt-1">
+                  Contains <code>server.toml</code> (config) and <code>data/server.db</code> (database).
+                </p>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowLocalServerManageModal(false)}
+                  className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors cursor-pointer">
+                  Close
+                </button>
+                {localServerStatus.running ? (
+                  <button
+                    onClick={async () => {
+                      setShowLocalServerManageModal(false)
+                      await handleStopLocalServer()
+                    }}
+                    className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium rounded-lg transition-colors cursor-pointer">
+                    Stop Server
+                  </button>
+                ) : (
+                  <button
+                    onClick={async () => {
+                      setShowLocalServerManageModal(false)
+                      await handleLaunchLocalServer()
+                    }}
+                    className="px-4 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-300 text-sm font-medium rounded-lg transition-colors cursor-pointer">
+                    Start Server
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Local Server First-Launch Setup Modal */}
         {showLocalServerSetupModal && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
             <div className="bg-[#1e2128] border border-white/10 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
               <h2 className="text-lg font-semibold text-white mb-1">🔐 Configure Local Server</h2>
-              <p className="text-sm text-gray-400 mb-4">
-                This is the first time launching your local server. Set an admin password to manage it.
-              </p>
+              <p className="text-sm text-gray-400 mb-4">This is the first time launching your local server. Set an admin password to manage it.</p>
 
               <div className="mb-4">
                 <label className="block text-xs text-gray-400 mb-1 uppercase tracking-wide">Admin Password</label>
@@ -843,10 +914,7 @@ function App() {
                     placeholder="Enter or generate a password..."
                     className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-white/30"
                   />
-                  <button
-                    onClick={generateSetupPassword}
-                    className="px-3 py-2 bg-white/10 hover:bg-white/15 text-gray-300 text-sm rounded-lg transition-colors cursor-pointer"
-                  >
+                  <button onClick={generateSetupPassword} className="px-3 py-2 bg-white/10 hover:bg-white/15 text-gray-300 text-sm rounded-lg transition-colors cursor-pointer">
                     Generate
                   </button>
                 </div>
@@ -856,24 +924,27 @@ function App() {
               <div className="mb-5 text-xs text-gray-500 bg-white/5 rounded-lg p-3">
                 <p className="font-medium text-gray-400 mb-1">Data will be stored at:</p>
                 <code className="text-gray-300">~/.nexum/server/</code>
-                <p className="mt-1">Contains <code>server.toml</code> (config) and <code>data/server.db</code> (database).</p>
+                <p className="mt-1">
+                  Contains <code>server.toml</code> (config) and <code>data/server.db</code> (database).
+                </p>
               </div>
 
               {localSetupError && <p className="text-red-400 text-sm mb-3">{localSetupError}</p>}
 
               <div className="flex gap-3 justify-end">
                 <button
-                  onClick={() => { setShowLocalServerSetupModal(false); setLocalSetupPassword('') }}
+                  onClick={() => {
+                    setShowLocalServerSetupModal(false)
+                    setLocalSetupPassword('')
+                  }}
                   className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
-                  disabled={localSetupLaunching}
-                >
+                  disabled={localSetupLaunching}>
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirmLocalServerSetup}
                   disabled={localSetupLaunching || !localSetupPassword}
-                  className="px-4 py-2 bg-white/10 hover:bg-white/15 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer disabled:opacity-40"
-                >
+                  className="px-4 py-2 bg-white/10 hover:bg-white/15 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer disabled:opacity-40">
                   {localSetupLaunching ? 'Launching...' : 'Launch Server'}
                 </button>
               </div>

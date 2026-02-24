@@ -46,6 +46,14 @@ All notable changes and completed tasks are documented here.
   - Ensured `avatar_url`/`avatar_path` fields properly propagated from server message payload to client
   - Affected: `client/src/components/ChatArea.tsx`, `client/src/types/protocol.ts` — Commit: `dbe7db2`
 
+- [x] **"Configure Server" button did nothing when server was running** — Clicking "Configure Server" in the dropdown called `handleLaunchServer()` (same as "Start Server"), which silently no-oped because the server was already running
+  - Root cause: Single button rendered for both running and stopped states with shared `onClick`
+  - Fix: Split into a three-way ternary — running: shows "Stop Server" (red) + "Configure Server" (gear icon) buttons; installed: shows "Start Server"; not installed: existing "Server Not Found" + "Configure Server Path"
+  - Added `handleStopLocalServer()` — invokes `stop_local_server`, updates `localServerStatus.running = false`, re-checks status
+  - Added `handleManageLocalServer()` — opens new `showLocalServerManageModal` with status indicator, data directory path, and Stop/Start toggle
+  - Added `onStopLocalServer` and `onManageLocalServer` props to `ServerListViewProps`
+  - Affected: `client/src/components/ServerListView.tsx`, `client/src/App.tsx`
+
 ### ✨ New Features
 
 - [x] **First-launch admin password modal** — When launching the local server for the first time (no `server.toml` exists), the client now shows a setup modal instead of silently generating a random password
