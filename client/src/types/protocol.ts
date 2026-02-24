@@ -83,6 +83,7 @@ export interface ConnectPayload {
 export interface CreateChannelPayload {
   name: string;
   channel_type: ChannelType;
+  category_id?: string;
 }
 
 export interface DeleteChannelPayload {
