@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { theme, tw } from '../theme'
+import { useAppTheme } from '../hooks/useAppTheme'
 
 interface AddServerModalProps {
   onClose: () => void
@@ -7,6 +7,7 @@ interface AddServerModalProps {
 }
 
 export default function AddServerModal({ onClose, onAdd }: AddServerModalProps) {
+  const { theme, tw } = useAppTheme()
   const [host, setHost] = useState('')
   const [port, setPort] = useState('')
 

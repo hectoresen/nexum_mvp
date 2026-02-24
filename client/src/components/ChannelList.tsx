@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Channel, UserRole } from '../types/protocol'
-import { tw } from '../theme'
+import { useAppTheme } from '../hooks/useAppTheme'
 
 interface ChannelListProps {
   channels: Channel[]
@@ -12,6 +12,7 @@ interface ChannelListProps {
 }
 
 export default function ChannelList({ channels, currentChannelId, role, onSelectChannel, onRenameChannel, onDeleteChannel }: ChannelListProps) {
+  const { tw } = useAppTheme()
   const [editingChannelId, setEditingChannelId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
 
@@ -61,7 +62,7 @@ export default function ChannelList({ channels, currentChannelId, role, onSelect
             autoFocus
             className={`flex-1 px-1.5 py-0.5 text-sm ${tw.bgInput} border ${tw.borderDefault} rounded ${tw.textPrimary} outline-none`}
           />
-          <button onClick={cancelRename} className={`${tw.textTertiary} hover:${tw.textPrimary} p-0.5`}>
+          <button onClick={cancelRename} className={`${tw.textTertiary} hover:${tw.textPrimary} p-0.5 cursor-pointer`}>
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -74,21 +75,21 @@ export default function ChannelList({ channels, currentChannelId, role, onSelect
       <div key={channel.id} className={`group flex items-center rounded transition-colors ${currentChannelId === channel.id ? tw.bgHoverSubtle : `hover:${tw.bgHoverSubtle}`}`}>
         <button
           onClick={() => onSelectChannel(channel.id)}
-          className={`flex-1 text-left px-2 py-1.5 flex items-center gap-2 ${currentChannelId === channel.id ? tw.textPrimary : `${tw.textTertiary} group-hover:${tw.textSecondary}`}`}>
+          className={`flex-1 text-left px-2 py-1.5 flex items-center gap-2 cursor-pointer ${currentChannelId === channel.id ? tw.textPrimary : `${tw.textTertiary} group-hover:${tw.textSecondary}`}`}>
           {icon}
           <span className="text-sm truncate">{channel.name}</span>
         </button>
 
         {isOwner && (
           <div className="flex items-center gap-0.5 pr-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={e => startRename(channel, e)} className={`p-0.5 ${tw.textTertiary} hover:${tw.textTertiary} transition-colors`} title="Rename channel">
+            <button onClick={e => startRename(channel, e)} className={`p-0.5 ${tw.textTertiary} hover:${tw.textTertiary} transition-colors cursor-pointer`} title="Rename channel">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </button>
             <button
               onClick={e => handleDelete(channel.id, e)}
-              className={`p-0.5 ${tw.textTertiary} transition-colors`}
+              className={`p-0.5 ${tw.textTertiary} transition-colors cursor-pointer`}
               style={{ color: undefined }}
               onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
               onMouseLeave={e => (e.currentTarget.style.color = '')}

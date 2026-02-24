@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { theme, tw } from '../theme'
-import { CancelButton } from './Button'
+import { useAppTheme } from '../hooks/useAppTheme'
+import { CancelButton, WarningButton } from './Button'
 
 interface ChangePasswordModalProps {
   onClose: () => void
@@ -9,6 +9,7 @@ interface ChangePasswordModalProps {
 }
 
 export default function ChangePasswordModal({ onClose, onSave, error }: ChangePasswordModalProps) {
+  const { theme, tw } = useAppTheme()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -117,9 +118,9 @@ export default function ChangePasswordModal({ onClose, onSave, error }: ChangePa
 
         <div className="mt-6 flex justify-end gap-3">
           <CancelButton onClick={onClose} />
-          <button onClick={handleSave} className="px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-md transition-colors">
+          <WarningButton onClick={handleSave}>
             Change Password
-          </button>
+          </WarningButton>
         </div>
       </div>
     </div>
