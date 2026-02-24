@@ -1,19 +1,22 @@
 import { useState, useRef, useEffect } from 'react'
-import { Channel, Message } from '../types/protocol'
+import { Channel, Message, User } from '../types/protocol'
 import { useAppTheme } from '../hooks/useAppTheme'
+import UserProfileModal from './UserProfileModal'
 
 interface ChatAreaProps {
   channel: Channel
   messages: Message[]
   currentUserId: string
   serverAddress?: string // Server address for avatar URLs
+  serverUsers: User[] | null // List of all server users for profile modal
   onSendMessage: (content: string) => void
 }
 
-export default function ChatArea({ channel, messages, currentUserId: _currentUserId, serverAddress, onSendMessage }: ChatAreaProps) {
+export default function ChatArea({ channel, messages, currentUserId: _currentUserId, serverAddress, serverUsers, onSendMessage }: ChatAreaProps) {
   const { tw } = useAppTheme()
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -35,8 +38,20 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
     })
   }
 
+  const handleUsernameClick = (userId: string) => {
+    if (!serverUsers) return
+    const user = serverUsers.find(u => u.id === userId)
+    if (user) {
+      setSelectedUser(user)
+    }
+  }
+
   return (
     <div className="flex flex-col h-full">
+      {/* User profile modal */}
+      {selectedUser && (
+        <UserProfileModal user={selectedUser} serverAddress={serverAddress} onClose={() => setSelectedUser(null)} />
+      )}
       {/* Channel header */}
       <div className={`h-12 border-b ${tw.borderDefault} px-4 flex items-center justify-between ${tw.bgHeader}`}>
         <div className="flex items-center gap-2">
@@ -82,7 +97,12 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
                 </div>
                 <div className="flex-1">
                   <div className="flex items-baseline gap-2">
-                    <span className={`font-semibold ${tw.textPrimary}`}>{displayName}</span>
+                    <span
+                      className={`font-semibold ${tw.textPrimary} cursor-pointer hover:underline`}
+                      onClick={() => handleUsernameClick(message.user_id)}
+                    >
+                      {displayName}
+                    </span>
                     <span className={`text-xs ${tw.textMuted}`}>{formatTime(message.created_at)}</span>
                   </div>
                   <p className={`${tw.textSecondary} mt-1 break-words`}>{message.content}</p>
