@@ -67,6 +67,10 @@ function App() {
   const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null)
   const [showUserSettingsModal, setShowUserSettingsModal] = useState(false)
   const [showAvatarModal, setShowAvatarModal] = useState(false)
+  const [showLocalServerSetupModal, setShowLocalServerSetupModal] = useState(false)
+  const [localSetupPassword, setLocalSetupPassword] = useState('')
+  const [localSetupError, setLocalSetupError] = useState<string | null>(null)
+  const [localSetupLaunching, setLocalSetupLaunching] = useState(false)
   const [localServerStatus, setLocalServerStatus] = useState<LocalServerStatus>({
     installed: false,
     running: false,
@@ -163,7 +167,7 @@ function App() {
         if (message.type === 'ERROR' && !hasReceivedWelcome) {
           // Disable auto-reconnect to prevent repeated failed attempts
           wsClient.shouldReconnect = false
-          
+
           // Clear stored userId if resume failed
           if (message.payload.code === 'INVALID_REQUEST' || message.payload.code === 'INVALID_PAYLOAD') {
             ServerManager.updateServer(server.id, { lastUserId: undefined })
@@ -680,44 +684,72 @@ function App() {
 
   const handleLaunchLocalServer = async () => {
     if (!localServerStatus.installed) {
-      // Try to detect server again first
       await checkLocalServerStatus()
-      
       if (!localServerStatus.installed) {
         alert('Server not found. Please use "Configure Server Path" to specify the server location manually.')
       }
       return
     }
 
-    if (localServerStatus.binaryPath) {
-      try {
-        await invoke('start_local_server', {
-          adminPassword: null,
-        })
-        console.log('Server started successfully')
-
-        // Add local server to list if not already there
-        const existingLocal = servers.find(s => s.isLocal)
-        if (!existingLocal) {
-          ServerManager.addServer({
-            name: 'My Local Server',
-            address: `localhost:${localServerStatus.port || 8080}`,
-            isLocal: true,
-          })
-          setServers(ServerManager.loadServers())
-        }
-
-        // Update status
-        setLocalServerStatus(prev => ({ ...prev, running: true }))
-        alert('Server launched successfully!')
-        
-        // Refresh server list
-        await checkLocalServerStatus()
-      } catch (error) {
-        console.error('Failed to launch server:', error)
-        alert(`Failed to launch server: ${error}`)
+    try {
+      // Check if this is the first launch (no server.toml yet)
+      const configured = await invoke<boolean>('is_server_configured')
+      if (!configured) {
+        // First time: ask for admin password before launching
+        setLocalSetupPassword('')
+        setLocalSetupError(null)
+        setShowLocalServerSetupModal(true)
+        return
       }
+
+      // Already configured: launch directly
+      await invoke('start_local_server', { adminPassword: null })
+      console.log('Server started successfully')
+      await _afterServerLaunched()
+    } catch (error) {
+      console.error('Failed to launch server:', error)
+      alert(`Failed to launch server: ${error}`)
     }
+  }
+
+  const handleConfirmLocalServerSetup = async () => {
+    if (!localSetupPassword || localSetupPassword.length < 8) {
+      setLocalSetupError('Password must be at least 8 characters.')
+      return
+    }
+    setLocalSetupError(null)
+    setLocalSetupLaunching(true)
+    try {
+      await invoke('start_local_server', { adminPassword: localSetupPassword })
+      setShowLocalServerSetupModal(false)
+      setLocalSetupPassword('')
+      await _afterServerLaunched()
+    } catch (error) {
+      setLocalSetupError(`Failed to launch: ${error}`)
+    } finally {
+      setLocalSetupLaunching(false)
+    }
+  }
+
+  const _afterServerLaunched = async () => {
+    const existingLocal = servers.find(s => s.isLocal)
+    if (!existingLocal) {
+      ServerManager.addServer({
+        name: 'My Local Server',
+        address: `localhost:${localServerStatus.port || 8080}`,
+        isLocal: true,
+      })
+      setServers(ServerManager.loadServers())
+    }
+    setLocalServerStatus(prev => ({ ...prev, running: true }))
+    await checkLocalServerStatus()
+  }
+
+  const generateSetupPassword = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+    let pwd = ''
+    for (let i = 0; i < 16; i++) pwd += chars.charAt(Math.floor(Math.random() * chars.length))
+    setLocalSetupPassword(pwd)
   }
 
   const handleConfigureServerPath = async () => {
@@ -726,12 +758,14 @@ function App() {
       const { open } = await import('@tauri-apps/plugin-dialog')
       const selected = await open({
         multiple: false,
-        filters: [{
-          name: 'Executable',
-          extensions: ['exe']
-        }]
+        filters: [
+          {
+            name: 'Executable',
+            extensions: ['exe'],
+          },
+        ],
       })
-      
+
       if (selected && typeof selected === 'string') {
         try {
           await invoke('set_server_path', { path: selected })
@@ -789,6 +823,63 @@ function App() {
         )}
 
         {clientSettingsSection && <ClientSettingsModal initialSection={clientSettingsSection} onClose={() => setClientSettingsSection(null)} />}
+
+        {/* Local Server First-Launch Setup Modal */}
+        {showLocalServerSetupModal && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+            <div className="bg-[#1e2128] border border-white/10 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+              <h2 className="text-lg font-semibold text-white mb-1">🔐 Configure Local Server</h2>
+              <p className="text-sm text-gray-400 mb-4">
+                This is the first time launching your local server. Set an admin password to manage it.
+              </p>
+
+              <div className="mb-4">
+                <label className="block text-xs text-gray-400 mb-1 uppercase tracking-wide">Admin Password</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={localSetupPassword}
+                    onChange={e => setLocalSetupPassword(e.target.value)}
+                    placeholder="Enter or generate a password..."
+                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-white/30"
+                  />
+                  <button
+                    onClick={generateSetupPassword}
+                    className="px-3 py-2 bg-white/10 hover:bg-white/15 text-gray-300 text-sm rounded-lg transition-colors cursor-pointer"
+                  >
+                    Generate
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Minimum 8 characters. Save this — you'll need it to authenticate as admin inside the server.</p>
+              </div>
+
+              <div className="mb-5 text-xs text-gray-500 bg-white/5 rounded-lg p-3">
+                <p className="font-medium text-gray-400 mb-1">Data will be stored at:</p>
+                <code className="text-gray-300">~/.nexum/server/</code>
+                <p className="mt-1">Contains <code>server.toml</code> (config) and <code>data/server.db</code> (database).</p>
+              </div>
+
+              {localSetupError && <p className="text-red-400 text-sm mb-3">{localSetupError}</p>}
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => { setShowLocalServerSetupModal(false); setLocalSetupPassword('') }}
+                  className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
+                  disabled={localSetupLaunching}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmLocalServerSetup}
+                  disabled={localSetupLaunching || !localSetupPassword}
+                  className="px-4 py-2 bg-white/10 hover:bg-white/15 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer disabled:opacity-40"
+                >
+                  {localSetupLaunching ? 'Launching...' : 'Launch Server'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </>
     )
   }

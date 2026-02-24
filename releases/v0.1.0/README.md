@@ -106,6 +106,7 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 - UDP socket placeholder
 
 **What's missing:**
+
 - Audio capture and playback
 - Audio codec implementation
 - UDP audio streaming
@@ -133,6 +134,7 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 - 🔜 WSS encryption planned for v0.2.0
 
 **Recommendations:**
+
 - Use strong admin passwords
 - Keep server behind firewall
 - Backup SQLite database regularly
@@ -145,6 +147,7 @@ Welcome to Nexum v0.1.0, the first public release of our self-hosted voice and c
 **First-time installation:** No upgrade considerations.
 
 **Database:** SQLite database created on first run at:
+
 - Windows: `%APPDATA%/Nexum/data/nexum.db`
 - Manual config: See `server.toml`
 

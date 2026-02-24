@@ -50,8 +50,7 @@ export default function UserListPanel({ users, currentUserId, serverAddress, onU
         key={user.id}
         className={`px-3 py-2 ${tw.bgHoverSubtle} transition-colors cursor-pointer flex items-center gap-2 ${isCurrentUser ? tw.bgHover : ''}`}
         title={`${user.username}${isCurrentUser ? ' (you)' : ''}`}
-        onClick={() => onUserClick?.(user)}
-      >
+        onClick={() => onUserClick?.(user)}>
         <div className={`w-8 h-8 rounded-full ${tw.bgInput} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
           {avatarUrl ? <img src={avatarUrl} alt={user.username} className="w-full h-full object-cover" /> : <span className={`text-xs font-medium ${tw.textPrimary}`}>{user.username[0]?.toUpperCase()}</span>}
         </div>

@@ -374,22 +374,28 @@ impl ServerManager {
         process.as_ref().map(|child| child.id())
     }
 
-    /// Check if server.toml exists (indicates server is configured)
+    /// Returns the canonical working directory where the server stores its data
+    /// when launched from the client: ~/.nexum/server/
+    pub fn get_server_data_dir() -> Option<std::path::PathBuf> {
+        dirs::home_dir().map(|h| h.join(".nexum").join("server"))
+    }
+
+    /// Check if server.toml exists in the server's working directory.
+    /// The server always runs from ~/.nexum/server/ when launched from the client,
+    /// so server.toml and data/ are created there.
     pub fn is_server_configured(&self) -> bool {
-        let binary_path = self.binary_path.lock().unwrap();
-        
-        if let Some(path) = binary_path.as_ref() {
-            if let Some(parent) = path.parent() {
-                let config_path = parent.join("server.toml");
-                return config_path.exists();
+        // Primary check: canonical server data directory (~/.nexum/server/server.toml)
+        if let Some(server_dir) = Self::get_server_data_dir() {
+            if server_dir.join("server.toml").exists() {
+                return true;
             }
         }
 
-        // Also check relative to executable
-        if let Ok(exe_path) = std::env::current_exe() {
-            if let Some(parent) = exe_path.parent() {
-                let config_path = parent.join("server.toml");
-                if config_path.exists() {
+        // Fallback: next to the server binary (manual / standalone launch)
+        let binary_path = self.binary_path.lock().unwrap();
+        if let Some(path) = binary_path.as_ref() {
+            if let Some(parent) = path.parent() {
+                if parent.join("server.toml").exists() {
                     return true;
                 }
             }

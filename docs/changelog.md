@@ -36,11 +36,25 @@ All notable changes and completed tasks are documented here.
   - Fix: Removed invalid field; solved hot-reload issue at root cause via server CWD isolation instead
   - Affected: `client/src-tauri/tauri.conf.json`
 
+- [x] **`is_server_configured()` checking wrong path** — The function looked for `server.toml` next to the server binary, but when launched from the client the server runs from `~/.nexum/server/`, so it always returned `false`
+  - Fix: Check `~/.nexum/server/server.toml` first (canonical client-launched location), then fallback to binary's parent dir (standalone mode)
+  - Added `get_server_data_dir()` helper returning the canonical path
+  - Affected: `client/src-tauri/src/server_manager.rs`
+
 ### ✨ New Features
-  - Fixed avatar URL construction in message rendering
-  - Ensured `avatar_url`/`avatar_path` properly propagated from server to client
-  - Updated ChatArea component to correctly display user avatars
-  - Commit: `dbe7db2`
+
+- [x] **First-launch admin password modal** — When launching the local server for the first time (no `server.toml` exists), the client now shows a setup modal instead of silently generating a random password
+  - Password input field with "Generate" button (16-char alphanumeric)
+  - Shows where data will be stored (`~/.nexum/server/`)
+  - Validating: minimum 8 characters
+  - Password passed to server via `--admin-password` on first launch only
+  - Subsequent launches detect existing `server.toml` and start without prompting
+  - Affected: `client/src/App.tsx`
+
+- Fixed avatar URL construction in message rendering
+- Ensured `avatar_url`/`avatar_path` properly propagated from server to client
+- Updated ChatArea component to correctly display user avatars
+- Commit: `dbe7db2`
 
 ### ✨ New Features
 
@@ -72,11 +86,13 @@ All notable changes and completed tasks are documented here.
 ### 🔧 Technical Changes
 
 **Protocol Extensions:**
+
 - Added `DELETE_MESSAGE` and `MESSAGE_DELETED` WebSocket message types
 - Added `EDIT_MESSAGE` and `MESSAGE_EDITED` WebSocket message types
 - Extended `Message` model with deletion and edit metadata
 
 **Database Schema Updates:**
+
 ```sql
 ALTER TABLE messages ADD COLUMN deleted_by_user_id TEXT;
 ALTER TABLE messages ADD COLUMN deleted_at INTEGER;
@@ -84,11 +100,13 @@ ALTER TABLE messages ADD COLUMN edited_at INTEGER;
 ```
 
 **Component Updates:**
+
 - `ChatArea.tsx` - Message hover actions, edit/delete buttons
 - `UserProfileModal.tsx` (NEW) - User information modal
 - Message component refactoring for avatar display fix
 
 **Affected Modules:**
+
 - `server/src/models.rs` - Extended Message struct
 - `server/src/handlers.rs` - DELETE_MESSAGE and EDIT_MESSAGE handlers
 - `server/src/db.rs` - Message deletion and editing queries

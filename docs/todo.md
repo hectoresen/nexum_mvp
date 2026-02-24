@@ -137,6 +137,7 @@ Improve messaging system with avatar display, user profiles, and message managem
 #### Technical Implementation
 
 **Protocol Changes:**
+
 - ✅ `DELETE_MESSAGE` client message type + DeleteMessagePayload
 - ✅ `MESSAGE_DELETED` server message type + MessageDeletedPayload
 - ✅ `EDIT_MESSAGE` client message type + EditMessagePayload
@@ -145,6 +146,7 @@ Improve messaging system with avatar display, user profiles, and message managem
 - ✅ Added `edited_at` field to `Message` model
 
 **Database Schema:**
+
 ```sql
 ✅ ALTER TABLE messages ADD COLUMN deleted_by_user_id TEXT;
 ✅ ALTER TABLE messages ADD COLUMN deleted_at INTEGER;
@@ -152,6 +154,7 @@ Improve messaging system with avatar display, user profiles, and message managem
 ```
 
 **Component Updates:**
+
 - ✅ `ChatArea.tsx` - Added message delete button
 - ✅ `UserProfileModal.tsx` (NEW) - Modal showing user details
 - ✅ Message hover state with delete action button
@@ -160,6 +163,7 @@ Improve messaging system with avatar display, user profiles, and message managem
 - ✅ Add inline edit mode for messages
 
 **UI/UX Improvements:**
+
 - ✅ Added cursor pointer to avatars (clickable to view profile)
 - ✅ Added cursor pointer to message content (clickable to view sender profile)
 - ✅ Changed default theme to dark mode on first launch
@@ -182,6 +186,7 @@ Improve messaging system with avatar display, user profiles, and message managem
 #### Problem
 
 The local server detection is not working correctly:
+
 - Client shows "Not installed" even when server is in the same directory
 - Example case: `E:\voice_mvp\` contains `voice-client.exe`, `voice-server.exe`, and `Uninstall Nexum.exe` but detection fails
 - Users cannot manually specify server path if it's in a non-standard location
@@ -200,6 +205,7 @@ The local server detection is not working correctly:
 **Priority: LOW - UI Cleanup**
 
 #### Problem
+
 After implementing the right sidebar user list in 0.5.2, the "View Users" button in the admin dropdown is now redundant. All users (not just admins) can see the server members in the right panel.
 
 #### Tasks
@@ -212,6 +218,7 @@ After implementing the right sidebar user list in 0.5.2, the "View Users" button
   - Update documentation to reflect UI changes
 
 **Technical Implementation:**
+
 - `MainView.tsx` - Remove "View Users" dropdown option
 - `App.tsx` - Remove handleGetUsers function and modal state
 - Clean up unused imports and props
@@ -221,10 +228,13 @@ After implementing the right sidebar user list in 0.5.2, the "View Users" button
 **Priority: MEDIUM - Feature Enhancement**
 
 #### Problem
+
 Servers with many channels become cluttered and hard to navigate. Users need a way to organize channels into logical groups.
 
 #### Proposed Solution
+
 Implement collapsible channel categories similar to Discord's approach:
+
 - Categories are visual groupings (not separate entities in DB)
 - Channels can belong to a category or be uncategorized
 - Categories can be collapsed/expanded per user (saved in localStorage)
@@ -264,6 +274,7 @@ Implement collapsible channel categories similar to Discord's approach:
 **Technical Implementation:**
 
 **Backend (Server):**
+
 ```rust
 // models.rs
 pub struct Category {
@@ -281,6 +292,7 @@ MoveChannelToCategory(MoveChannelPayload),
 ```
 
 **Frontend (Client):**
+
 ```tsx
 // ChannelList.tsx
 - Render categories with collapsible sections
@@ -292,6 +304,7 @@ MoveChannelToCategory(MoveChannelPayload),
 ```
 
 **User Experience:**
+
 - Collapsed categories show channel count badge
 - Drag-drop visual feedback
 - Smooth expand/collapse animations
@@ -302,9 +315,11 @@ MoveChannelToCategory(MoveChannelPayload),
 **Priority: LOW - User Convenience**
 
 #### Problem
+
 Users must manually launch the app every time they restart their computer. Power users want the app to start automatically when Windows boots.
 
 #### Proposed Solution
+
 Add a toggle in Client Settings that enables/disables auto-start functionality using Windows startup registry keys or startup folder shortcuts.
 
 #### Tasks
@@ -333,6 +348,7 @@ Add a toggle in Client Settings that enables/disables auto-start functionality u
 **Technical Implementation:**
 
 **Backend (Tauri):**
+
 ```rust
 // Add to Cargo.toml
 [dependencies]
@@ -356,6 +372,7 @@ async fn is_auto_start_enabled() -> Result<bool, String> {
 ```
 
 **Frontend (React):**
+
 ```tsx
 // ClientSettingsModal.tsx - General tab
 const [autoStart, setAutoStart] = useState(false)
@@ -379,6 +396,7 @@ const handleAutoStartToggle = async () => {
 ```
 
 **Testing:**
+
 - Enable auto-start and reboot to verify
 - Disable and reboot to verify removal
 - Test with non-admin user account

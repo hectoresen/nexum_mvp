@@ -73,11 +73,35 @@ No message or voice traffic passes through external infrastructure.
 - Server persists independently of client lifecycle
 - If client closes, server can remain running
 
-Server data location (default):
+## Server Data Location
+
+When launched **from the client** (GUI mode), the server always runs with its working directory set to:
 
 ```
-~/AppName/servers/<serverId>/
+~/.nexum/server/          (Windows: C:\Users\<user>\.nexum\server\)
 ```
+
+Files created there:
+
+```
+~/.nexum/server/
+├── server.toml           ← configuration (ports, admin password hash, limits)
+└── data/
+    └── server.db         ← SQLite database (users, channels, messages)
+```
+
+When launched **standalone** (CLI / `cargo run`), the server uses the current working directory:
+
+```
+<cwd>/
+├── server.toml
+└── data/
+    └── server.db
+```
+
+The data path is configurable via the `--data-path` CLI argument or the `CONFIG_PATH` environment variable.
+
+> ⚠️ The client never reads or writes these files. They belong exclusively to the server process.
 
 ---
 

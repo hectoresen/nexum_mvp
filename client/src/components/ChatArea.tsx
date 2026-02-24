@@ -88,9 +88,7 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
   return (
     <div className="flex flex-col h-full">
       {/* User profile modal */}
-      {selectedUser && (
-        <UserProfileModal user={selectedUser} serverAddress={serverAddress} currentUserRole={currentUserRole} onClose={() => setSelectedUser(null)} />
-      )}
+      {selectedUser && <UserProfileModal user={selectedUser} serverAddress={serverAddress} currentUserRole={currentUserRole} onClose={() => setSelectedUser(null)} />}
 
       {/* Delete confirmation modal */}
       {deleteConfirmId && (
@@ -138,7 +136,7 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
           messages.map(message => {
             const displayName = message.username || `User ${message.user_id.substring(0, 8)}`
             const avatarInitial = message.username ? message.username[0]?.toUpperCase() : message.user_id[0]?.toUpperCase()
-            
+
             // Construct avatar URL if avatar_path is available
             const avatarUrl = message.avatar_url || (message.avatar_path && serverAddress ? `http://${serverAddress}/${message.avatar_path}` : null)
 
@@ -146,35 +144,18 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
             const isDeleted = !!message.deleted_by_user_id
 
             return (
-              <div
-                key={message.id}
-                className="flex gap-3 group relative"
-                onMouseEnter={() => setHoveredMessageId(message.id)}
-                onMouseLeave={() => setHoveredMessageId(null)}
-              >
+              <div key={message.id} className="flex gap-3 group relative" onMouseEnter={() => setHoveredMessageId(message.id)} onMouseLeave={() => setHoveredMessageId(null)}>
                 {/* Avatar */}
-                <div 
-                  className={`w-10 h-10 rounded-full ${tw.bgInput} flex items-center justify-center flex-shrink-0 overflow-hidden cursor-pointer`}
-                  onClick={() => handleUsernameClick(message.user_id)}
-                >
-                  {avatarUrl ? (
-                    <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className={`text-sm font-semibold ${tw.textPrimary}`}>{avatarInitial}</span>
-                  )}
+                <div className={`w-10 h-10 rounded-full ${tw.bgInput} flex items-center justify-center flex-shrink-0 overflow-hidden cursor-pointer`} onClick={() => handleUsernameClick(message.user_id)}>
+                  {avatarUrl ? <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" /> : <span className={`text-sm font-semibold ${tw.textPrimary}`}>{avatarInitial}</span>}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-baseline gap-2">
-                    <span
-                      className={`font-semibold ${tw.textPrimary} cursor-pointer hover:underline`}
-                      onClick={() => handleUsernameClick(message.user_id)}
-                    >
+                    <span className={`font-semibold ${tw.textPrimary} cursor-pointer hover:underline`} onClick={() => handleUsernameClick(message.user_id)}>
                       {displayName}
                     </span>
                     <span className={`text-xs ${tw.textMuted}`}>{formatTime(message.created_at)}</span>
-                    {message.edited_at && !isDeleted && (
-                      <span className={`text-xs ${tw.textMuted} italic`}>(edited)</span>
-                    )}
+                    {message.edited_at && !isDeleted && <span className={`text-xs ${tw.textMuted} italic`}>(edited)</span>}
                   </div>
                   {isDeleted ? (
                     <p className={`${tw.textMuted} italic mt-1`}>Message deleted by: {message.deleted_by_username}</p>
@@ -196,26 +177,17 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
                         className={`w-full px-3 py-1.5 ${tw.bgInput} ${tw.textPrimary} rounded border ${tw.borderDefault} focus:outline-none focus:ring-2 focus:ring-blue-500`}
                       />
                       <div className="flex gap-2 mt-2 text-xs">
-                        <button
-                          onClick={() => saveEditMessage(message.id)}
-                          className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-                        >
+                        <button onClick={() => saveEditMessage(message.id)} className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors">
                           Save
                         </button>
-                        <button
-                          onClick={cancelEdit}
-                          className={`px-2 py-1 ${tw.btnSecondary} ${tw.textPrimary} rounded hover:${tw.bgHoverSubtle} transition-colors`}
-                        >
+                        <button onClick={cancelEdit} className={`px-2 py-1 ${tw.btnSecondary} ${tw.textPrimary} rounded hover:${tw.bgHoverSubtle} transition-colors`}>
                           Cancel
                         </button>
                         <span className={tw.textMuted}>Press Enter to save • Esc to cancel</span>
                       </div>
                     </div>
                   ) : (
-                    <p 
-                      className={`${tw.textSecondary} mt-1 break-words cursor-pointer`}
-                      onClick={() => handleUsernameClick(message.user_id)}
-                    >
+                    <p className={`${tw.textSecondary} mt-1 break-words cursor-pointer`} onClick={() => handleUsernameClick(message.user_id)}>
                       {message.content}
                     </p>
                   )}
@@ -225,24 +197,21 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
                 {!isDeleted && !editingMessageId && hoveredMessageId === message.id && message.user_id === _currentUserId && (
                   <div className="absolute right-0 top-0 flex gap-1">
                     {onEditMessage && (
-                      <button
-                        onClick={() => handleEditMessage(message)}
-                        className="p-1.5 hover:bg-gray-500 bg-gray-600 rounded transition-colors"
-                        title="Edit message"
-                      >
+                      <button onClick={() => handleEditMessage(message)} className="p-1.5 hover:bg-gray-500 bg-gray-600 rounded transition-colors" title="Edit message">
                         <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </button>
                     )}
                     {onDeleteMessage && (
-                      <button
-                        onClick={() => handleDeleteMessage(message.id)}
-                        className="p-1.5 hover:bg-red-600 bg-gray-600 rounded transition-colors"
-                        title="Delete message"
-                      >
+                      <button onClick={() => handleDeleteMessage(message.id)} className="p-1.5 hover:bg-red-600 bg-gray-600 rounded transition-colors" title="Delete message">
                         <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
                         </svg>
                       </button>
                     )}
