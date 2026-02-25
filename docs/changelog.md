@@ -2,11 +2,33 @@
 
 All notable changes and completed tasks are documented here.
 
-## 🚧 v0.1.2 - Message System Enhancements - In Progress
+---
 
-**Type:** Feature Enhancement + Bug Fixes  
-**Branch:** `feature/message-system-enhancements`  
-**Status:** 🚧 Ready for Testing & Merge
+## 🚧 v0.1.3 — In Progress
+
+**Branch:** `develop`
+
+### ✨ New Features
+
+- [x] **Auto-start on Windows startup (0.5.10)** — Toggle in Client Settings → General to register/unregister Nexum in the Windows startup registry (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`)
+  - Reads current state from registry on modal open via `is_auto_start_enabled` Tauri command
+  - Toggle calls `enable_auto_start` (writes exe path to registry) or `disable_auto_start` (removes key)
+  - Disabled (grayed out) while the operation is in progress to prevent double-clicks
+  - Windows-only; no-ops gracefully on other platforms
+  - Affected: `client/src-tauri/Cargo.toml` (added `winreg = "0.52"`), `client/src-tauri/src/main.rs` (3 new commands), `client/src/components/ClientSettingsModal.tsx`
+
+### 🐛 Bug Fixes
+
+- [x] **Server binary detection with versioned filenames** — Detection now auto-scans the client exe directory for any file matching `nexum-server*.exe`, fixing "Not installed" shown when the binary was named `Nexum-Server_0.1.2_x64.exe` instead of the bare `Nexum-Server.exe`
+  - Affected: `client/src-tauri/src/server_manager.rs`
+
+---
+
+## ✅ v0.1.2 — Released 2026-02-24
+
+**Type:** Feature Enhancement + Bug Fixes
+**Branch:** `develop → main`
+**Status:** ✅ Released
 
 ### 🐛 Bug Fixes
 

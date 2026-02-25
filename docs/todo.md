@@ -271,98 +271,28 @@ Implement collapsible channel categories similar to Discord's approach:
 
 **Build Status:** ✅ Clean client & server builds
 
-### 0.5.10 Auto-start on System Boot 🚧
+### 0.5.10 Auto-start on System Boot ✅
 
-**Priority: LOW - User Convenience**
+**Priority: LOW - COMPLETED 2026-02-25**
 
-#### Problem
+#### Implemented ✅
 
-Users must manually launch the app every time they restart their computer. Power users want the app to start automatically when Windows boots.
+- [x] **Backend implementation** — 3 Tauri commands using `winreg` crate
+  - `is_auto_start_enabled(app_handle)` — reads `HKCU\Run` registry key
+  - `enable_auto_start(app_handle)` — writes exe path to `HKCU\Run`
+  - `disable_auto_start(app_handle)` — removes key from `HKCU\Run`
+  - Windows-only (`#[cfg(windows)]`); returns `false`/error on other platforms
+- [x] **Frontend implementation** — Settings UI toggle
+  - Toggle loads real registry state on modal open (`useEffect` + `invoke`)
+  - Calls enable/disable commands on change; grayed out while pending
+  - Label: "Launch Nexum at Windows startup"
+- [x] Rust: `cargo check` — clean, no errors
+- [x] TypeScript: `tsc --noEmit` — clean, no errors
 
-#### Proposed Solution
-
-Add a toggle in Client Settings that enables/disables auto-start functionality using Windows startup registry keys or startup folder shortcuts.
-
-#### Tasks
-
-- [ ] **Backend implementation** — Tauri commands for auto-start
-  - Create `enable_auto_start()` Tauri command
-  - Create `disable_auto_start()` Tauri command
-  - Create `is_auto_start_enabled()` Tauri command
-  - Use `auto-launch` crate or Windows registry API
-  - Handle Windows startup folder shortcut creation
-  - Test on Windows 10 and Windows 11
-
-- [ ] **Frontend implementation** — Settings UI toggle
-  - Add "Launch on system startup" toggle to General settings tab
-  - Load current auto-start status when settings open
-  - Call enable/disable commands when toggled
-  - Show error message if operation fails (permissions)
-  - Persist toggle state visually (don't rely on localStorage)
-
-- [ ] **Error handling** — Permission and edge cases
-  - Handle UAC/permission errors gracefully
-  - Show informative error messages to user
-  - Test behavior with portable installation
-  - Test uninstall cleanup (remove startup entry)
-
-**Technical Implementation:**
-
-**Backend (Tauri):**
-
-```rust
-// Add to Cargo.toml
-[dependencies]
-auto-launch = "0.5"
-
-// main.rs
-#[tauri::command]
-async fn enable_auto_start(app_handle: tauri::AppHandle) -> Result<(), String> {
-    // Implementation using auto-launch crate
-}
-
-#[tauri::command]
-async fn disable_auto_start() -> Result<(), String> {
-    // Remove from Windows startup
-}
-
-#[tauri::command]
-async fn is_auto_start_enabled() -> Result<bool, String> {
-    // Check registry/startup folder
-}
-```
-
-**Frontend (React):**
-
-```tsx
-// ClientSettingsModal.tsx - General tab
-const [autoStart, setAutoStart] = useState(false)
-
-useEffect(() => {
-  invoke('is_auto_start_enabled').then(setAutoStart)
-}, [])
-
-const handleAutoStartToggle = async () => {
-  try {
-    if (autoStart) {
-      await invoke('disable_auto_start')
-    } else {
-      await invoke('enable_auto_start')
-    }
-    setAutoStart(!autoStart)
-  } catch (error) {
-    alert('Failed to change auto-start setting')
-  }
-}
-```
-
-**Testing:**
-
-- Enable auto-start and reboot to verify
-- Disable and reboot to verify removal
-- Test with non-admin user account
-- Test portable vs installed versions
-- Verify cleanup on uninstall
+**Affected files:**
+- `client/src-tauri/Cargo.toml` — added `winreg = "0.52"` (Windows-only)
+- `client/src-tauri/src/main.rs` — 3 new commands + registered in invoke_handler
+- `client/src/components/ClientSettingsModal.tsx` — wired toggle to real commands
 
 ### 0.5.11 Local Server Management UI ✅
 

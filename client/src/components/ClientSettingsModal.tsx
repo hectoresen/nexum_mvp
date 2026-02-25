@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 import { useAppTheme } from '../hooks/useAppTheme'
 
 type SettingsSection = 'general' | 'voice-video'
@@ -12,14 +13,32 @@ export default function ClientSettingsModal({ onClose, initialSection = 'general
   const { theme, tw, mode, setMode } = useAppTheme()
   const [currentSection, setCurrentSection] = useState<SettingsSection>(initialSection)
   const [autoStart, setAutoStart] = useState(false)
+  const [autoStartLoading, setAutoStartLoading] = useState(false)
   const [language, setLanguage] = useState('en')
   const [audioInputDevice, setAudioInputDevice] = useState('default')
   const [audioOutputDevice, setAudioOutputDevice] = useState('default')
 
-  const handleSave = () => {
-    // TODO: Implement settings persistence
-    console.log('Settings saved:', { autoStart, themeMode: mode, language, audioInputDevice, audioOutputDevice })
-    onClose()
+  // Load real auto-start state from OS registry on mount
+  useEffect(() => {
+    invoke<boolean>('is_auto_start_enabled')
+      .then(setAutoStart)
+      .catch(() => {})
+  }, [])
+
+  const handleAutoStartToggle = async (enabled: boolean) => {
+    setAutoStartLoading(true)
+    try {
+      if (enabled) {
+        await invoke('enable_auto_start')
+      } else {
+        await invoke('disable_auto_start')
+      }
+      setAutoStart(enabled)
+    } catch (e) {
+      console.error('Failed to change auto-start setting:', e)
+    } finally {
+      setAutoStartLoading(false)
+    }
   }
 
   return (
@@ -67,11 +86,17 @@ export default function ClientSettingsModal({ onClose, initialSection = 'general
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <label className={`block text-sm font-medium ${tw.textSecondary}`}>Auto-start on System Boot</label>
+                      <label className={`block text-sm font-medium ${tw.textSecondary}`}>Launch Nexum at Windows startup</label>
                       <p className={`text-xs ${tw.textMuted} mt-1`}>Launch Nexum automatically when your computer starts</p>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" checked={autoStart} onChange={e => setAutoStart(e.target.checked)} className="sr-only peer" />
+                    <label className={`relative inline-flex items-center ${autoStartLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                      <input
+                        type="checkbox"
+                        checked={autoStart}
+                        disabled={autoStartLoading}
+                        onChange={e => handleAutoStartToggle(e.target.checked)}
+                        className="sr-only peer"
+                      />
                       <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-500"></div>
                     </label>
                   </div>
@@ -169,10 +194,7 @@ export default function ClientSettingsModal({ onClose, initialSection = 'general
 
         <div className="mt-6 flex justify-end gap-3">
           <button onClick={onClose} className={`px-6 py-2 ${tw.btnSecondary} rounded-md transition-colors cursor-pointer`}>
-            Cancel
-          </button>
-          <button onClick={handleSave} className={`px-6 py-2 ${tw.btnPrimary} text-white rounded-md transition-colors cursor-pointer`}>
-            Save
+            Close
           </button>
         </div>
       </div>

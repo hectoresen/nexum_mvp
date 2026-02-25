@@ -94,6 +94,73 @@ fn delete_server_data(state: State<AppState>) -> Result<(), String> {
     manager.delete_server_data().map_err(|e| e.to_string())
 }
 
+/// Check if Nexum is registered in Windows startup (HKCU Run key)
+#[tauri::command]
+fn is_auto_start_enabled(app_handle: tauri::AppHandle) -> bool {
+    #[cfg(windows)]
+    {
+        use winreg::RegKey;
+        use winreg::enums::*;
+        let app_name = app_handle.package_info().name.clone();
+        if let Ok(hkcu) = RegKey::predef(HKEY_CURRENT_USER)
+            .open_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Run")
+        {
+            return hkcu.get_value::<String, _>(&app_name).is_ok();
+        }
+        false
+    }
+    #[cfg(not(windows))]
+    false
+}
+
+/// Register Nexum to launch at Windows startup
+#[tauri::command]
+fn enable_auto_start(app_handle: tauri::AppHandle) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        use winreg::RegKey;
+        use winreg::enums::*;
+        let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+        let app_name = app_handle.package_info().name.clone();
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        let run_key = hkcu
+            .open_subkey_with_flags(
+                "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                KEY_SET_VALUE,
+            )
+            .map_err(|e| e.to_string())?;
+        run_key
+            .set_value(&app_name, &exe_path.to_string_lossy().to_string())
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    #[cfg(not(windows))]
+    Err("Auto-start is only supported on Windows".into())
+}
+
+/// Remove Nexum from Windows startup
+#[tauri::command]
+fn disable_auto_start(app_handle: tauri::AppHandle) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        use winreg::RegKey;
+        use winreg::enums::*;
+        let app_name = app_handle.package_info().name.clone();
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        let run_key = hkcu
+            .open_subkey_with_flags(
+                "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                KEY_SET_VALUE,
+            )
+            .map_err(|e| e.to_string())?;
+        // delete_value returns an error if the key doesn't exist — ignore it
+        let _ = run_key.delete_value(&app_name);
+        return Ok(());
+    }
+    #[cfg(not(windows))]
+    Err("Auto-start is only supported on Windows".into())
+}
+
 fn main() {
     // Initialize the server manager
     let server_manager = ServerManager::new();
@@ -118,6 +185,9 @@ fn main() {
             clear_configured_server_path,
             reset_admin_password,
             delete_server_data,
+            is_auto_start_enabled,
+            enable_auto_start,
+            disable_auto_start,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
