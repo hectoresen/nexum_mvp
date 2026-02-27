@@ -94,6 +94,40 @@ fn delete_server_data(state: State<AppState>) -> Result<(), String> {
     manager.delete_server_data().map_err(|e| e.to_string())
 }
 
+/// Write an initial server.toml to ~/.nexum/server/ before first launch.
+/// Called from the pre-launch config modal to persist user-chosen name and limits.
+#[tauri::command]
+fn write_initial_server_config(
+    name: String,
+    max_users: u32,
+    max_voice: u32,
+    max_message: u32,
+    admin_password: String,
+) -> Result<(), String> {
+    let server_dir = crate::server_manager::ServerManager::get_server_data_dir()
+        .ok_or("Could not determine server data directory")?;
+    std::fs::create_dir_all(&server_dir).map_err(|e| e.to_string())?;
+    let config_path = server_dir.join("server.toml");
+    // Escape double-quotes in user-provided strings
+    let safe_name = name.replace('"', "\\\"");
+    let safe_pwd = admin_password.replace('"', "\\\"");
+    let content = format!(
+        "[server]\nname = \"{safe_name}\"\nhost = \"0.0.0.0\"\nws_port = 8080\nudp_port = 9000\ndata_path = \"./data\"\nsession_timeout_secs = 60\nping_interval_secs = 30\nadmin_password = \"{safe_pwd}\"\n\n[limits]\nmax_users = {max_users}\nmax_users_per_voice_channel = {max_voice}\nmax_message_size = {max_message}\nrate_limit_messages_per_minute = 60\n\n[persistence]\nenabled = true\n"
+    );
+    std::fs::write(&config_path, content).map_err(|e| e.to_string())
+}
+
+/// Check if the server is accepting TCP connections on a given port.
+/// Used to confirm the server is ready after `start_local_server`.
+#[tauri::command]
+fn check_server_ready(port: u16) -> bool {
+    std::net::TcpStream::connect_timeout(
+        &std::net::SocketAddr::from(([127, 0, 0, 1], port)),
+        std::time::Duration::from_millis(500),
+    )
+    .is_ok()
+}
+
 /// Check if Nexum is registered in Windows startup (HKCU Run key)
 #[tauri::command]
 fn is_auto_start_enabled(app_handle: tauri::AppHandle) -> bool {
@@ -188,6 +222,8 @@ fn main() {
             is_auto_start_enabled,
             enable_auto_start,
             disable_auto_start,
+            write_initial_server_config,
+            check_server_ready,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -368,6 +368,77 @@ Notify users of activity while the app is in the background.
 - [ ] **Do-not-disturb setting** — toggle in Client Settings to suppress all notifications
 - [ ] **Mention detection** — highlight messages that contain `@username` in a different color; trigger notification even if window is focused
 
+### 0.5.15 Server Launch UX & Unified Server Config Modal 🚧
+
+**Priority: HIGH - UX Gap + Refactor**
+
+#### Problem
+
+1. When the user clicks "Start Server" in the Server dropdown, the server starts but gives zero feedback — no config step, no spinner, no "ready" notification, no "Connect now" shortcut.
+2. `ServerSettingsModal` (used when connected as admin) is a flat list with no tabs — no room for future sections (Moderation, etc.).
+
+#### Solution
+
+Replace both flows with a single unified `ServerConfigModal` component that adapts to two modes:
+
+- **`pre-launch` mode** — opens when user clicks "Start Server"; shows tabbed config, launches server, shows progress, shows "ready + Connect Now" on success.
+- **`manage` mode** — replaces `ServerSettingsModal` when connected as admin; shows same tabs with live-edit of running server settings.
+
+#### Subtasks
+
+**Rust — `server_manager.rs` + `main.rs`**
+
+- [x] Add `write_initial_server_config(name, max_users, max_voice, max_message)` Tauri command
+  - Writes `~/.nexum/server/server.toml` with provided values before first launch
+  - Only intended for pre-launch first-time configuration
+  - Registered in `invoke_handler`
+- [x] Add `check_server_ready(port)` Tauri command
+  - TCP connect to `127.0.0.1:port` with 500 ms timeout
+  - Returns `true` when server is accepting connections
+  - Registered in `invoke_handler`
+
+**Frontend — `ServerConfigModal.tsx` (new component)**
+
+- [x] Create `ServerConfigModal.tsx` with props: `mode`, `isConfigured`, `port`, `settings?`, `onClose`, `onSaveSettings?`, `onChangePassword?`, `onConnectNow?`
+- [x] Tab: **General** — server name input + Max Users + Max Voice Channel Users + Max Message Size
+- [x] Tab: **Security**
+  - Pre-launch + unconfigured: admin password input + Generate button (min 8 chars)
+  - Pre-launch + configured: read-only note ("Server already configured — use Reset Password to change")
+  - Manage mode: "Change Admin Password" button → calls `onChangePassword`
+- [x] Tab: **Moderation** — placeholder "Coming in 0.5.12"
+- [x] Pre-launch launch flow (internal state machine):
+  - [x] `phase: 'config' | 'launching' | 'ready' | 'error'`
+  - [x] `phase='config'`: form displayed, footer shows "Launch Server" button
+  - [x] On launch: if first time → call `write_initial_server_config`, then `start_local_server`; if configured → just `start_local_server`
+  - [x] `phase='launching'`: spinner overlay, polls `check_server_health` + `check_server_ready` every 1 s, times out after 30 s
+  - [x] `phase='ready'`: success banner with WS address + "Connect Now" button (calls `onConnectNow`)
+  - [x] `phase='error'`: error message + "Try Again" button (resets to `phase='config'`)
+- [x] Manage mode: save/close behavior identical to old `ServerSettingsModal`
+
+**Refactor — replace `ServerSettingsModal`**
+
+- [x] Replace `<ServerSettingsModal>` usage in `App.tsx` with `<ServerConfigModal mode='manage'>`
+- [x] Remove `ServerSettingsModal.tsx` from codebase
+- [x] Remove `import ServerSettingsModal` from `App.tsx`
+
+**Wire to `App.tsx`**
+
+- [x] Open `<ServerConfigModal mode='pre-launch'>` from `handleLaunchLocalServer` (replaces old `showLocalServerSetupModal`)
+- [x] Remove old states: `showLocalServerSetupModal`, `localSetupPassword`, `localSetupError`, `localSetupLaunching`
+- [x] Add `showServerConfigModal: boolean` + `isServerConfigured: boolean` states
+- [x] Pass `onConnectNow` (`handleServerConnectNow`): auto-adds local server entry if missing + opens `ServerConnectModal`
+- [x] Pass `isConfigured` from `invoke('is_server_configured')` called on modal open
+
+**Validation**
+
+- [x] `tsc --noEmit` — clean
+- [x] `cargo check` — clean
+
+**Docs**
+
+- [x] `changelog.md` updated
+- [x] `todo.md` subtasks ticked
+
 ### 0.5.3 Server Detection ✅
 
 - [x] Create `server_manager.rs` module in client backend

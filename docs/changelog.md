@@ -10,6 +10,15 @@ All notable changes and completed tasks are documented here.
 
 ### ✨ New Features
 
+- [x] **Server launch UX + unified config modal (0.5.15)** — Clicking "Start Server" now opens a full tabbed configuration modal instead of a minimal password prompt:
+  - **Pre-launch mode**: General tab (server name + limits), Security tab (admin password on first launch, info note if already configured), Moderation tab (placeholder for 0.5.12)
+  - After clicking "Launch Server" the modal transitions to a **spinner / progress step** that polls both `check_server_health` (process alive) and `check_server_ready` (TCP port reachable) every second, timing out after 30 s with a "Try Again" option
+  - On success: **"Server is ready!"** confirmation with the WS address and a **"Connect Now →"** button that auto-adds the local server to the list and opens the connect modal
+  - **Manage mode** (connected as admin → Server Settings): same tabbed layout with live-edit of name/limits/ports (read-only) + Change Admin Password in Security tab
+  - `ServerSettingsModal.tsx` deleted — fully superseded by `ServerConfigModal.tsx`
+  - New Rust commands: `write_initial_server_config` (writes `~/.nexum/server/server.toml` on first setup), `check_server_ready` (TCP port probe)
+  - Affected: `client/src-tauri/src/main.rs`, `client/src/components/ServerConfigModal.tsx` (new), `client/src/App.tsx`; deleted: `client/src/components/ServerSettingsModal.tsx`
+
 - [x] **Auto-start on Windows startup (0.5.10)** — Toggle in Client Settings → General to register/unregister Nexum in the Windows startup registry (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`)
   - Reads current state from registry on modal open via `is_auto_start_enabled` Tauri command
   - Toggle calls `enable_auto_start` (writes exe path to registry) or `disable_auto_start` (removes key)
