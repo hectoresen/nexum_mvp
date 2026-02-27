@@ -4,9 +4,11 @@ All notable changes and completed tasks are documented here.
 
 ---
 
-## 🚧 v0.1.3 — In Progress
+## ✅ v0.1.3 — Released 2026-02-27
 
-**Branch:** `develop`
+**Type:** Feature Release + Bug Fixes
+**Branch:** `develop → main`
+**Status:** ✅ Released
 
 ### ✨ New Features
 
