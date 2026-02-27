@@ -90,13 +90,7 @@ export default function ClientSettingsModal({ onClose, initialSection = 'general
                       <p className={`text-xs ${tw.textMuted} mt-1`}>Launch Nexum automatically when your computer starts</p>
                     </div>
                     <label className={`relative inline-flex items-center ${autoStartLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                      <input
-                        type="checkbox"
-                        checked={autoStart}
-                        disabled={autoStartLoading}
-                        onChange={e => handleAutoStartToggle(e.target.checked)}
-                        className="sr-only peer"
-                      />
+                      <input type="checkbox" checked={autoStart} disabled={autoStartLoading} onChange={e => handleAutoStartToggle(e.target.checked)} className="sr-only peer" />
                       <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-500"></div>
                     </label>
                   </div>

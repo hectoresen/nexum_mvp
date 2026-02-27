@@ -10,7 +10,6 @@ import AddServerModal from './components/AddServerModal'
 import MainView from './components/MainView'
 import AdminAuthModal from './components/AdminAuthModal'
 import ServerSettingsModal from './components/ServerSettingsModal'
-import UserListModal from './components/UserListModal'
 import ClientSettingsModal from './components/ClientSettingsModal'
 import ChangePasswordModal from './components/ChangePasswordModal'
 import AvatarModal from './components/AvatarModal'
@@ -62,7 +61,6 @@ function App() {
   const [showAdminAuthModal, setShowAdminAuthModal] = useState(false)
   const [adminAuthError, setAdminAuthError] = useState<string | null>(null)
   const [showServerSettingsModal, setShowServerSettingsModal] = useState(false)
-  const [showUserListModal, setShowUserListModal] = useState(false)
   const [clientSettingsSection, setClientSettingsSection] = useState<'general' | 'voice-video' | null>(null)
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false)
   const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null)
@@ -750,13 +748,6 @@ function App() {
     }, 500)
   }
 
-  const handleGetUsers = () => {
-    if (view.type !== 'connected') return
-
-    view.connection.client.send({ type: 'GET_USERS' })
-    setShowUserListModal(true)
-  }
-
   const handleLaunchLocalServer = async () => {
     if (!localServerStatus.installed) {
       await checkLocalServerStatus()
@@ -1257,7 +1248,6 @@ function App() {
         onOpenClientSettings={section => setClientSettingsSection(section)}
         onRenameChannel={handleRenameChannel}
         onDeleteChannel={handleDeleteChannel}
-        onViewUsers={handleGetUsers}
         onOpenUserSettings={() => setShowUserSettingsModal(true)}
         onCreateCategory={handleCreateCategory}
         onDeleteCategory={handleDeleteCategory}
@@ -1285,8 +1275,6 @@ function App() {
           onChangePassword={() => setShowChangePasswordModal(true)}
         />
       )}
-
-      {showUserListModal && <UserListModal users={conn.serverUsers} onClose={() => setShowUserListModal(false)} />}
 
       {clientSettingsSection && <ClientSettingsModal initialSection={clientSettingsSection} onClose={() => setClientSettingsSection(null)} />}
 

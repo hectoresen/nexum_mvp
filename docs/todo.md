@@ -200,28 +200,24 @@ The local server detection is not working correctly:
 - [x] **Fix username taken error loop** — Client now stops auto-reconnect on pre-auth errors, shows message to user
 - [x] **Add `--data-path` CLI argument to server** — Server accepts custom data directory via `--data-path` argument
 
-### 0.5.8 Remove Redundant "View Users" Button ⏳
+### 0.5.8 Remove Redundant "View Users" Button ✅
 
-**Priority: LOW - UI Cleanup**
+**Priority: LOW - UI Cleanup - COMPLETED 2026-02-25**
 
 #### Problem
 
-After implementing the right sidebar user list in 0.5.2, the "View Users" button in the admin dropdown is now redundant. All users (not just admins) can see the server members in the right panel.
+After implementing the right sidebar user list in 0.5.2, the "View Users" button in the admin dropdown was redundant. All users (not just admins) can see the server members in the right panel.
 
-#### Tasks
+#### Implemented ✅
 
-- [ ] **Remove "View Users" from admin dropdown** — Clean up duplicate functionality
-  - Remove "View Users" button from dropdown menu
-  - Remove UserListModal component (or keep for future use)
-  - Remove onViewUsers prop chain (App → MainView)
-  - Remove GET_USERS handler call from "View Users" button
-  - Update documentation to reflect UI changes
+- [x] Removed `onViewUsers` prop and button from `MainView.tsx`
+- [x] Removed `handleGetUsers` function from `App.tsx`
+- [x] Removed `showUserListModal` state and `UserListModal` import/render from `App.tsx`
+- [x] `UserListModal.tsx` preserved for reuse in **0.5.12 Moderation System**
+- [x] TypeScript: `tsc --noEmit` — clean
+- [x] Rust: `cargo check` — clean
 
-**Technical Implementation:**
-
-- `MainView.tsx` - Remove "View Users" dropdown option
-- `App.tsx` - Remove handleGetUsers function and modal state
-- Clean up unused imports and props
+**Affected files:** `client/src/components/MainView.tsx`, `client/src/App.tsx`
 
 ### 0.5.9 Channel Categories & Organization ✅
 
@@ -290,6 +286,7 @@ Implement collapsible channel categories similar to Discord's approach:
 - [x] TypeScript: `tsc --noEmit` — clean, no errors
 
 **Affected files:**
+
 - `client/src-tauri/Cargo.toml` — added `winreg = "0.52"` (Windows-only)
 - `client/src-tauri/src/main.rs` — 3 new commands + registered in invoke_handler
 - `client/src/components/ClientSettingsModal.tsx` — wired toggle to real commands
@@ -571,7 +568,7 @@ Notify users of activity while the app is in the background.
 - [x] Check permissions for channel creation
 - [x] Check permissions for channel deletion
 - [x] Return ERROR on unauthorized actions
-- [ ] Kick actions (deferred to future)
+- [ ] Kick actions → covered by **0.5.12 Moderation System** (kick, ban, mute)
 
 ---
 

@@ -17,6 +17,14 @@ All notable changes and completed tasks are documented here.
   - Windows-only; no-ops gracefully on other platforms
   - Affected: `client/src-tauri/Cargo.toml` (added `winreg = "0.52"`), `client/src-tauri/src/main.rs` (3 new commands), `client/src/components/ClientSettingsModal.tsx`
 
+### 🧹 UI Cleanup
+
+- [x] **Remove redundant "View Users" button (0.5.8)** — The admin sidebar button is redundant since all users can already see the member list in the right panel
+  - Removed `onViewUsers` prop from `MainView` and the button block
+  - Removed `handleGetUsers`, `showUserListModal` state, `UserListModal` import and render from `App.tsx`
+  - `UserListModal.tsx` component preserved for future reuse in 0.5.12 (Moderation System)
+  - Affected: `client/src/components/MainView.tsx`, `client/src/App.tsx`
+
 ### 🐛 Bug Fixes
 
 - [x] **Server binary detection with versioned filenames** — Detection now auto-scans the client exe directory for any file matching `nexum-server*.exe`, fixing "Not installed" shown when the binary was named `Nexum-Server_0.1.2_x64.exe` instead of the bare `Nexum-Server.exe`
