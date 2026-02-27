@@ -200,28 +200,24 @@ The local server detection is not working correctly:
 - [x] **Fix username taken error loop** — Client now stops auto-reconnect on pre-auth errors, shows message to user
 - [x] **Add `--data-path` CLI argument to server** — Server accepts custom data directory via `--data-path` argument
 
-### 0.5.8 Remove Redundant "View Users" Button ⏳
+### 0.5.8 Remove Redundant "View Users" Button ✅
 
-**Priority: LOW - UI Cleanup**
+**Priority: LOW - UI Cleanup - COMPLETED 2026-02-25**
 
 #### Problem
 
-After implementing the right sidebar user list in 0.5.2, the "View Users" button in the admin dropdown is now redundant. All users (not just admins) can see the server members in the right panel.
+After implementing the right sidebar user list in 0.5.2, the "View Users" button in the admin dropdown was redundant. All users (not just admins) can see the server members in the right panel.
 
-#### Tasks
+#### Implemented ✅
 
-- [ ] **Remove "View Users" from admin dropdown** — Clean up duplicate functionality
-  - Remove "View Users" button from dropdown menu
-  - Remove UserListModal component (or keep for future use)
-  - Remove onViewUsers prop chain (App → MainView)
-  - Remove GET_USERS handler call from "View Users" button
-  - Update documentation to reflect UI changes
+- [x] Removed `onViewUsers` prop and button from `MainView.tsx`
+- [x] Removed `handleGetUsers` function from `App.tsx`
+- [x] Removed `showUserListModal` state and `UserListModal` import/render from `App.tsx`
+- [x] `UserListModal.tsx` preserved for reuse in **0.5.12 Moderation System**
+- [x] TypeScript: `tsc --noEmit` — clean
+- [x] Rust: `cargo check` — clean
 
-**Technical Implementation:**
-
-- `MainView.tsx` - Remove "View Users" dropdown option
-- `App.tsx` - Remove handleGetUsers function and modal state
-- Clean up unused imports and props
+**Affected files:** `client/src/components/MainView.tsx`, `client/src/App.tsx`
 
 ### 0.5.9 Channel Categories & Organization ✅
 
@@ -271,98 +267,29 @@ Implement collapsible channel categories similar to Discord's approach:
 
 **Build Status:** ✅ Clean client & server builds
 
-### 0.5.10 Auto-start on System Boot 🚧
+### 0.5.10 Auto-start on System Boot ✅
 
-**Priority: LOW - User Convenience**
+**Priority: LOW - COMPLETED 2026-02-25**
 
-#### Problem
+#### Implemented ✅
 
-Users must manually launch the app every time they restart their computer. Power users want the app to start automatically when Windows boots.
+- [x] **Backend implementation** — 3 Tauri commands using `winreg` crate
+  - `is_auto_start_enabled(app_handle)` — reads `HKCU\Run` registry key
+  - `enable_auto_start(app_handle)` — writes exe path to `HKCU\Run`
+  - `disable_auto_start(app_handle)` — removes key from `HKCU\Run`
+  - Windows-only (`#[cfg(windows)]`); returns `false`/error on other platforms
+- [x] **Frontend implementation** — Settings UI toggle
+  - Toggle loads real registry state on modal open (`useEffect` + `invoke`)
+  - Calls enable/disable commands on change; grayed out while pending
+  - Label: "Launch Nexum at Windows startup"
+- [x] Rust: `cargo check` — clean, no errors
+- [x] TypeScript: `tsc --noEmit` — clean, no errors
 
-#### Proposed Solution
+**Affected files:**
 
-Add a toggle in Client Settings that enables/disables auto-start functionality using Windows startup registry keys or startup folder shortcuts.
-
-#### Tasks
-
-- [ ] **Backend implementation** — Tauri commands for auto-start
-  - Create `enable_auto_start()` Tauri command
-  - Create `disable_auto_start()` Tauri command
-  - Create `is_auto_start_enabled()` Tauri command
-  - Use `auto-launch` crate or Windows registry API
-  - Handle Windows startup folder shortcut creation
-  - Test on Windows 10 and Windows 11
-
-- [ ] **Frontend implementation** — Settings UI toggle
-  - Add "Launch on system startup" toggle to General settings tab
-  - Load current auto-start status when settings open
-  - Call enable/disable commands when toggled
-  - Show error message if operation fails (permissions)
-  - Persist toggle state visually (don't rely on localStorage)
-
-- [ ] **Error handling** — Permission and edge cases
-  - Handle UAC/permission errors gracefully
-  - Show informative error messages to user
-  - Test behavior with portable installation
-  - Test uninstall cleanup (remove startup entry)
-
-**Technical Implementation:**
-
-**Backend (Tauri):**
-
-```rust
-// Add to Cargo.toml
-[dependencies]
-auto-launch = "0.5"
-
-// main.rs
-#[tauri::command]
-async fn enable_auto_start(app_handle: tauri::AppHandle) -> Result<(), String> {
-    // Implementation using auto-launch crate
-}
-
-#[tauri::command]
-async fn disable_auto_start() -> Result<(), String> {
-    // Remove from Windows startup
-}
-
-#[tauri::command]
-async fn is_auto_start_enabled() -> Result<bool, String> {
-    // Check registry/startup folder
-}
-```
-
-**Frontend (React):**
-
-```tsx
-// ClientSettingsModal.tsx - General tab
-const [autoStart, setAutoStart] = useState(false)
-
-useEffect(() => {
-  invoke('is_auto_start_enabled').then(setAutoStart)
-}, [])
-
-const handleAutoStartToggle = async () => {
-  try {
-    if (autoStart) {
-      await invoke('disable_auto_start')
-    } else {
-      await invoke('enable_auto_start')
-    }
-    setAutoStart(!autoStart)
-  } catch (error) {
-    alert('Failed to change auto-start setting')
-  }
-}
-```
-
-**Testing:**
-
-- Enable auto-start and reboot to verify
-- Disable and reboot to verify removal
-- Test with non-admin user account
-- Test portable vs installed versions
-- Verify cleanup on uninstall
+- `client/src-tauri/Cargo.toml` — added `winreg = "0.52"` (Windows-only)
+- `client/src-tauri/src/main.rs` — 3 new commands + registered in invoke_handler
+- `client/src/components/ClientSettingsModal.tsx` — wired toggle to real commands
 
 ### 0.5.11 Local Server Management UI ✅
 
@@ -412,7 +339,7 @@ Enable server owners to manage disruptive users.
 - [ ] **Persistence** — bans stored in SQLite `bans` table (`user_id`, `ip_address`, `banned_at`, `reason`)
 - [ ] **Connection check** — server checks ban list on every new connection attempt
 
-### 0.5.13 Server Join Password 🚧
+### 0.5.13 Server Join Password ✅
 
 **Priority: LOW - Privacy Feature**
 
@@ -420,12 +347,12 @@ Allow server owners to require a password for joining, making the server private
 
 #### Tasks
 
-- [ ] **Config field** — add optional `join_password` to `server.toml` and `ServerConfig`
-- [ ] **Protocol change** — `CONNECT` payload gains optional `join_password` field; server rejects with `UNAUTHORIZED` if wrong
-- [ ] **UI — join flow** — when connecting to a server that requires a password, show a password prompt before sending `CONNECT`
-- [ ] **Server settings** — owner can set/clear the join password in `ServerSettingsModal`
-- [ ] **Password indicator** — server card on home screen shows a lock icon if join password is set - needs a `GET_SERVER_INFO` unauthenticated endpoint
-- [ ] **Empty = open** — empty string / absent field means no password required
+- [x] **Config field** — added `join_password: Option<String>` to `ServerConfig` in `server.toml`; default `None` (public server)
+- [x] **Protocol change** — `ConnectPayload` gains optional `join_password` field; new `ErrorCode::PasswordRequired` returned when missing or wrong; server distinguishes "not provided" vs "incorrect" with distinct messages
+- [x] **UI — join flow** — `JoinPasswordModal.tsx` shown when server returns `PASSWORD_REQUIRED`; retries with password attached to `CONNECT` payload; shows error on wrong password
+- [x] **Server settings** — "Private Server" toggle + join password field added to Security tab of `ServerConfigModal` (both pre-launch and manage modes); `UpdateServerSettingsPayload` gains `join_password` field; empty string clears (makes public)
+- [x] **`is_private` flag in `ServerSettingsPayload`** — server sends `is_private: bool` so the client knows privacy status without revealing the actual password
+- [x] **Empty = open** — empty string / absent field means no password required
 
 ### 0.5.14 Notification System 🚧
 
@@ -440,6 +367,77 @@ Notify users of activity while the app is in the background.
 - [ ] **Tray badge / unread count** — tray icon shows badge or tooltip with unread message count
 - [ ] **Do-not-disturb setting** — toggle in Client Settings to suppress all notifications
 - [ ] **Mention detection** — highlight messages that contain `@username` in a different color; trigger notification even if window is focused
+
+### 0.5.15 Server Launch UX & Unified Server Config Modal 🚧
+
+**Priority: HIGH - UX Gap + Refactor**
+
+#### Problem
+
+1. When the user clicks "Start Server" in the Server dropdown, the server starts but gives zero feedback — no config step, no spinner, no "ready" notification, no "Connect now" shortcut.
+2. `ServerSettingsModal` (used when connected as admin) is a flat list with no tabs — no room for future sections (Moderation, etc.).
+
+#### Solution
+
+Replace both flows with a single unified `ServerConfigModal` component that adapts to two modes:
+
+- **`pre-launch` mode** — opens when user clicks "Start Server"; shows tabbed config, launches server, shows progress, shows "ready + Connect Now" on success.
+- **`manage` mode** — replaces `ServerSettingsModal` when connected as admin; shows same tabs with live-edit of running server settings.
+
+#### Subtasks
+
+**Rust — `server_manager.rs` + `main.rs`**
+
+- [x] Add `write_initial_server_config(name, max_users, max_voice, max_message)` Tauri command
+  - Writes `~/.nexum/server/server.toml` with provided values before first launch
+  - Only intended for pre-launch first-time configuration
+  - Registered in `invoke_handler`
+- [x] Add `check_server_ready(port)` Tauri command
+  - TCP connect to `127.0.0.1:port` with 500 ms timeout
+  - Returns `true` when server is accepting connections
+  - Registered in `invoke_handler`
+
+**Frontend — `ServerConfigModal.tsx` (new component)**
+
+- [x] Create `ServerConfigModal.tsx` with props: `mode`, `isConfigured`, `port`, `settings?`, `onClose`, `onSaveSettings?`, `onChangePassword?`, `onConnectNow?`
+- [x] Tab: **General** — server name input + Max Users + Max Voice Channel Users + Max Message Size
+- [x] Tab: **Security**
+  - Pre-launch + unconfigured: admin password input + Generate button (min 8 chars)
+  - Pre-launch + configured: read-only note ("Server already configured — use Reset Password to change")
+  - Manage mode: "Change Admin Password" button → calls `onChangePassword`
+- [x] Tab: **Moderation** — placeholder "Coming in 0.5.12"
+- [x] Pre-launch launch flow (internal state machine):
+  - [x] `phase: 'config' | 'launching' | 'ready' | 'error'`
+  - [x] `phase='config'`: form displayed, footer shows "Launch Server" button
+  - [x] On launch: if first time → call `write_initial_server_config`, then `start_local_server`; if configured → just `start_local_server`
+  - [x] `phase='launching'`: spinner overlay, polls `check_server_health` + `check_server_ready` every 1 s, times out after 30 s
+  - [x] `phase='ready'`: success banner with WS address + "Connect Now" button (calls `onConnectNow`)
+  - [x] `phase='error'`: error message + "Try Again" button (resets to `phase='config'`)
+- [x] Manage mode: save/close behavior identical to old `ServerSettingsModal`
+
+**Refactor — replace `ServerSettingsModal`**
+
+- [x] Replace `<ServerSettingsModal>` usage in `App.tsx` with `<ServerConfigModal mode='manage'>`
+- [x] Remove `ServerSettingsModal.tsx` from codebase
+- [x] Remove `import ServerSettingsModal` from `App.tsx`
+
+**Wire to `App.tsx`**
+
+- [x] Open `<ServerConfigModal mode='pre-launch'>` from `handleLaunchLocalServer` (replaces old `showLocalServerSetupModal`)
+- [x] Remove old states: `showLocalServerSetupModal`, `localSetupPassword`, `localSetupError`, `localSetupLaunching`
+- [x] Add `showServerConfigModal: boolean` + `isServerConfigured: boolean` states
+- [x] Pass `onConnectNow` (`handleServerConnectNow`): auto-adds local server entry if missing + opens `ServerConnectModal`
+- [x] Pass `isConfigured` from `invoke('is_server_configured')` called on modal open
+
+**Validation**
+
+- [x] `tsc --noEmit` — clean
+- [x] `cargo check` — clean
+
+**Docs**
+
+- [x] `changelog.md` updated
+- [x] `todo.md` subtasks ticked
 
 ### 0.5.3 Server Detection ✅
 
@@ -641,7 +639,7 @@ Notify users of activity while the app is in the background.
 - [x] Check permissions for channel creation
 - [x] Check permissions for channel deletion
 - [x] Return ERROR on unauthorized actions
-- [ ] Kick actions (deferred to future)
+- [ ] Kick actions → covered by **0.5.12 Moderation System** (kick, ban, mute)
 
 ---
 

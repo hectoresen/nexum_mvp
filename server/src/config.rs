@@ -23,6 +23,10 @@ pub struct ServerConfig {
     pub session_timeout_secs: u64,
     pub ping_interval_secs: u64,
     pub admin_password: String,
+    /// Optional join password. If set and non-empty the server is private:
+    /// every CONNECT must supply a matching join_password field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub join_password: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,6 +54,7 @@ impl Default for Config {
                 session_timeout_secs: 60,
                 ping_interval_secs: 30,
                 admin_password: "admin".to_string(),
+                join_password: None,
             },
             limits: LimitsConfig {
                 max_users: 200,

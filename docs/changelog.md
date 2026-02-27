@@ -2,11 +2,60 @@
 
 All notable changes and completed tasks are documented here.
 
-## 🚧 v0.1.2 - Message System Enhancements - In Progress
+---
 
-**Type:** Feature Enhancement + Bug Fixes  
-**Branch:** `feature/message-system-enhancements`  
-**Status:** 🚧 Ready for Testing & Merge
+## ✅ v0.1.3 — Released 2026-02-27
+
+**Type:** Feature Release + Bug Fixes
+**Branch:** `develop → main`
+**Status:** ✅ Released
+
+### ✨ New Features
+
+- [x] **Server join password / private servers (0.5.13)** — Server owners can now make their server private by setting a join password:
+  - **Server config**: new `join_password: Option<String>` field in `server.toml` / `ServerConfig`; absent or empty = open server
+  - **Protocol**: `CONNECT` payload accepts optional `join_password`; new `ErrorCode::PasswordRequired` sent when password is missing or wrong; server distinguishes the two cases with different messages ("This server is private. Enter the join password" vs. "Incorrect join password")
+  - **`ServerSettingsPayload`** now includes `is_private: bool` so the client knows the server privacy state without the actual password being transmitted
+  - **Security tab** of `ServerConfigModal` (pre-launch and manage modes): "Private Server" toggle + join password input field; manage mode keeps existing password when field is left empty
+  - **New `JoinPasswordModal.tsx`**: shown automatically when a server returns `PASSWORD_REQUIRED`; password prompt retries the full connection flow with `join_password` in the `CONNECT` payload; shows inline error on wrong password
+  - Affected: `server/src/config.rs`, `server/src/models.rs`, `server/src/handlers.rs`, `client/src-tauri/src/main.rs`, `client/src/types/protocol.ts`, `client/src/components/ServerConfigModal.tsx`, `client/src/components/JoinPasswordModal.tsx` (new), `client/src/App.tsx`
+
+- [x] **Server launch UX + unified config modal (0.5.15)** — Clicking "Start Server" now opens a full tabbed configuration modal instead of a minimal password prompt:
+  - **Pre-launch mode**: General tab (server name + limits), Security tab (admin password on first launch, info note if already configured), Moderation tab (placeholder for 0.5.12)
+  - After clicking "Launch Server" the modal transitions to a **spinner / progress step** that polls both `check_server_health` (process alive) and `check_server_ready` (TCP port reachable) every second, timing out after 30 s with a "Try Again" option
+  - On success: **"Server is ready!"** confirmation with the WS address and a **"Connect Now →"** button that auto-adds the local server to the list and opens the connect modal
+  - **Manage mode** (connected as admin → Server Settings): same tabbed layout with live-edit of name/limits/ports (read-only) + Change Admin Password in Security tab
+  - `ServerSettingsModal.tsx` deleted — fully superseded by `ServerConfigModal.tsx`
+  - New Rust commands: `write_initial_server_config` (writes `~/.nexum/server/server.toml` on first setup), `check_server_ready` (TCP port probe)
+  - Affected: `client/src-tauri/src/main.rs`, `client/src/components/ServerConfigModal.tsx` (new), `client/src/App.tsx`; deleted: `client/src/components/ServerSettingsModal.tsx`
+
+- [x] **Auto-start on Windows startup (0.5.10)** — Toggle in Client Settings → General to register/unregister Nexum in the Windows startup registry (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`)
+  - Reads current state from registry on modal open via `is_auto_start_enabled` Tauri command
+  - Toggle calls `enable_auto_start` (writes exe path to registry) or `disable_auto_start` (removes key)
+  - Disabled (grayed out) while the operation is in progress to prevent double-clicks
+  - Windows-only; no-ops gracefully on other platforms
+  - Affected: `client/src-tauri/Cargo.toml` (added `winreg = "0.52"`), `client/src-tauri/src/main.rs` (3 new commands), `client/src/components/ClientSettingsModal.tsx`
+
+### 🧹 UI Cleanup
+
+- [x] **Remove redundant "View Users" button (0.5.8)** — The admin sidebar button is redundant since all users can already see the member list in the right panel
+  - Removed `onViewUsers` prop from `MainView` and the button block
+  - Removed `handleGetUsers`, `showUserListModal` state, `UserListModal` import and render from `App.tsx`
+  - `UserListModal.tsx` component preserved for future reuse in 0.5.12 (Moderation System)
+  - Affected: `client/src/components/MainView.tsx`, `client/src/App.tsx`
+
+### 🐛 Bug Fixes
+
+- [x] **Server binary detection with versioned filenames** — Detection now auto-scans the client exe directory for any file matching `nexum-server*.exe`, fixing "Not installed" shown when the binary was named `Nexum-Server_0.1.2_x64.exe` instead of the bare `Nexum-Server.exe`
+  - Affected: `client/src-tauri/src/server_manager.rs`
+
+---
+
+## ✅ v0.1.2 — Released 2026-02-24
+
+**Type:** Feature Enhancement + Bug Fixes
+**Branch:** `develop → main`
+**Status:** ✅ Released
 
 ### 🐛 Bug Fixes
 

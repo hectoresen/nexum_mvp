@@ -1,6 +1,6 @@
 [package]
 name = "voice-server"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 authors = ["Nexum Team"]
 description = "Self-hosted voice and chat server"

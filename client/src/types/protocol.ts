@@ -78,6 +78,8 @@ export interface ConnectPayload {
   username?: string; // Optional when resuming with resume_session_id
   client_version: string;
   resume_session_id?: string;
+  /** Password required to join a private server. */
+  join_password?: string;
 }
 
 export interface CreateChannelPayload {
@@ -136,6 +138,8 @@ export interface UpdateServerSettingsPayload {
   max_users?: number;
   max_users_per_voice_channel?: number;
   max_message_size?: number;
+  /** Set or clear join password. Empty string = make public. Non-empty = make private. */
+  join_password?: string;
 }
 
 // ============================================================================
@@ -193,6 +197,7 @@ export type ErrorCode =
   | 'USER_NOT_FOUND'
   | 'RATE_LIMITED'
   | 'MESSAGE_TOO_LARGE'
+  | 'PASSWORD_REQUIRED'
   | 'INTERNAL';
 
 export interface ChannelCreatedPayload {
@@ -267,6 +272,8 @@ export interface ServerSettingsPayload {
   max_users: number;
   max_users_per_voice_channel: number;
   max_message_size: number;
+  /** True if the server requires a join password (private). The password itself is never sent. */
+  is_private: boolean;
 }
 
 export interface ServerUsersPayload {

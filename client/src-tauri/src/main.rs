@@ -94,6 +94,115 @@ fn delete_server_data(state: State<AppState>) -> Result<(), String> {
     manager.delete_server_data().map_err(|e| e.to_string())
 }
 
+/// Write an initial server.toml to ~/.nexum/server/ before first launch.
+/// Called from the pre-launch config modal to persist user-chosen name and limits.
+#[tauri::command]
+fn write_initial_server_config(
+    name: String,
+    max_users: u32,
+    max_voice: u32,
+    max_message: u32,
+    admin_password: String,
+    join_password: String,
+) -> Result<(), String> {
+    let server_dir = crate::server_manager::ServerManager::get_server_data_dir()
+        .ok_or("Could not determine server data directory")?;
+    std::fs::create_dir_all(&server_dir).map_err(|e| e.to_string())?;
+    let config_path = server_dir.join("server.toml");
+    // Escape double-quotes in user-provided strings
+    let safe_name = name.replace('"', "\\\"");
+    let safe_pwd = admin_password.replace('"', "\\\"");
+    let mut content = format!(
+        "[server]\nname = \"{safe_name}\"\nhost = \"0.0.0.0\"\nws_port = 8080\nudp_port = 9000\ndata_path = \"./data\"\nsession_timeout_secs = 60\nping_interval_secs = 30\nadmin_password = \"{safe_pwd}\"\n"
+    );
+    if !join_password.is_empty() {
+        let safe_jp = join_password.replace('"', "\\\"");
+        content.push_str(&format!("join_password = \"{safe_jp}\"\n"));
+    }
+    content.push_str(&format!(
+        "\n[limits]\nmax_users = {max_users}\nmax_users_per_voice_channel = {max_voice}\nmax_message_size = {max_message}\nrate_limit_messages_per_minute = 60\n\n[persistence]\nenabled = true\n"
+    ));
+    std::fs::write(&config_path, content).map_err(|e| e.to_string())
+}
+
+/// Check if the server is accepting TCP connections on a given port.
+/// Used to confirm the server is ready after `start_local_server`.
+#[tauri::command]
+fn check_server_ready(port: u16) -> bool {
+    std::net::TcpStream::connect_timeout(
+        &std::net::SocketAddr::from(([127, 0, 0, 1], port)),
+        std::time::Duration::from_millis(500),
+    )
+    .is_ok()
+}
+
+/// Check if Nexum is registered in Windows startup (HKCU Run key)
+#[tauri::command]
+fn is_auto_start_enabled(app_handle: tauri::AppHandle) -> bool {
+    #[cfg(windows)]
+    {
+        use winreg::RegKey;
+        use winreg::enums::*;
+        let app_name = app_handle.package_info().name.clone();
+        if let Ok(hkcu) = RegKey::predef(HKEY_CURRENT_USER)
+            .open_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Run")
+        {
+            return hkcu.get_value::<String, _>(&app_name).is_ok();
+        }
+        false
+    }
+    #[cfg(not(windows))]
+    false
+}
+
+/// Register Nexum to launch at Windows startup
+#[tauri::command]
+fn enable_auto_start(app_handle: tauri::AppHandle) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        use winreg::RegKey;
+        use winreg::enums::*;
+        let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+        let app_name = app_handle.package_info().name.clone();
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        let run_key = hkcu
+            .open_subkey_with_flags(
+                "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                KEY_SET_VALUE,
+            )
+            .map_err(|e| e.to_string())?;
+        run_key
+            .set_value(&app_name, &exe_path.to_string_lossy().to_string())
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    #[cfg(not(windows))]
+    Err("Auto-start is only supported on Windows".into())
+}
+
+/// Remove Nexum from Windows startup
+#[tauri::command]
+fn disable_auto_start(app_handle: tauri::AppHandle) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        use winreg::RegKey;
+        use winreg::enums::*;
+        let app_name = app_handle.package_info().name.clone();
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        let run_key = hkcu
+            .open_subkey_with_flags(
+                "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                KEY_SET_VALUE,
+            )
+            .map_err(|e| e.to_string())?;
+        // delete_value returns an error if the key doesn't exist — ignore it
+        let _ = run_key.delete_value(&app_name);
+        return Ok(());
+    }
+    #[cfg(not(windows))]
+    Err("Auto-start is only supported on Windows".into())
+}
+
 fn main() {
     // Initialize the server manager
     let server_manager = ServerManager::new();
@@ -118,6 +227,11 @@ fn main() {
             clear_configured_server_path,
             reset_admin_password,
             delete_server_data,
+            is_auto_start_enabled,
+            enable_auto_start,
+            disable_auto_start,
+            write_initial_server_config,
+            check_server_ready,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

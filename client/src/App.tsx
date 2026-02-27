@@ -9,12 +9,12 @@ import ServerConnectModal from './components/ServerConnectModal'
 import AddServerModal from './components/AddServerModal'
 import MainView from './components/MainView'
 import AdminAuthModal from './components/AdminAuthModal'
-import ServerSettingsModal from './components/ServerSettingsModal'
-import UserListModal from './components/UserListModal'
+import ServerConfigModal from './components/ServerConfigModal'
 import ClientSettingsModal from './components/ClientSettingsModal'
 import ChangePasswordModal from './components/ChangePasswordModal'
 import AvatarModal from './components/AvatarModal'
 import UserSettingsModal from './components/UserSettingsModal'
+import JoinPasswordModal from './components/JoinPasswordModal'
 
 const CLIENT_VERSION = '1.0.0'
 
@@ -62,17 +62,17 @@ function App() {
   const [showAdminAuthModal, setShowAdminAuthModal] = useState(false)
   const [adminAuthError, setAdminAuthError] = useState<string | null>(null)
   const [showServerSettingsModal, setShowServerSettingsModal] = useState(false)
-  const [showUserListModal, setShowUserListModal] = useState(false)
   const [clientSettingsSection, setClientSettingsSection] = useState<'general' | 'voice-video' | null>(null)
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false)
   const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null)
   const [showUserSettingsModal, setShowUserSettingsModal] = useState(false)
   const [showAvatarModal, setShowAvatarModal] = useState(false)
-  const [showLocalServerSetupModal, setShowLocalServerSetupModal] = useState(false)
-  const [localSetupPassword, setLocalSetupPassword] = useState('')
-  const [localSetupError, setLocalSetupError] = useState<string | null>(null)
-  const [localSetupLaunching, setLocalSetupLaunching] = useState(false)
+  const [showServerConfigModal, setShowServerConfigModal] = useState(false)
+  const [isServerConfigured, setIsServerConfigured] = useState(false)
   const [showLocalServerManageModal, setShowLocalServerManageModal] = useState(false)
+  // Join password modal — shown when a private server rejects the connection
+  const [joinPasswordPending, setJoinPasswordPending] = useState<{ server: SavedServer; lastUserId?: string; username?: string } | null>(null)
+  const [joinPasswordError, setJoinPasswordError] = useState<string | null>(null)
   const [manageModalTab, setManageModalTab] = useState<'overview' | 'reset-password' | 'delete-data'>('overview')
   const [manageResetPassword, setManageResetPassword] = useState('')
   const [manageResetError, setManageResetError] = useState<string | null>(null)
@@ -139,7 +139,7 @@ function App() {
     setConnectionError(null)
   }
 
-  const handleConnectWithUserId = async (server: SavedServer, userId: string) => {
+  const handleConnectWithUserId = async (server: SavedServer, userId: string, joinPassword = '') => {
     // Open the modal immediately so the user sees the connecting spinner right away
     setConnectingServer(server)
     setIsConnecting(true)
@@ -179,6 +179,18 @@ function App() {
         if (message.type === 'ERROR' && !hasReceivedWelcome) {
           // Disable auto-reconnect to prevent repeated failed attempts
           wsClient.shouldReconnect = false
+
+          // Private server: ask for join password instead of showing generic error
+          if (message.payload.code === 'PASSWORD_REQUIRED') {
+            wsClient.disconnect()
+            setView({ type: 'server-list' })
+            setConnectingServer(null)
+            setIsConnecting(false)
+            setJoinPasswordPending({ server, lastUserId: userId })
+            // Show error message if it was a wrong password attempt (not just 'not provided')
+            setJoinPasswordError(message.payload.message.includes('Incorrect') ? message.payload.message : null)
+            return
+          }
 
           // Clear stored userId if resume failed
           if (message.payload.code === 'INVALID_REQUEST' || message.payload.code === 'INVALID_PAYLOAD') {
@@ -241,6 +253,7 @@ function App() {
         payload: {
           client_version: CLIENT_VERSION,
           resume_session_id: userId,
+          ...(joinPassword ? { join_password: joinPassword } : {}),
         },
       })
 
@@ -256,14 +269,15 @@ function App() {
     }
   }
 
-  const handleConnect = async (username: string) => {
-    if (!connectingServer) return
+  const handleConnect = async (username: string, joinPassword = '', serverOverride?: SavedServer) => {
+    const targetServer = serverOverride ?? connectingServer
+    if (!targetServer) return
 
     setIsConnecting(true)
     setConnectionError(null)
 
     const wsClient = new WebSocketClient()
-    const wsUrl = `ws://${connectingServer.address}/ws`
+    const wsUrl = `ws://${targetServer.address}/ws`
 
     try {
       // Try to connect - this will throw if connection fails
@@ -271,7 +285,7 @@ function App() {
 
       // Connection successful, now set up the handlers
       const connection: ActiveConnection = {
-        server: connectingServer,
+        server: targetServer,
         client: wsClient,
         connected: true,
         connecting: false,
@@ -291,6 +305,18 @@ function App() {
 
       // Set up message handler
       wsClient.onMessage((message: ServerMessage) => {
+        // Private server: ask for join password
+        if (message.type === 'ERROR' && message.payload.code === 'PASSWORD_REQUIRED') {
+          wsClient.shouldReconnect = false
+          wsClient.disconnect()
+          setView({ type: 'server-list' })
+          setConnectingServer(null)
+          setIsConnecting(false)
+          setJoinPasswordPending({ server: targetServer, username })
+          // Show error if wrong password (vs. no password provided)
+          setJoinPasswordError(message.payload.message.includes('Incorrect') ? message.payload.message : null)
+          return
+        }
         // Request user list after successful connection
         if (message.type === 'WELCOME') {
           wsClient.send({ type: 'GET_USERS' })
@@ -336,11 +362,12 @@ function App() {
         payload: {
           username,
           client_version: CLIENT_VERSION,
+          ...(joinPassword ? { join_password: joinPassword } : {}),
         },
       })
 
       // Save last username
-      ServerManager.updateLastUsername(connectingServer.id, username)
+      ServerManager.updateLastUsername(targetServer.id, username)
 
       // Change to connected view
       setView({ type: 'connected', connection })
@@ -348,9 +375,21 @@ function App() {
       setIsConnecting(false)
     } catch (error) {
       console.error('Connection error:', error)
-      setConnectionError(`Failed to connect to ${connectingServer.address}. Make sure the server is running.`)
+      setConnectionError(`Failed to connect to ${targetServer.address}. Make sure the server is running.`)
       setIsConnecting(false)
       // Don't change view - stay on the connection modal
+    }
+  }
+
+  const handleJoinWithPassword = (password: string) => {
+    if (!joinPasswordPending) return
+    const { server: pendingServer, lastUserId, username } = joinPasswordPending
+    setJoinPasswordPending(null)
+    setJoinPasswordError(null)
+    if (lastUserId) {
+      handleConnectWithUserId(pendingServer, lastUserId, password)
+    } else if (username) {
+      handleConnect(username, password, pendingServer)
     }
   }
 
@@ -720,7 +759,7 @@ function App() {
     setShowServerSettingsModal(true)
   }
 
-  const handleUpdateServerSettings = (settings: { name?: string; max_users?: number; max_users_per_voice_channel?: number; max_message_size?: number }) => {
+  const handleUpdateServerSettings = (settings: { name?: string; max_users?: number; max_users_per_voice_channel?: number; max_message_size?: number; join_password?: string }) => {
     if (view.type !== 'connected') return
 
     view.connection.client.send({
@@ -750,63 +789,26 @@ function App() {
     }, 500)
   }
 
-  const handleGetUsers = () => {
-    if (view.type !== 'connected') return
-
-    view.connection.client.send({ type: 'GET_USERS' })
-    setShowUserListModal(true)
-  }
-
   const handleLaunchLocalServer = async () => {
     if (!localServerStatus.installed) {
       await checkLocalServerStatus()
       if (!localServerStatus.installed) {
         alert('Server not found. Please use "Configure Server Path" to specify the server location manually.')
-      }
-      return
-    }
-
-    try {
-      // Check if this is the first launch (no server.toml yet)
-      const configured = await invoke<boolean>('is_server_configured')
-      if (!configured) {
-        // First time: ask for admin password before launching
-        setLocalSetupPassword('')
-        setLocalSetupError(null)
-        setShowLocalServerSetupModal(true)
         return
       }
-
-      // Already configured: launch directly
-      await invoke('start_local_server', { adminPassword: null })
-      console.log('Server started successfully')
-      await _afterServerLaunched()
-    } catch (error) {
-      console.error('Failed to launch server:', error)
-      alert(`Failed to launch server: ${error}`)
     }
-  }
 
-  const handleConfirmLocalServerSetup = async () => {
-    if (!localSetupPassword || localSetupPassword.length < 8) {
-      setLocalSetupError('Password must be at least 8 characters.')
-      return
-    }
-    setLocalSetupError(null)
-    setLocalSetupLaunching(true)
     try {
-      await invoke('start_local_server', { adminPassword: localSetupPassword })
-      setShowLocalServerSetupModal(false)
-      setLocalSetupPassword('')
-      await _afterServerLaunched()
-    } catch (error) {
-      setLocalSetupError(`Failed to launch: ${error}`)
-    } finally {
-      setLocalSetupLaunching(false)
+      const configured = await invoke<boolean>('is_server_configured')
+      setIsServerConfigured(configured)
+    } catch {
+      setIsServerConfigured(false)
     }
+    setShowServerConfigModal(true)
   }
 
-  const _afterServerLaunched = async () => {
+  /** Called when user clicks "Connect Now" inside ServerConfigModal after server is ready */
+  const handleServerConnectNow = async () => {
     const existingLocal = servers.find(s => s.isLocal)
     if (!existingLocal) {
       ServerManager.addServer({
@@ -816,15 +818,19 @@ function App() {
       })
       setServers(ServerManager.loadServers())
     }
-    setLocalServerStatus(prev => ({ ...prev, running: true }))
     await checkLocalServerStatus()
-  }
-
-  const generateSetupPassword = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-    let pwd = ''
-    for (let i = 0; i < 16; i++) pwd += chars.charAt(Math.floor(Math.random() * chars.length))
-    setLocalSetupPassword(pwd)
+    const localServer = ServerManager.loadServers().find(s => s.isLocal)
+    if (localServer) {
+      handleSelectServer(localServer)
+    } else {
+      setConnectingServer({
+        id: 'local-auto',
+        name: 'My Local Server',
+        address: `localhost:${localServerStatus.port || 8080}`,
+        isLocal: true,
+        createdAt: Date.now(),
+      })
+    }
   }
 
   const handleManageLocalServer = () => {
@@ -963,6 +969,20 @@ function App() {
         )}
 
         {clientSettingsSection && <ClientSettingsModal initialSection={clientSettingsSection} onClose={() => setClientSettingsSection(null)} />}
+
+        {joinPasswordPending && (
+          <JoinPasswordModal
+            serverName={joinPasswordPending.server.name}
+            serverAddress={joinPasswordPending.server.address}
+            onSubmit={handleJoinWithPassword}
+            onCancel={() => {
+              setJoinPasswordPending(null)
+              setJoinPasswordError(null)
+            }}
+            error={joinPasswordError}
+            connecting={isConnecting}
+          />
+        )}
 
         {/* Local Server Manage Modal */}
         {showLocalServerManageModal && (
@@ -1160,59 +1180,17 @@ function App() {
           </div>
         )}
 
-        {/* Local Server First-Launch Setup Modal */}
-        {showLocalServerSetupModal && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-            <div className="bg-[#1e2128] border border-white/10 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
-              <h2 className="text-lg font-semibold text-white mb-1">🔐 Configure Local Server</h2>
-              <p className="text-sm text-gray-400 mb-4">This is the first time launching your local server. Set an admin password to manage it.</p>
-
-              <div className="mb-4">
-                <label className="block text-xs text-gray-400 mb-1 uppercase tracking-wide">Admin Password</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={localSetupPassword}
-                    onChange={e => setLocalSetupPassword(e.target.value)}
-                    placeholder="Enter or generate a password..."
-                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-white/30"
-                  />
-                  <button onClick={generateSetupPassword} className="px-3 py-2 bg-white/10 hover:bg-white/15 text-gray-300 text-sm rounded-lg transition-colors cursor-pointer">
-                    Generate
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Minimum 8 characters. Save this — you'll need it to authenticate as admin inside the server.</p>
-              </div>
-
-              <div className="mb-5 text-xs text-gray-500 bg-white/5 rounded-lg p-3">
-                <p className="font-medium text-gray-400 mb-1">Data will be stored at:</p>
-                <code className="text-gray-300">~/.nexum/server/</code>
-                <p className="mt-1">
-                  Contains <code>server.toml</code> (config) and <code>data/server.db</code> (database).
-                </p>
-              </div>
-
-              {localSetupError && <p className="text-red-400 text-sm mb-3">{localSetupError}</p>}
-
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => {
-                    setShowLocalServerSetupModal(false)
-                    setLocalSetupPassword('')
-                  }}
-                  className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
-                  disabled={localSetupLaunching}>
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirmLocalServerSetup}
-                  disabled={localSetupLaunching || !localSetupPassword}
-                  className="px-4 py-2 bg-white/10 hover:bg-white/15 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer disabled:opacity-40">
-                  {localSetupLaunching ? 'Launching...' : 'Launch Server'}
-                </button>
-              </div>
-            </div>
-          </div>
+        {showServerConfigModal && (
+          <ServerConfigModal
+            mode="pre-launch"
+            isConfigured={isServerConfigured}
+            port={localServerStatus.port ?? 8080}
+            onConnectNow={handleServerConnectNow}
+            onClose={async () => {
+              setShowServerConfigModal(false)
+              await checkLocalServerStatus()
+            }}
+          />
         )}
       </>
     )
@@ -1257,7 +1235,6 @@ function App() {
         onOpenClientSettings={section => setClientSettingsSection(section)}
         onRenameChannel={handleRenameChannel}
         onDeleteChannel={handleDeleteChannel}
-        onViewUsers={handleGetUsers}
         onOpenUserSettings={() => setShowUserSettingsModal(true)}
         onCreateCategory={handleCreateCategory}
         onDeleteCategory={handleDeleteCategory}
@@ -1277,16 +1254,16 @@ function App() {
       )}
 
       {showServerSettingsModal && (
-        <ServerSettingsModal
-          serverName={conn.server.name}
+        <ServerConfigModal
+          mode="manage"
+          isConfigured={true}
+          port={localServerStatus.port ?? 8080}
           settings={conn.serverSettings}
           onClose={() => setShowServerSettingsModal(false)}
-          onSave={handleUpdateServerSettings}
+          onSaveSettings={handleUpdateServerSettings}
           onChangePassword={() => setShowChangePasswordModal(true)}
         />
       )}
-
-      {showUserListModal && <UserListModal users={conn.serverUsers} onClose={() => setShowUserListModal(false)} />}
 
       {clientSettingsSection && <ClientSettingsModal initialSection={clientSettingsSection} onClose={() => setClientSettingsSection(null)} />}
 
@@ -1305,6 +1282,21 @@ function App() {
 
       {showAvatarModal && conn.sessionId && conn.userId && (
         <AvatarModal currentAvatar={currentUserAvatar} serverAddress={conn.server.address} sessionId={conn.sessionId} userId={conn.userId} onClose={() => setShowAvatarModal(false)} onSave={handleUpdateAvatar} />
+      )}
+
+      {/* Join password modal can also appear here if PASSWORD_REQUIRED arrives while in connected view */}
+      {joinPasswordPending && (
+        <JoinPasswordModal
+          serverName={joinPasswordPending.server.name}
+          serverAddress={joinPasswordPending.server.address}
+          onSubmit={handleJoinWithPassword}
+          onCancel={() => {
+            setJoinPasswordPending(null)
+            setJoinPasswordError(null)
+          }}
+          error={joinPasswordError}
+          connecting={isConnecting}
+        />
       )}
     </>
   )
