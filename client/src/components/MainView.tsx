@@ -124,7 +124,6 @@ export default function MainView({
                 Server Settings
               </button>
             )}
-
           </div>
         </div>
 
