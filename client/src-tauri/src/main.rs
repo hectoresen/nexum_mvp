@@ -103,6 +103,7 @@ fn write_initial_server_config(
     max_voice: u32,
     max_message: u32,
     admin_password: String,
+    join_password: String,
 ) -> Result<(), String> {
     let server_dir = crate::server_manager::ServerManager::get_server_data_dir()
         .ok_or("Could not determine server data directory")?;
@@ -111,9 +112,16 @@ fn write_initial_server_config(
     // Escape double-quotes in user-provided strings
     let safe_name = name.replace('"', "\\\"");
     let safe_pwd = admin_password.replace('"', "\\\"");
-    let content = format!(
-        "[server]\nname = \"{safe_name}\"\nhost = \"0.0.0.0\"\nws_port = 8080\nudp_port = 9000\ndata_path = \"./data\"\nsession_timeout_secs = 60\nping_interval_secs = 30\nadmin_password = \"{safe_pwd}\"\n\n[limits]\nmax_users = {max_users}\nmax_users_per_voice_channel = {max_voice}\nmax_message_size = {max_message}\nrate_limit_messages_per_minute = 60\n\n[persistence]\nenabled = true\n"
+    let mut content = format!(
+        "[server]\nname = \"{safe_name}\"\nhost = \"0.0.0.0\"\nws_port = 8080\nudp_port = 9000\ndata_path = \"./data\"\nsession_timeout_secs = 60\nping_interval_secs = 30\nadmin_password = \"{safe_pwd}\"\n"
     );
+    if !join_password.is_empty() {
+        let safe_jp = join_password.replace('"', "\\\"");
+        content.push_str(&format!("join_password = \"{safe_jp}\"\n"));
+    }
+    content.push_str(&format!(
+        "\n[limits]\nmax_users = {max_users}\nmax_users_per_voice_channel = {max_voice}\nmax_message_size = {max_message}\nrate_limit_messages_per_minute = 60\n\n[persistence]\nenabled = true\n"
+    ));
     std::fs::write(&config_path, content).map_err(|e| e.to_string())
 }
 

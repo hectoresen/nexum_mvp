@@ -339,7 +339,7 @@ Enable server owners to manage disruptive users.
 - [ ] **Persistence** — bans stored in SQLite `bans` table (`user_id`, `ip_address`, `banned_at`, `reason`)
 - [ ] **Connection check** — server checks ban list on every new connection attempt
 
-### 0.5.13 Server Join Password 🚧
+### 0.5.13 Server Join Password ✅
 
 **Priority: LOW - Privacy Feature**
 
@@ -347,12 +347,12 @@ Allow server owners to require a password for joining, making the server private
 
 #### Tasks
 
-- [ ] **Config field** — add optional `join_password` to `server.toml` and `ServerConfig`
-- [ ] **Protocol change** — `CONNECT` payload gains optional `join_password` field; server rejects with `UNAUTHORIZED` if wrong
-- [ ] **UI — join flow** — when connecting to a server that requires a password, show a password prompt before sending `CONNECT`
-- [ ] **Server settings** — owner can set/clear the join password in `ServerSettingsModal`
-- [ ] **Password indicator** — server card on home screen shows a lock icon if join password is set - needs a `GET_SERVER_INFO` unauthenticated endpoint
-- [ ] **Empty = open** — empty string / absent field means no password required
+- [x] **Config field** — added `join_password: Option<String>` to `ServerConfig` in `server.toml`; default `None` (public server)
+- [x] **Protocol change** — `ConnectPayload` gains optional `join_password` field; new `ErrorCode::PasswordRequired` returned when missing or wrong; server distinguishes "not provided" vs "incorrect" with distinct messages
+- [x] **UI — join flow** — `JoinPasswordModal.tsx` shown when server returns `PASSWORD_REQUIRED`; retries with password attached to `CONNECT` payload; shows error on wrong password
+- [x] **Server settings** — "Private Server" toggle + join password field added to Security tab of `ServerConfigModal` (both pre-launch and manage modes); `UpdateServerSettingsPayload` gains `join_password` field; empty string clears (makes public)
+- [x] **`is_private` flag in `ServerSettingsPayload`** — server sends `is_private: bool` so the client knows privacy status without revealing the actual password
+- [x] **Empty = open** — empty string / absent field means no password required
 
 ### 0.5.14 Notification System 🚧
 
