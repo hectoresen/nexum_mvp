@@ -93,6 +93,26 @@ async fn handle_connect(
         bail!("Server full");
     }
 
+    // Check join password if server is private
+    {
+        let join_pwd = state.config.read().unwrap().server.join_password.clone();
+        if let Some(ref required) = join_pwd {
+            if !required.is_empty() {
+                match payload.join_password.as_deref() {
+                    Some(provided) if provided == required.as_str() => { /* correct */ }
+                    Some(_) => {
+                        send_error(tx, ErrorCode::PasswordRequired, "Incorrect join password")?;
+                        bail!("Incorrect join password");
+                    }
+                    None => {
+                        send_error(tx, ErrorCode::PasswordRequired, "This server is private. Enter the join password to connect.")?;
+                        bail!("No join password provided");
+                    }
+                }
+            }
+        }
+    }
+
     // Determine user: resume existing session or create new user
     let user = if let Some(resume_id) = payload.resume_session_id {
         // Client is trying to resume with existing user ID
@@ -583,6 +603,7 @@ async fn handle_get_server_settings(
         max_users: cfg.limits.max_users,
         max_users_per_voice_channel: cfg.limits.max_users_per_voice_channel,
         max_message_size: cfg.limits.max_message_size,
+        is_private: cfg.server.join_password.as_deref().map_or(false, |p| !p.is_empty()),
     });
     drop(cfg);
     send_message(tx, &msg)?;
@@ -637,6 +658,10 @@ async fn handle_update_server_settings(
         if let Some(max_msg) = payload.max_message_size {
             cfg.limits.max_message_size = max_msg;
         }
+        // Update join password: empty string clears it (public server), non-empty sets it (private server)
+        if let Some(jp) = payload.join_password {
+            cfg.server.join_password = if jp.is_empty() { None } else { Some(jp) };
+        }
     }
 
     // Persist to disk
@@ -656,6 +681,7 @@ async fn handle_update_server_settings(
         max_users: cfg.limits.max_users,
         max_users_per_voice_channel: cfg.limits.max_users_per_voice_channel,
         max_message_size: cfg.limits.max_message_size,
+        is_private: cfg.server.join_password.as_deref().map_or(false, |p| !p.is_empty()),
     });
     drop(cfg);
     send_message(tx, &msg)?;

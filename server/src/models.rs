@@ -187,6 +187,9 @@ pub struct ConnectPayload {
     pub client_version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resume_session_id: Option<Uuid>,
+    /// Password required to join a private server (set by the server owner).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub join_password: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -264,6 +267,12 @@ pub struct UpdateServerSettingsPayload {
     pub max_users_per_voice_channel: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_message_size: Option<usize>,
+    /// Set or clear the server join password.
+    /// - Some(non-empty string) → make server private with this password
+    /// - Some("") → make server public (clear join password)
+    /// - None → leave unchanged
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub join_password: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -378,6 +387,7 @@ pub enum ErrorCode {
     UserNotFound,
     RateLimited,
     MessageTooLarge,
+    PasswordRequired,
     Internal,
 }
 
@@ -467,6 +477,9 @@ pub struct ServerSettingsPayload {
     pub max_users: usize,
     pub max_users_per_voice_channel: usize,
     pub max_message_size: usize,
+    /// Whether the server requires a join password (true = private).
+    /// The join_password value itself is never sent to clients.
+    pub is_private: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -22,12 +22,7 @@ export interface ServerConfigModalProps {
   /** Manage mode: current server settings received from WELCOME payload */
   settings?: ServerSettingsPayload | null
   /** Manage mode: called when user clicks Save */
-  onSaveSettings?: (s: {
-    name?: string
-    max_users?: number
-    max_users_per_voice_channel?: number
-    max_message_size?: number
-  }) => void
+  onSaveSettings?: (s: { name?: string; max_users?: number; max_users_per_voice_channel?: number; max_message_size?: number; join_password?: string }) => void
   /** Manage mode: called when user clicks Change Admin Password */
   onChangePassword?: () => void
   /** Pre-launch mode: called when user clicks Connect Now after server is ready */
@@ -43,16 +38,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 const MAX_POLLS = 30
 
-export default function ServerConfigModal({
-  mode,
-  isConfigured,
-  port,
-  settings,
-  onSaveSettings,
-  onChangePassword,
-  onConnectNow,
-  onClose,
-}: ServerConfigModalProps) {
+export default function ServerConfigModal({ mode, isConfigured, port, settings, onSaveSettings, onChangePassword, onConnectNow, onClose }: ServerConfigModalProps) {
   const { theme, tw } = useAppTheme()
 
   // ── Form state ──────────────────────────────────────────────────────────────
@@ -63,6 +49,11 @@ export default function ServerConfigModal({
   const [maxMessage, setMaxMessage] = useState(settings?.max_message_size ?? 2000)
   const [adminPassword, setAdminPassword] = useState('')
   const [passwordError, setPasswordError] = useState<string | null>(null)
+
+  // ── Private server / join password ──────────────────────────────────────────
+  const [isPrivate, setIsPrivate] = useState(settings?.is_private ?? false)
+  const [joinPassword, setJoinPassword] = useState('')
+  const [joinPasswordError, setJoinPasswordError] = useState<string | null>(null)
 
   // ── Manage-mode save flash ───────────────────────────────────────────────────
   const [saved, setSaved] = useState(false)
@@ -80,6 +71,7 @@ export default function ServerConfigModal({
       setMaxUsers(settings.max_users)
       setMaxVoice(settings.max_users_per_voice_channel)
       setMaxMessage(settings.max_message_size)
+      setIsPrivate(settings.is_private)
     }
   }, [settings])
 
@@ -109,6 +101,12 @@ export default function ServerConfigModal({
         return
       }
     }
+    // Validate join password when private
+    if (isPrivate && !joinPassword.trim()) {
+      setActiveTab('security')
+      setJoinPasswordError('Please enter a join password for the private server.')
+      return
+    }
 
     setLaunchError(null)
     setPhase('launching')
@@ -122,6 +120,7 @@ export default function ServerConfigModal({
           maxVoice,
           maxMessage,
           adminPassword,
+          joinPassword: isPrivate ? joinPassword.trim() : '',
         })
         // Server reads from the toml we just wrote — no need to pass adminPassword again
         await invoke('start_local_server', { adminPassword: null })
@@ -178,6 +177,8 @@ export default function ServerConfigModal({
       max_users: maxUsers,
       max_users_per_voice_channel: maxVoice,
       max_message_size: maxMessage,
+      // Send join_password field to update privacy: empty = public, non-empty = private
+      join_password: isPrivate ? joinPassword.trim() || undefined : '',
     })
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -187,7 +188,6 @@ export default function ServerConfigModal({
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: theme.overlay }}>
       <div className={`${tw.bgCard} rounded-lg w-[560px] max-h-[85vh] flex flex-col shadow-xl border ${tw.borderDefault}`}>
-
         {/* ── Header ── */}
         <div className={`flex items-center justify-between px-6 py-4 border-b ${tw.borderDefault} shrink-0`}>
           <h2 className={`text-lg font-semibold ${tw.textPrimary} flex items-center gap-2`}>
@@ -237,9 +237,7 @@ export default function ServerConfigModal({
               </span>
             </p>
             <div className="flex gap-3">
-              <button
-                onClick={onClose}
-                className={`px-4 py-2 ${tw.btnSecondary} ${tw.textPrimary} rounded-md text-sm transition-colors cursor-pointer`}>
+              <button onClick={onClose} className={`px-4 py-2 ${tw.btnSecondary} ${tw.textPrimary} rounded-md text-sm transition-colors cursor-pointer`}>
                 Close
               </button>
               {onConnectNow && (
@@ -290,9 +288,7 @@ export default function ServerConfigModal({
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`py-3 px-1 mr-5 text-xs font-medium border-b-2 transition-colors cursor-pointer ${
-                    activeTab === tab.id
-                      ? `border-white/60 ${tw.textPrimary}`
-                      : `border-transparent ${tw.textTertiary} hover:${tw.textSecondary}`
+                    activeTab === tab.id ? `border-white/60 ${tw.textPrimary}` : `border-transparent ${tw.textTertiary} hover:${tw.textSecondary}`
                   }`}>
                   {tab.label}
                 </button>
@@ -301,7 +297,6 @@ export default function ServerConfigModal({
 
             {/* Tab content */}
             <div className="flex-1 overflow-y-auto px-6 py-5">
-
               {/* ── General tab ── */}
               {activeTab === 'general' && (
                 <div className="space-y-4">
@@ -359,8 +354,7 @@ export default function ServerConfigModal({
                   {mode === 'manage' && settings && (
                     <div className={`border-t ${tw.borderDefault} pt-4`}>
                       <h4 className={`text-sm font-medium ${tw.textSecondary} mb-3`}>
-                        Ports{' '}
-                        <span className={`text-xs font-normal ${tw.textTertiary}`}>(read-only, restart required to change)</span>
+                        Ports <span className={`text-xs font-normal ${tw.textTertiary}`}>(read-only, restart required to change)</span>
                       </h4>
                       <div className="flex gap-3">
                         <div className="flex-1">
@@ -394,9 +388,7 @@ export default function ServerConfigModal({
                   {mode === 'pre-launch' && !isConfigured && (
                     <div>
                       <label className={`block text-sm font-medium ${tw.textSecondary} mb-1`}>Admin Password</label>
-                      <p className={`text-xs ${tw.textTertiary} mb-2`}>
-                        Required to authenticate as admin from the connected client. Store it somewhere safe.
-                      </p>
+                      <p className={`text-xs ${tw.textTertiary} mb-2`}>Required to authenticate as admin from the connected client. Store it somewhere safe.</p>
                       <div className="flex gap-2">
                         <input
                           type="text"
@@ -406,13 +398,9 @@ export default function ServerConfigModal({
                             setPasswordError(null)
                           }}
                           placeholder="Enter or generate a password"
-                          className={`flex-1 px-3 py-2 ${tw.bgInput} border ${
-                            passwordError ? 'border-red-500' : tw.borderDefault
-                          } rounded-md ${tw.textPrimary} focus:outline-none text-sm font-mono`}
+                          className={`flex-1 px-3 py-2 ${tw.bgInput} border ${passwordError ? 'border-red-500' : tw.borderDefault} rounded-md ${tw.textPrimary} focus:outline-none text-sm font-mono`}
                         />
-                        <button
-                          onClick={generatePassword}
-                          className={`px-3 py-2 ${tw.btnSecondary} ${tw.textPrimary} rounded-md text-sm transition-colors cursor-pointer`}>
+                        <button onClick={generatePassword} className={`px-3 py-2 ${tw.btnSecondary} ${tw.textPrimary} rounded-md text-sm transition-colors cursor-pointer`}>
                           Generate
                         </button>
                       </div>
@@ -430,8 +418,7 @@ export default function ServerConfigModal({
                         <div>
                           <p className={`text-sm font-medium ${tw.textSecondary}`}>Server already configured</p>
                           <p className={`text-xs ${tw.textTertiary} mt-1`}>
-                            Admin password will remain unchanged. To change it, use{' '}
-                            <strong>Server → Configure Server → Reset Password</strong> after the server is running.
+                            Admin password will remain unchanged. To change it, use <strong>Server → Configure Server → Reset Password</strong> after the server is running.
                           </p>
                         </div>
                       </div>
@@ -441,9 +428,7 @@ export default function ServerConfigModal({
                   {/* Manage mode: change password button */}
                   {mode === 'manage' && (
                     <div>
-                      <p className={`text-xs ${tw.textTertiary} mb-3`}>
-                        Changing the admin password requires stopping and relaunching the server.
-                      </p>
+                      <p className={`text-xs ${tw.textTertiary} mb-3`}>Changing the admin password requires stopping and relaunching the server.</p>
                       <WarningButton onClick={onChangePassword} fullWidth>
                         <div className="flex items-center justify-center gap-2">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -459,6 +444,45 @@ export default function ServerConfigModal({
                       </WarningButton>
                     </div>
                   )}
+
+                  {/* ── Private server / Join password ── */}
+                  <div className={`border-t ${tw.borderDefault} pt-4`}>
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div>
+                        <p className={`text-sm font-medium ${tw.textSecondary}`}>Private Server</p>
+                        <p className={`text-xs ${tw.textTertiary} mt-0.5`}>Require a password for guests to join your server.</p>
+                      </div>
+                      {/* Toggle switch */}
+                      <button
+                        onClick={() => {
+                          setIsPrivate(v => !v)
+                          setJoinPasswordError(null)
+                        }}
+                        className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 cursor-pointer focus:outline-none mt-0.5 ${
+                          isPrivate ? 'bg-blue-600' : tw.bgInput
+                        }`}>
+                        <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform duration-200 ${isPrivate ? 'translate-x-4' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+
+                    {isPrivate && (
+                      <div className="mt-2">
+                        <label className={`block text-xs font-medium ${tw.textTertiary} mb-1`}>{mode === 'manage' ? 'New Join Password' : 'Join Password'}</label>
+                        <input
+                          type="text"
+                          value={joinPassword}
+                          onChange={e => {
+                            setJoinPassword(e.target.value)
+                            setJoinPasswordError(null)
+                          }}
+                          placeholder={mode === 'manage' ? 'Enter new join password (leave empty to keep current)' : 'Password guests must enter to join'}
+                          className={`w-full px-3 py-2 ${tw.bgInput} border ${joinPasswordError ? 'border-red-500' : tw.borderDefault} rounded-md ${tw.textPrimary} focus:outline-none text-sm font-mono`}
+                        />
+                        {joinPasswordError && <p className="text-xs text-red-400 mt-1">{joinPasswordError}</p>}
+                        {mode === 'manage' && <p className={`text-xs ${tw.textTertiary} mt-1`}>Leave empty to keep the existing join password unchanged.</p>}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -481,9 +505,7 @@ export default function ServerConfigModal({
 
             {/* Footer */}
             <div className={`flex justify-end gap-3 px-6 py-4 border-t ${tw.borderDefault} shrink-0`}>
-              <button
-                onClick={onClose}
-                className={`px-4 py-2 ${tw.btnSecondary} ${tw.textPrimary} rounded-md text-sm transition-colors cursor-pointer`}>
+              <button onClick={onClose} className={`px-4 py-2 ${tw.btnSecondary} ${tw.textPrimary} rounded-md text-sm transition-colors cursor-pointer`}>
                 {mode === 'manage' ? 'Close' : 'Cancel'}
               </button>
 
@@ -497,9 +519,7 @@ export default function ServerConfigModal({
               )}
 
               {mode === 'pre-launch' && (
-                <button
-                  onClick={handleLaunch}
-                  className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-semibold transition-colors cursor-pointer flex items-center gap-2">
+                <button onClick={handleLaunch} className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-semibold transition-colors cursor-pointer flex items-center gap-2">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

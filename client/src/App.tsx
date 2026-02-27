@@ -14,6 +14,7 @@ import ClientSettingsModal from './components/ClientSettingsModal'
 import ChangePasswordModal from './components/ChangePasswordModal'
 import AvatarModal from './components/AvatarModal'
 import UserSettingsModal from './components/UserSettingsModal'
+import JoinPasswordModal from './components/JoinPasswordModal'
 
 const CLIENT_VERSION = '1.0.0'
 
@@ -69,6 +70,9 @@ function App() {
   const [showServerConfigModal, setShowServerConfigModal] = useState(false)
   const [isServerConfigured, setIsServerConfigured] = useState(false)
   const [showLocalServerManageModal, setShowLocalServerManageModal] = useState(false)
+  // Join password modal — shown when a private server rejects the connection
+  const [joinPasswordPending, setJoinPasswordPending] = useState<{ server: SavedServer; lastUserId?: string; username?: string } | null>(null)
+  const [joinPasswordError, setJoinPasswordError] = useState<string | null>(null)
   const [manageModalTab, setManageModalTab] = useState<'overview' | 'reset-password' | 'delete-data'>('overview')
   const [manageResetPassword, setManageResetPassword] = useState('')
   const [manageResetError, setManageResetError] = useState<string | null>(null)
@@ -135,7 +139,7 @@ function App() {
     setConnectionError(null)
   }
 
-  const handleConnectWithUserId = async (server: SavedServer, userId: string) => {
+  const handleConnectWithUserId = async (server: SavedServer, userId: string, joinPassword = '') => {
     // Open the modal immediately so the user sees the connecting spinner right away
     setConnectingServer(server)
     setIsConnecting(true)
@@ -175,6 +179,18 @@ function App() {
         if (message.type === 'ERROR' && !hasReceivedWelcome) {
           // Disable auto-reconnect to prevent repeated failed attempts
           wsClient.shouldReconnect = false
+
+          // Private server: ask for join password instead of showing generic error
+          if (message.payload.code === 'PASSWORD_REQUIRED') {
+            wsClient.disconnect()
+            setView({ type: 'server-list' })
+            setConnectingServer(null)
+            setIsConnecting(false)
+            setJoinPasswordPending({ server, lastUserId: userId })
+            // Show error message if it was a wrong password attempt (not just 'not provided')
+            setJoinPasswordError(message.payload.message.includes('Incorrect') ? message.payload.message : null)
+            return
+          }
 
           // Clear stored userId if resume failed
           if (message.payload.code === 'INVALID_REQUEST' || message.payload.code === 'INVALID_PAYLOAD') {
@@ -237,6 +253,7 @@ function App() {
         payload: {
           client_version: CLIENT_VERSION,
           resume_session_id: userId,
+          ...(joinPassword ? { join_password: joinPassword } : {}),
         },
       })
 
@@ -252,14 +269,15 @@ function App() {
     }
   }
 
-  const handleConnect = async (username: string) => {
-    if (!connectingServer) return
+  const handleConnect = async (username: string, joinPassword = '', serverOverride?: SavedServer) => {
+    const targetServer = serverOverride ?? connectingServer
+    if (!targetServer) return
 
     setIsConnecting(true)
     setConnectionError(null)
 
     const wsClient = new WebSocketClient()
-    const wsUrl = `ws://${connectingServer.address}/ws`
+    const wsUrl = `ws://${targetServer.address}/ws`
 
     try {
       // Try to connect - this will throw if connection fails
@@ -267,7 +285,7 @@ function App() {
 
       // Connection successful, now set up the handlers
       const connection: ActiveConnection = {
-        server: connectingServer,
+        server: targetServer,
         client: wsClient,
         connected: true,
         connecting: false,
@@ -287,6 +305,18 @@ function App() {
 
       // Set up message handler
       wsClient.onMessage((message: ServerMessage) => {
+        // Private server: ask for join password
+        if (message.type === 'ERROR' && message.payload.code === 'PASSWORD_REQUIRED') {
+          wsClient.shouldReconnect = false
+          wsClient.disconnect()
+          setView({ type: 'server-list' })
+          setConnectingServer(null)
+          setIsConnecting(false)
+          setJoinPasswordPending({ server: targetServer, username })
+          // Show error if wrong password (vs. no password provided)
+          setJoinPasswordError(message.payload.message.includes('Incorrect') ? message.payload.message : null)
+          return
+        }
         // Request user list after successful connection
         if (message.type === 'WELCOME') {
           wsClient.send({ type: 'GET_USERS' })
@@ -332,11 +362,12 @@ function App() {
         payload: {
           username,
           client_version: CLIENT_VERSION,
+          ...(joinPassword ? { join_password: joinPassword } : {}),
         },
       })
 
       // Save last username
-      ServerManager.updateLastUsername(connectingServer.id, username)
+      ServerManager.updateLastUsername(targetServer.id, username)
 
       // Change to connected view
       setView({ type: 'connected', connection })
@@ -344,9 +375,21 @@ function App() {
       setIsConnecting(false)
     } catch (error) {
       console.error('Connection error:', error)
-      setConnectionError(`Failed to connect to ${connectingServer.address}. Make sure the server is running.`)
+      setConnectionError(`Failed to connect to ${targetServer.address}. Make sure the server is running.`)
       setIsConnecting(false)
       // Don't change view - stay on the connection modal
+    }
+  }
+
+  const handleJoinWithPassword = (password: string) => {
+    if (!joinPasswordPending) return
+    const { server: pendingServer, lastUserId, username } = joinPasswordPending
+    setJoinPasswordPending(null)
+    setJoinPasswordError(null)
+    if (lastUserId) {
+      handleConnectWithUserId(pendingServer, lastUserId, password)
+    } else if (username) {
+      handleConnect(username, password, pendingServer)
     }
   }
 
@@ -716,7 +759,7 @@ function App() {
     setShowServerSettingsModal(true)
   }
 
-  const handleUpdateServerSettings = (settings: { name?: string; max_users?: number; max_users_per_voice_channel?: number; max_message_size?: number }) => {
+  const handleUpdateServerSettings = (settings: { name?: string; max_users?: number; max_users_per_voice_channel?: number; max_message_size?: number; join_password?: string }) => {
     if (view.type !== 'connected') return
 
     view.connection.client.send({
@@ -926,6 +969,20 @@ function App() {
         )}
 
         {clientSettingsSection && <ClientSettingsModal initialSection={clientSettingsSection} onClose={() => setClientSettingsSection(null)} />}
+
+        {joinPasswordPending && (
+          <JoinPasswordModal
+            serverName={joinPasswordPending.server.name}
+            serverAddress={joinPasswordPending.server.address}
+            onSubmit={handleJoinWithPassword}
+            onCancel={() => {
+              setJoinPasswordPending(null)
+              setJoinPasswordError(null)
+            }}
+            error={joinPasswordError}
+            connecting={isConnecting}
+          />
+        )}
 
         {/* Local Server Manage Modal */}
         {showLocalServerManageModal && (
@@ -1225,6 +1282,21 @@ function App() {
 
       {showAvatarModal && conn.sessionId && conn.userId && (
         <AvatarModal currentAvatar={currentUserAvatar} serverAddress={conn.server.address} sessionId={conn.sessionId} userId={conn.userId} onClose={() => setShowAvatarModal(false)} onSave={handleUpdateAvatar} />
+      )}
+
+      {/* Join password modal can also appear here if PASSWORD_REQUIRED arrives while in connected view */}
+      {joinPasswordPending && (
+        <JoinPasswordModal
+          serverName={joinPasswordPending.server.name}
+          serverAddress={joinPasswordPending.server.address}
+          onSubmit={handleJoinWithPassword}
+          onCancel={() => {
+            setJoinPasswordPending(null)
+            setJoinPasswordError(null)
+          }}
+          error={joinPasswordError}
+          connecting={isConnecting}
+        />
       )}
     </>
   )

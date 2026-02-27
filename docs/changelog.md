@@ -10,6 +10,14 @@ All notable changes and completed tasks are documented here.
 
 ### ✨ New Features
 
+- [x] **Server join password / private servers (0.5.13)** — Server owners can now make their server private by setting a join password:
+  - **Server config**: new `join_password: Option<String>` field in `server.toml` / `ServerConfig`; absent or empty = open server
+  - **Protocol**: `CONNECT` payload accepts optional `join_password`; new `ErrorCode::PasswordRequired` sent when password is missing or wrong; server distinguishes the two cases with different messages ("This server is private. Enter the join password" vs. "Incorrect join password")
+  - **`ServerSettingsPayload`** now includes `is_private: bool` so the client knows the server privacy state without the actual password being transmitted
+  - **Security tab** of `ServerConfigModal` (pre-launch and manage modes): "Private Server" toggle + join password input field; manage mode keeps existing password when field is left empty
+  - **New `JoinPasswordModal.tsx`**: shown automatically when a server returns `PASSWORD_REQUIRED`; password prompt retries the full connection flow with `join_password` in the `CONNECT` payload; shows inline error on wrong password
+  - Affected: `server/src/config.rs`, `server/src/models.rs`, `server/src/handlers.rs`, `client/src-tauri/src/main.rs`, `client/src/types/protocol.ts`, `client/src/components/ServerConfigModal.tsx`, `client/src/components/JoinPasswordModal.tsx` (new), `client/src/App.tsx`
+
 - [x] **Server launch UX + unified config modal (0.5.15)** — Clicking "Start Server" now opens a full tabbed configuration modal instead of a minimal password prompt:
   - **Pre-launch mode**: General tab (server name + limits), Security tab (admin password on first launch, info note if already configured), Moderation tab (placeholder for 0.5.12)
   - After clicking "Launch Server" the modal transitions to a **spinner / progress step** that polls both `check_server_health` (process alive) and `check_server_ready` (TCP port reachable) every second, timing out after 30 s with a "Try Again" option
