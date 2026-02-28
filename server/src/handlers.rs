@@ -115,17 +115,48 @@ async fn handle_connect(
         }
     }
 
-    // Determine user: resume existing session or create new user
+    // Determine user: resume by session ID, resume by device key, or create new user
     let user = if let Some(resume_id) = payload.resume_session_id {
         // Client is trying to resume with existing user ID
         match state.db.get_user(resume_id)? {
             Some(existing_user) => {
-                info!("User resumed: {} ({}) as {:?}", existing_user.username, existing_user.id, existing_user.role);
+                info!("User resumed by session ID: {} ({}) as {:?}", existing_user.username, existing_user.id, existing_user.role);
                 existing_user
             }
             None => {
                 send_error(tx, ErrorCode::InvalidRequest, "Invalid user ID")?;
                 bail!("User ID not found");
+            }
+        }
+    } else if let Some(ref device_key) = payload.device_public_key {
+        // Client sends a stable ed25519 device public key — look up by it first
+        match state.db.get_user_by_device_key(device_key)? {
+            Some(existing_user) => {
+                // Known device: resume regardless of IP change
+                info!("User resumed by device key: {} ({}) as {:?}", existing_user.username, existing_user.id, existing_user.role);
+                existing_user
+            }
+            None => {
+                // Unknown device: create new user and link the key
+                let username = match payload.username {
+                    Some(name) => name,
+                    None => {
+                        send_error(tx, ErrorCode::InvalidPayload, "Username is required for new connections")?;
+                        bail!("Username missing");
+                    }
+                };
+                if let Some(_existing) = state.db.get_user_by_username(&username)? {
+                    send_error(tx, ErrorCode::InvalidRequest, "Username already in use")?;
+                    bail!("Username already taken");
+                }
+                let role = UserRole::Member;
+                let new_user = state.db.create_user(&username, role, client_ip.map(|s| s.to_string()))?;
+                // Bind the device key so future connections from this device resume automatically
+                if let Err(e) = state.db.link_device_key(new_user.id, device_key) {
+                    warn!("Could not link device key for {}: {}", new_user.id, e);
+                }
+                info!("New user created with device key: {} ({}) as {:?}", new_user.username, new_user.id, new_user.role);
+                new_user
             }
         }
     } else {

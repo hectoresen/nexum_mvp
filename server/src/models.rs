@@ -208,6 +208,9 @@ pub struct ConnectPayload {
     /// Password required to join a private server (set by the server owner).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub join_password: Option<String>,
+    /// Hex-encoded ed25519 public key — stable device identity, no hardware data collected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_public_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

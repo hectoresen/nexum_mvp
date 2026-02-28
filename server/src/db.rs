@@ -138,6 +138,15 @@ impl Database {
             );"#
         )?;
 
+        // Migration: add device_public_key column to users if missing
+        let user_columns: Vec<String> = conn.prepare("PRAGMA table_info(users)")?
+            .query_map([], |row| row.get(1))?
+            .collect::<Result<Vec<_>, _>>()?;
+        if !user_columns.contains(&"device_public_key".to_string()) {
+            conn.execute("ALTER TABLE users ADD COLUMN device_public_key TEXT", [])?;
+            conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_device_key ON users(device_public_key) WHERE device_public_key IS NOT NULL", [])?;
+        }
+
         Ok(())
     }
 
@@ -217,6 +226,37 @@ impl Database {
         }).optional()?;
 
         Ok(user)
+    }
+
+    /// Look up a user by their ed25519 device public key (hex-encoded).
+    pub fn get_user_by_device_key(&self, device_key: &str) -> Result<Option<User>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at FROM users WHERE device_public_key = ?1"
+        )?;
+        let user = stmt.query_row(params![device_key], |row| {
+            Ok(User {
+                id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                username: row.get(1)?,
+                role: UserRole::from_string(&row.get::<_, String>(2)?),
+                ip_address: row.get(3)?,
+                avatar_url: row.get(4)?,
+                avatar_path: row.get(5)?,
+                avatar_version: row.get(6)?,
+                created_at: row.get::<_, String>(7)?.parse().unwrap(),
+            })
+        }).optional()?;
+        Ok(user)
+    }
+
+    /// Associate an ed25519 device public key with an existing user.
+    pub fn link_device_key(&self, user_id: Uuid, device_key: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE users SET device_public_key = ?1 WHERE id = ?2",
+            params![device_key, user_id.to_string()],
+        )?;
+        Ok(())
     }
 
     pub fn update_username(&self, user_id: Uuid, new_username: &str) -> Result<()> {

@@ -82,6 +82,8 @@ export interface ConnectPayload {
   resume_session_id?: string;
   /** Password required to join a private server. */
   join_password?: string;
+  /** Hex-encoded ed25519 public key — stable device identity, no hardware data */
+  device_public_key?: string;
 }
 
 export interface CreateChannelPayload {
