@@ -49,6 +49,12 @@ All notable changes and completed tasks are documented here.
   - The `CONFIG_PATH` env var still overrides everything for advanced/scripted use
   - Affected: `server/src/config.rs`, `server/Cargo.toml`
 
+- [x] **DM popover clipped by overflow container (0.5.23)** — Clicking a user in the Server Members panel showed no popover because the element was being clipped by the `overflow-y-auto` scroll container. Fixed by rendering the popover via `ReactDOM.createPortal` directly to `document.body` with `position: fixed` coordinates calculated from `getBoundingClientRect()`.
+  - Affected: `client/src/components/UserListPanel.tsx`
+
+- [x] **Username-taken error not shown to user (0.5.23)** — When a new user tried to connect with an already-used username the server sent an `ERROR` before `WELCOME`, but the client had already switched to the connected view. The error was stored in `conn.error` which nothing rendered. Added a `hasReceivedWelcome` guard in `handleConnect` that intercepts pre-auth errors and surfaces them in the connection modal — mirrors the logic already present in `handleConnectWithUserId`.
+  - Affected: `client/src/App.tsx`
+
 ### ✨ New Features
 
 - [x] **Private direct messages between users (0.5.23)** — Users can now send private end-to-end encrypted messages to other server members:
@@ -60,6 +66,20 @@ All notable changes and completed tasks are documented here.
   - **Server-side**: New `direct_messages` SQLite table; `SEND_DM` and `GET_DM_HISTORY` WebSocket message types; server routes DM to recipient if online, persists regardless.
   - **Affected server files**: `server/src/models.rs`, `server/src/db.rs`, `server/src/handlers.rs`
   - **Affected client files**: `client/src/lib/dmCrypto.ts` (NEW), `client/src/components/DirectMessageView.tsx` (NEW), `client/src/types/protocol.ts`, `client/src/App.tsx`, `client/src/components/MainView.tsx`, `client/src/components/UserListPanel.tsx`
+
+- [x] **Unread DM notifications and tab recovery (0.5.23)** — Closing a DM tab and messaging UX significantly improved:
+  - **Unread badges**: `unreadDmUserIds` tracked in `ActiveConnection`; populated when a `DM_RECEIVED` arrives whilst that conversation is not in focus; cleared when the user opens the conversation. Red dot badges appear on DM tabs in the tab bar and on the corresponding user row in the member list sidebar.
+  - **Always-show chat button**: The "Open DM" button in the member-list popover is always visible (not only when a tab exists). Button label adapts: "See new message" (unread), "View conversation" (tab open), "Open conversation" (history exists but tab closed). Clicking while the tab is closed re-opens it and fetches history via `GET_DM_HISTORY`.
+  - **Pulsing unread indicator**: A red pulsing dot next to users with unread DMs in the member list gives ambient notification without opening the popover.
+  - Affected: `client/src/App.tsx`, `client/src/components/MainView.tsx`, `client/src/components/UserListPanel.tsx`
+
+- [x] **Device-bound ed25519 cryptographic identity (0.5.24)** — Users now have a stable identity that persists across IP changes and reconnections without collecting any hardware data:
+  - **Key generation (Tauri)**: New `get_device_public_key` command generates a 32-byte ed25519 keypair on first run using a CSPRNG, stores the private key as hex in `~/.nexum/device.key`, and returns the 64-char hex public key. Subsequent calls read and decode the existing key — key is never regenerated unless the file is deleted.
+  - **Client integration**: `device_public_key` added to `ConnectPayload`; `App.tsx` invokes the Tauri command on mount and injects the key into every `CONNECT` payload.
+  - **Server resumption**: `device_public_key TEXT` column (+ unique index) added to the `users` table via an `ALTER TABLE` migration. On `CONNECT` with a device key and no `resume_session_id`: server looks up existing user by key → if found, resumes that user (preserving username, avatar, permissions across IP changes); if not found, creates a new user and links the key.
+  - No hardware fingerprinting; the key file can be deleted to get a new identity. Same trust model as SSH/Git/libp2p client keys.
+  - New Cargo deps: `ed25519-dalek = "2"`, `rand = "0.8"`, `hex = "0.4"`
+  - Affected: `client/src-tauri/Cargo.toml`, `client/src-tauri/src/main.rs`, `client/src/types/protocol.ts`, `client/src/App.tsx`, `server/src/models.rs`, `server/src/db.rs`, `server/src/handlers.rs`
 
 - [x] **Pre-launch admin password reset (0.5.18)** — The Security tab of the "Start Server" modal now allows resetting the admin password even when the server is already configured:
   - New "Reset Admin Password" button expands an inline form with a password input, Generate button, and "Update Password" action

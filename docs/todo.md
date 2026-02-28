@@ -6,7 +6,7 @@
 
 This phase integrates the CLI server with the client for a unified user experience.
 
-### 🔴 CRÍTICO — Identidad de dispositivo criptográfica (ed25519)
+### ✅ Identidad de dispositivo criptográfica ed25519 (0.5.24) — COMPLETADO
 
 **Problema:** Los usuarios se persisten en la base de datos del servidor con un `user_id` generado en el primer login, vinculado a la IP del cliente en ese momento. Si el usuario cambia de IP (IP dinámica, VPN, reinstalación del cliente), el servidor no puede relacionarlo con su `user_id` anterior y su username aparece como "ya en uso".
 
@@ -45,7 +45,7 @@ El cliente genera un par de claves ed25519 en el primer arranque y persiste la c
   - ✅ Client: UserListPanel popover (click user → inline input + "Send message" button)
   - ✅ Client: DM tab bar in MainView (Server tab + DM tabs with × close)
   - ✅ Client: App.tsx DM state (`dmMessages`, `openDmTabs`, `activeDmUserId`) + handlers
-  - Future: unread message badges on DM tabs
+  - ✅ Client: DM tab unread badges, always-show chat button, pulsing indicators (0.5.23)
   - Future: true forward-secret key exchange (ECDH)
   - Future: message delete/edit in DMs
 
