@@ -11,13 +11,7 @@ interface DirectMessageViewProps {
   onSendMessage: (content: string) => void
 }
 
-export default function DirectMessageView({
-  otherUser,
-  messages,
-  currentUserId,
-  serverAddress,
-  onSendMessage,
-}: DirectMessageViewProps) {
+export default function DirectMessageView({ otherUser, messages, currentUserId, serverAddress, onSendMessage }: DirectMessageViewProps) {
   const { tw } = useAppTheme()
   const [input, setInput] = useState('')
   const [disclaimerDismissed, setDisclaimerDismissed] = useState(false)
@@ -70,10 +64,7 @@ export default function DirectMessageView({
     setInput('')
   }
 
-  const getAvatarUrl = (
-    avatarUrl: string | undefined,
-    avatarPath: string | undefined,
-  ): string | null => {
+  const getAvatarUrl = (avatarUrl: string | undefined, avatarPath: string | undefined): string | null => {
     if (avatarUrl) return avatarUrl
     if (avatarPath && serverAddress) return `http://${serverAddress}/${avatarPath}`
     return null
@@ -117,9 +108,7 @@ export default function DirectMessageView({
           {otherAvatarUrl ? (
             <img src={otherAvatarUrl} alt={otherUser.username} className="w-full h-full object-cover" />
           ) : (
-            <span className={`text-sm font-semibold ${tw.textPrimary}`}>
-              {otherUser.username[0]?.toUpperCase()}
-            </span>
+            <span className={`text-sm font-semibold ${tw.textPrimary}`}>{otherUser.username[0]?.toUpperCase()}</span>
           )}
         </div>
         <div>
@@ -132,34 +121,18 @@ export default function DirectMessageView({
       {!disclaimerDismissed && (
         <div className={`mx-4 mt-3 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 flex-shrink-0`}>
           <div className="flex items-start gap-2">
-            <svg
-              className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
-              />
+            <svg className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
             </svg>
             <div className="flex-1 min-w-0">
               <p className={`text-xs font-semibold text-amber-400 mb-1`}>Privacy Notice</p>
               <p className={`text-xs ${tw.textSecondary} leading-relaxed`}>
-                Your messages are <strong className="text-amber-400">end-to-end encrypted</strong>{' '}
-                before leaving your device. The server relays and stores encrypted data — the
-                server owner <em>cannot read the content of your messages</em>.
+                Your messages are <strong className="text-amber-400">end-to-end encrypted</strong> before leaving your device. The server relays and stores encrypted data — the server owner{' '}
+                <em>cannot read the content of your messages</em>.
               </p>
-              <p className={`text-xs ${tw.textMuted} mt-1`}>
-                There are no corporations or third parties involved — only you, the other user, and
-                the server owner who hosts this community.
-              </p>
+              <p className={`text-xs ${tw.textMuted} mt-1`}>There are no corporations or third parties involved — only you, the other user, and the server owner who hosts this community.</p>
             </div>
-            <button
-              onClick={() => setDisclaimerDismissed(true)}
-              className={`${tw.textMuted} hover:${tw.textPrimary} transition-colors flex-shrink-0`}
-              title="Dismiss">
+            <button onClick={() => setDisclaimerDismissed(true)} className={`${tw.textMuted} hover:${tw.textPrimary} transition-colors flex-shrink-0`} title="Dismiss">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -176,16 +149,12 @@ export default function DirectMessageView({
               {otherAvatarUrl ? (
                 <img src={otherAvatarUrl} alt={otherUser.username} className="w-full h-full object-cover rounded-full" />
               ) : (
-                <span className={`text-2xl font-semibold ${tw.textPrimary}`}>
-                  {otherUser.username[0]?.toUpperCase()}
-                </span>
+                <span className={`text-2xl font-semibold ${tw.textPrimary}`}>{otherUser.username[0]?.toUpperCase()}</span>
               )}
             </div>
             <p className={`text-sm font-semibold ${tw.textPrimary}`}>{otherUser.username}</p>
             <p className="text-sm text-center max-w-xs">
-              This is the beginning of your direct message history with{' '}
-              <strong className={tw.textPrimary}>{otherUser.username}</strong>. Messages are
-              encrypted end-to-end.
+              This is the beginning of your direct message history with <strong className={tw.textPrimary}>{otherUser.username}</strong>. Messages are encrypted end-to-end.
             </p>
           </div>
         )}
@@ -210,14 +179,11 @@ export default function DirectMessageView({
                   {/* Avatar column */}
                   <div className="w-10 flex-shrink-0">
                     {showAvatar && (
-                      <div
-                        className={`w-10 h-10 rounded-full ${tw.bgInput} flex items-center justify-center overflow-hidden`}>
+                      <div className={`w-10 h-10 rounded-full ${tw.bgInput} flex items-center justify-center overflow-hidden`}>
                         {senderAvatar ? (
                           <img src={senderAvatar} alt={msg.sender_username} className="w-full h-full object-cover" />
                         ) : (
-                          <span className={`text-sm font-semibold ${tw.textPrimary}`}>
-                            {msg.sender_username[0]?.toUpperCase()}
-                          </span>
+                          <span className={`text-sm font-semibold ${tw.textPrimary}`}>{msg.sender_username[0]?.toUpperCase()}</span>
                         )}
                       </div>
                     )}
@@ -227,15 +193,11 @@ export default function DirectMessageView({
                   <div className="flex-1 min-w-0">
                     {showAvatar && (
                       <div className="flex items-baseline gap-2 mb-0.5">
-                        <span className={`text-sm font-semibold ${isMe ? 'text-blue-400' : tw.textPrimary}`}>
-                          {isMe ? 'You' : msg.sender_username}
-                        </span>
+                        <span className={`text-sm font-semibold ${isMe ? 'text-blue-400' : tw.textPrimary}`}>{isMe ? 'You' : msg.sender_username}</span>
                         <span className={`text-xs ${tw.textMuted}`}>{formatTime(msg.created_at)}</span>
                       </div>
                     )}
-                    <p className={`text-sm ${tw.textSecondary} leading-relaxed break-words`}>
-                      {msg.content}
-                    </p>
+                    <p className={`text-sm ${tw.textSecondary} leading-relaxed break-words`}>{msg.content}</p>
                   </div>
                 </div>
               )
@@ -256,10 +218,7 @@ export default function DirectMessageView({
             placeholder={`Message ${otherUser.username}...`}
             className={`flex-1 px-3 py-2 text-sm ${tw.bgInput} border ${tw.borderDefault} rounded-lg ${tw.textPrimary} placeholder:${tw.textMuted} focus:outline-none focus:ring-1 focus:ring-blue-500/50`}
           />
-          <button
-            type="submit"
-            disabled={!input.trim()}
-            className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white`}>
+          <button type="submit" disabled={!input.trim()} className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white`}>
             Send
           </button>
         </form>

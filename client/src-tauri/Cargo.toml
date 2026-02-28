@@ -18,6 +18,9 @@ dirs = "5.0"
 open = "5.0"
 anyhow = "1.0"
 tracing = "0.1"
+ed25519-dalek = "2"
+rand = "0.8"
+hex = "0.4"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"

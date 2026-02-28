@@ -319,12 +319,15 @@ export default function MainView({
             <button
               onClick={onSwitchToChannelView}
               className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors flex-shrink-0 ${
-                !activeDmUserId
-                  ? `bg-blue-600 text-white`
-                  : `${tw.bgHoverSubtle} ${tw.textSecondary} hover:${tw.textPrimary}`
+                !activeDmUserId ? `bg-blue-600 text-white` : `${tw.bgHoverSubtle} ${tw.textSecondary} hover:${tw.textPrimary}`
               }`}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                />
               </svg>
               Server
             </button>
@@ -344,9 +347,7 @@ export default function MainView({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                     {label}
-                    {hasUnread && !isActive && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
-                    )}
+                    {hasUnread && !isActive && <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />}
                   </button>
                   <button
                     onClick={() => onCloseDmTab?.(tabUserId)}
@@ -376,21 +377,14 @@ export default function MainView({
         {activeDmUserId ? (
           (() => {
             const otherUser = serverUsers?.find(u => u.id === activeDmUserId)
-            if (!otherUser) return (
-              <div className="flex-1 flex items-center justify-center">
-                <p className={`${tw.textMuted} text-sm`}>Loading conversation…</p>
-              </div>
-            )
+            if (!otherUser)
+              return (
+                <div className="flex-1 flex items-center justify-center">
+                  <p className={`${tw.textMuted} text-sm`}>Loading conversation…</p>
+                </div>
+              )
             const dms = dmMessages.get(activeDmUserId) || []
-            return (
-              <DirectMessageView
-                otherUser={otherUser}
-                messages={dms}
-                currentUserId={state.userId || ''}
-                serverAddress={serverAddress}
-                onSendMessage={content => onSendDm?.(activeDmUserId, content)}
-              />
-            )
+            return <DirectMessageView otherUser={otherUser} messages={dms} currentUserId={state.userId || ''} serverAddress={serverAddress} onSendMessage={content => onSendDm?.(activeDmUserId, content)} />
           })()
         ) : currentChannel ? (
           <ChatArea

@@ -49,10 +49,10 @@ interface ActiveConnection {
   error: string | null
   serverSettings: ServerSettingsPayload | null
   serverUsers: User[] | null
-  dmMessages: Map<string, DmMessage[]>   // otherUserId -> messages (encrypted content)
-  openDmTabs: string[]                   // userIds with open DM tabs
-  activeDmUserId: string | null          // currently displayed DM conversation
-  unreadDmUserIds: string[]             // userIds with unread incoming DMs
+  dmMessages: Map<string, DmMessage[]> // otherUserId -> messages (encrypted content)
+  openDmTabs: string[] // userIds with open DM tabs
+  activeDmUserId: string | null // currently displayed DM conversation
+  unreadDmUserIds: string[] // userIds with unread incoming DMs
 }
 
 type AppView = { type: 'server-list' } | { type: 'connected'; connection: ActiveConnection }
@@ -660,14 +660,10 @@ function App() {
         }
         const newDmMessages = new Map(connection.dmMessages)
         newDmMessages.set(otherParty, [...existing, dm])
-        const newOpenTabs = connection.openDmTabs.includes(otherParty)
-          ? connection.openDmTabs
-          : [...connection.openDmTabs, otherParty]
+        const newOpenTabs = connection.openDmTabs.includes(otherParty) ? connection.openDmTabs : [...connection.openDmTabs, otherParty]
         // Mark as unread if the user is not currently viewing this conversation
         const isViewing = connection.activeDmUserId === otherParty
-        const newUnread = isViewing || connection.unreadDmUserIds.includes(otherParty)
-          ? connection.unreadDmUserIds
-          : [...connection.unreadDmUserIds, otherParty]
+        const newUnread = isViewing || connection.unreadDmUserIds.includes(otherParty) ? connection.unreadDmUserIds : [...connection.unreadDmUserIds, otherParty]
         return { ...connection, dmMessages: newDmMessages, openDmTabs: newOpenTabs, unreadDmUserIds: newUnread }
       }
 
@@ -854,9 +850,7 @@ function App() {
     setView(prev => {
       if (prev.type !== 'connected') return prev
       const conn = prev.connection
-      const newTabs = conn.openDmTabs.includes(user.id)
-        ? conn.openDmTabs
-        : [...conn.openDmTabs, user.id]
+      const newTabs = conn.openDmTabs.includes(user.id) ? conn.openDmTabs : [...conn.openDmTabs, user.id]
       const newUnread = conn.unreadDmUserIds.filter(id => id !== user.id)
       return { type: 'connected', connection: { ...conn, openDmTabs: newTabs, activeDmUserId: user.id, unreadDmUserIds: newUnread } }
     })
@@ -900,9 +894,7 @@ function App() {
       if (prev.type !== 'connected') return prev
       const conn = prev.connection
       const newTabs = conn.openDmTabs.filter(id => id !== userId)
-      const newActive = conn.activeDmUserId === userId
-        ? (newTabs.length > 0 ? newTabs[newTabs.length - 1] : null)
-        : conn.activeDmUserId
+      const newActive = conn.activeDmUserId === userId ? (newTabs.length > 0 ? newTabs[newTabs.length - 1] : null) : conn.activeDmUserId
       return { type: 'connected', connection: { ...conn, openDmTabs: newTabs, activeDmUserId: newActive } }
     })
   }

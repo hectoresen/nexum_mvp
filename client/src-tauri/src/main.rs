@@ -234,6 +234,35 @@ fn check_server_ready(port: u16) -> bool {
     .is_ok()
 }
 
+/// Get (or create on first run) the device's ed25519 public key.
+/// The private key is stored in `~/.nexum/device.key` as a 64-char hex string.
+/// The returned value is the 32-byte public key encoded as 64 hex chars.
+/// This key is the stable "Device ID" — no hardware data is ever read or transmitted.
+#[tauri::command]
+fn get_device_public_key() -> Result<String, String> {
+    let key_dir = dirs::home_dir()
+        .ok_or_else(|| "Could not find home directory".to_string())?;
+    let nexum_dir = key_dir.join(".nexum");
+    std::fs::create_dir_all(&nexum_dir).map_err(|e| e.to_string())?;
+    let key_path = nexum_dir.join("device.key");
+
+    let secret_bytes: [u8; 32] = if key_path.exists() {
+        let hex_str = std::fs::read_to_string(&key_path).map_err(|e| e.to_string())?;
+        let bytes = hex::decode(hex_str.trim()).map_err(|e| format!("Corrupt device key: {}", e))?;
+        bytes.try_into().map_err(|_| "Device key has wrong length".to_string())?
+    } else {
+        use rand::RngCore;
+        let mut secret = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut secret);
+        std::fs::write(&key_path, hex::encode(&secret)).map_err(|e| e.to_string())?;
+        secret
+    };
+
+    let signing_key = ed25519_dalek::SigningKey::from_bytes(&secret_bytes);
+    let public_key = signing_key.verifying_key();
+    Ok(hex::encode(public_key.as_bytes()))
+}
+
 /// Check if Nexum is registered in Windows startup (HKCU Run key)
 #[tauri::command]
 fn is_auto_start_enabled(app_handle: tauri::AppHandle) -> bool {
@@ -332,6 +361,7 @@ fn main() {
             check_server_ready,
             update_server_admin_password,
             read_server_config,
+            get_device_public_key,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
