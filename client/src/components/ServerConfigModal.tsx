@@ -55,6 +55,12 @@ export default function ServerConfigModal({ mode, isConfigured, port, settings, 
   const [joinPassword, setJoinPassword] = useState('')
   const [joinPasswordError, setJoinPasswordError] = useState<string | null>(null)
 
+  // ── Pre-launch password reset (isConfigured only) ─────────────────────────
+  const [showPasswordReset, setShowPasswordReset] = useState(false)
+  const [newAdminPassword, setNewAdminPassword] = useState('')
+  const [newPasswordError, setNewPasswordError] = useState<string | null>(null)
+  const [newPasswordSaved, setNewPasswordSaved] = useState(false)
+
   // ── Manage-mode save flash ───────────────────────────────────────────────────
   const [saved, setSaved] = useState(false)
 
@@ -82,6 +88,22 @@ export default function ServerConfigModal({ mode, isConfigured, port, settings, 
     }
   }, [])
 
+  // Pre-fill form from server.toml when opening in pre-launch mode on a configured server
+  useEffect(() => {
+    if (mode === 'pre-launch' && isConfigured) {
+      invoke<{ name: string; max_users: number; max_users_per_voice_channel: number; max_message_size: number; is_private: boolean }>('read_server_config')
+        .then(cfg => {
+          setServerName(cfg.name)
+          setMaxUsers(cfg.max_users)
+          setMaxVoice(cfg.max_users_per_voice_channel)
+          setMaxMessage(cfg.max_message_size)
+          setIsPrivate(cfg.is_private)
+        })
+        .catch(() => { /* silently fall back to defaults */ })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // ── Helpers ─────────────────────────────────────────────────────────────────
   const generatePassword = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
@@ -89,6 +111,29 @@ export default function ServerConfigModal({ mode, isConfigured, port, settings, 
     for (let i = 0; i < 16; i++) pwd += chars.charAt(Math.floor(Math.random() * chars.length))
     setAdminPassword(pwd)
     setPasswordError(null)
+  }
+
+  const generateNewPassword = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+    let pwd = ''
+    for (let i = 0; i < 16; i++) pwd += chars.charAt(Math.floor(Math.random() * chars.length))
+    setNewAdminPassword(pwd)
+    setNewPasswordError(null)
+    setNewPasswordSaved(false)
+  }
+
+  const handleUpdatePassword = async () => {
+    if (!newAdminPassword || newAdminPassword.length < 8) {
+      setNewPasswordError('Password must be at least 8 characters.')
+      return
+    }
+    try {
+      await invoke('update_server_admin_password', { newPassword: newAdminPassword })
+      setNewPasswordSaved(true)
+      setNewPasswordError(null)
+    } catch (err) {
+      setNewPasswordError(String(err))
+    }
   }
 
   // ── Launch flow (pre-launch mode) ───────────────────────────────────────────
@@ -125,7 +170,18 @@ export default function ServerConfigModal({ mode, isConfigured, port, settings, 
         // Server reads from the toml we just wrote — no need to pass adminPassword again
         await invoke('start_local_server', { adminPassword: null })
       } else {
-        // Already configured: just start it
+        // Already configured: apply pending password reset if any
+        if (newAdminPassword && !newPasswordSaved) {
+          if (newAdminPassword.length < 8) {
+            setPhase('config')
+            setActiveTab('security')
+            setNewPasswordError('Password must be at least 8 characters.')
+            setShowPasswordReset(true)
+            return
+          }
+          await invoke('update_server_admin_password', { newPassword: newAdminPassword })
+        }
+        // Launch without rewriting config
         await invoke('start_local_server', { adminPassword: null })
       }
 
@@ -408,20 +464,71 @@ export default function ServerConfigModal({ mode, isConfigured, port, settings, 
                     </div>
                   )}
 
-                  {/* Pre-launch + already configured: info note */}
+                  {/* Pre-launch + already configured: info note + reset form */}
                   {mode === 'pre-launch' && isConfigured && (
-                    <div className={`p-4 ${tw.bgInput} rounded-lg border ${tw.borderDefault}`}>
-                      <div className="flex items-start gap-3">
-                        <svg className={`w-5 h-5 ${tw.textTertiary} mt-0.5 shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <div>
-                          <p className={`text-sm font-medium ${tw.textSecondary}`}>Server already configured</p>
-                          <p className={`text-xs ${tw.textTertiary} mt-1`}>
-                            Admin password will remain unchanged. To change it, use <strong>Server → Configure Server → Reset Password</strong> after the server is running.
-                          </p>
+                    <div>
+                      <div className={`p-4 ${tw.bgInput} rounded-lg border ${tw.borderDefault} mb-4`}>
+                        <div className="flex items-start gap-3">
+                          <svg className={`w-5 h-5 ${tw.textTertiary} mt-0.5 shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <div>
+                            <p className={`text-sm font-medium ${tw.textSecondary}`}>Server already configured</p>
+                            <p className={`text-xs ${tw.textTertiary} mt-1`}>Admin password will remain unchanged unless you reset it below.</p>
+                          </div>
                         </div>
                       </div>
+
+                      {!showPasswordReset ? (
+                        <button onClick={() => setShowPasswordReset(true)} className={`flex items-center gap-2 px-3 py-2 text-sm ${tw.btnSecondary} ${tw.textPrimary} rounded-md transition-colors cursor-pointer`}>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+                            />
+                          </svg>
+                          Reset Admin Password
+                        </button>
+                      ) : (
+                        <div>
+                          <label className={`block text-sm font-medium ${tw.textSecondary} mb-1`}>New Admin Password</label>
+                          <div className="flex gap-2 mb-1">
+                            <input
+                              type="text"
+                              value={newAdminPassword}
+                              onChange={e => {
+                                setNewAdminPassword(e.target.value)
+                                setNewPasswordError(null)
+                                setNewPasswordSaved(false)
+                              }}
+                              placeholder="New password (min 8 characters)"
+                              className={`flex-1 px-3 py-2 ${tw.bgInput} border ${newPasswordError ? 'border-red-500' : tw.borderDefault} rounded-md ${tw.textPrimary} focus:outline-none text-sm font-mono`}
+                            />
+                            <button onClick={generateNewPassword} className={`px-3 py-2 ${tw.btnSecondary} ${tw.textPrimary} rounded-md text-sm transition-colors cursor-pointer`}>
+                              Generate
+                            </button>
+                          </div>
+                          {newPasswordError && <p className="text-xs text-red-400 mb-2">{newPasswordError}</p>}
+                          {newPasswordSaved && <p className="text-xs text-green-400 mb-2">✓ Password updated — will take effect on next launch.</p>}
+                          <div className="flex gap-2">
+                            <button onClick={handleUpdatePassword} className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors cursor-pointer">
+                              Update Password
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowPasswordReset(false)
+                                setNewAdminPassword('')
+                                setNewPasswordError(null)
+                                setNewPasswordSaved(false)
+                              }}
+                              className={`px-3 py-2 ${tw.btnSecondary} ${tw.textPrimary} rounded-md text-sm transition-colors cursor-pointer`}>
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
