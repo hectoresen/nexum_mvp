@@ -22,6 +22,11 @@ All notable changes and completed tasks are documented here.
   - **Server fix**: DB errors in `handle_delete_channel` now send an `ERROR` response to the client instead of propagating silently.
   - Affected: `client/src/components/ChannelList.tsx`, `server/src/db.rs`, `server/src/handlers.rs`
 
+- [x] **Pre-launch modal not restoring configured server name (0.5.19)** — When re-opening the "Start Server" modal on an already-configured server, the General tab always showed "My Nexum Server" instead of the previously saved name and limits:
+  - New `read_server_config` Tauri command reads `~/.nexum/server/server.toml` line-by-line and returns the current `name`, `max_users`, `max_users_per_voice_channel`, `max_message_size`, and `is_private` fields
+  - `ServerConfigModal` calls this command on mount (pre-launch + isConfigured) and pre-fills all form fields with the persisted values
+  - Affected: `client/src-tauri/src/main.rs`, `client/src/components/ServerConfigModal.tsx`
+
 ### ✨ New Features
 
 - [x] **Pre-launch admin password reset (0.5.18)** — The Security tab of the "Start Server" modal now allows resetting the admin password even when the server is already configured:

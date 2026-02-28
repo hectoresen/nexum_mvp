@@ -88,6 +88,22 @@ export default function ServerConfigModal({ mode, isConfigured, port, settings, 
     }
   }, [])
 
+  // Pre-fill form from server.toml when opening in pre-launch mode on a configured server
+  useEffect(() => {
+    if (mode === 'pre-launch' && isConfigured) {
+      invoke<{ name: string; max_users: number; max_users_per_voice_channel: number; max_message_size: number; is_private: boolean }>('read_server_config')
+        .then(cfg => {
+          setServerName(cfg.name)
+          setMaxUsers(cfg.max_users)
+          setMaxVoice(cfg.max_users_per_voice_channel)
+          setMaxMessage(cfg.max_message_size)
+          setIsPrivate(cfg.is_private)
+        })
+        .catch(() => { /* silently fall back to defaults */ })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // ── Helpers ─────────────────────────────────────────────────────────────────
   const generatePassword = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'

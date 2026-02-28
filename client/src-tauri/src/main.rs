@@ -171,6 +171,58 @@ fn update_server_admin_password(
     std::fs::write(&config_path, new_content).map_err(|e| e.to_string())
 }
 
+#[derive(serde::Serialize)]
+struct ServerConfigSnapshot {
+    name: String,
+    max_users: u32,
+    max_users_per_voice_channel: u32,
+    max_message_size: u32,
+    is_private: bool,
+}
+
+/// Read the current server.toml and return user-visible config fields.
+/// Used by the pre-launch modal to pre-fill the form when the server is already configured.
+#[tauri::command]
+fn read_server_config() -> Result<ServerConfigSnapshot, String> {
+    let server_dir = crate::server_manager::ServerManager::get_server_data_dir()
+        .ok_or("Could not determine server data directory")?;
+    let config_path = server_dir.join("server.toml");
+    if !config_path.exists() {
+        return Err("Server is not configured yet.".to_string());
+    }
+    let content = std::fs::read_to_string(&config_path).map_err(|e| e.to_string())?;
+
+    let mut name = String::from("My Nexum Server");
+    let mut max_users: u32 = 200;
+    let mut max_users_per_voice_channel: u32 = 100;
+    let mut max_message_size: u32 = 2000;
+    let mut is_private = false;
+
+    for line in content.lines() {
+        let trimmed = line.trim_start();
+        if let Some(rest) = trimmed.strip_prefix("name = ") {
+            name = rest.trim().trim_matches('"').to_string();
+        } else if let Some(rest) = trimmed.strip_prefix("max_users = ") {
+            if let Ok(v) = rest.trim().parse::<u32>() { max_users = v; }
+        } else if let Some(rest) = trimmed.strip_prefix("max_users_per_voice_channel = ") {
+            if let Ok(v) = rest.trim().parse::<u32>() { max_users_per_voice_channel = v; }
+        } else if let Some(rest) = trimmed.strip_prefix("max_message_size = ") {
+            if let Ok(v) = rest.trim().parse::<u32>() { max_message_size = v; }
+        } else if trimmed.starts_with("join_password = ") {
+            let val = trimmed["join_password = ".len()..].trim().trim_matches('"');
+            if !val.is_empty() { is_private = true; }
+        }
+    }
+
+    Ok(ServerConfigSnapshot {
+        name,
+        max_users,
+        max_users_per_voice_channel,
+        max_message_size,
+        is_private,
+    })
+}
+
 /// Check if the server is accepting TCP connections on a given port.
 /// Used to confirm the server is ready after `start_local_server`.
 #[tauri::command]
@@ -279,6 +331,7 @@ fn main() {
             write_initial_server_config,
             check_server_ready,
             update_server_admin_password,
+            read_server_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

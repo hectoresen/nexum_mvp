@@ -420,6 +420,21 @@ Allow server owners to require a password for joining, making the server private
 
 ---
 
+### 0.5.19 Pre-launch Modal Config Not Persisting ✅
+
+**Priority: HIGH - UX Bug**
+
+**Problem:** When re-opening the "Start Server" modal on an already-configured server, the General tab always showed the default "My Nexum Server" name and default limits instead of the previously saved values. `ServerConfigModal` initialises from the `settings` prop (which is only populated in manage mode) and had no mechanism to read `server.toml` in pre-launch mode.
+
+#### Tasks
+
+- [x] **Rust — `client/src-tauri/src/main.rs`:** Add `read_server_config()` Tauri command — parses `~/.nexum/server/server.toml` line-by-line, returns `{ name, max_users, max_users_per_voice_channel, max_message_size, is_private }` as a serialised struct
+- [x] **Frontend — `ServerConfigModal.tsx`:** Add `useEffect` on mount that calls `read_server_config` when `mode === 'pre-launch' && isConfigured`, then sets `serverName`, `maxUsers`, `maxVoice`, `maxMessage`, `isPrivate` from the result
+
+**Affected files:** `client/src-tauri/src/main.rs`, `client/src/components/ServerConfigModal.tsx`
+
+---
+
 ### 0.5.14 Notification System 🚧
 
 **Priority: LOW - User Convenience**
