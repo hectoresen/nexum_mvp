@@ -247,6 +247,13 @@ function App() {
         })
       }
 
+      wsClient.onGiveUp = () => {
+        wsClient.disconnect()
+        setView({ type: 'server-list' })
+        setConnectingServer(server)
+        setConnectionError('Lost connection to server. The server may have gone offline.')
+      }
+
       // Send CONNECT message with resume_session_id (no username needed)
       wsClient.send({
         type: 'CONNECT',
@@ -354,6 +361,13 @@ function App() {
             },
           }
         })
+      }
+
+      wsClient.onGiveUp = () => {
+        wsClient.disconnect()
+        setView({ type: 'server-list' })
+        setConnectingServer(targetServer)
+        setConnectionError('Lost connection to server. The server may have gone offline.')
       }
 
       // Send CONNECT message (new user, no resume_session_id)

@@ -4,6 +4,26 @@ All notable changes and completed tasks are documented here.
 
 ---
 
+## 🚧 v0.1.4 — In Progress
+
+**Branch:** `develop`
+
+### 🐛 Bug Fixes
+
+- [x] **Server disconnect detection (0.5.16)** — Clients now react immediately when the server goes offline:
+  - `WebSocketClient` gains an `onGiveUp` callback that fires when all 5 reconnect attempts are exhausted
+  - During reconnect attempts, a yellow "Reconnecting to server…" banner is shown at the top of the main view (only shown after a successful session, not during initial connection)
+  - When all attempts fail, the client is navigated back to the server-list view and the "Last connection error" modal opens with "Lost connection to server. The server may have gone offline."
+  - Affected: `client/src/lib/websocket.ts`, `client/src/App.tsx`, `client/src/components/MainView.tsx`
+
+- [x] **Channel deletion not working (0.5.17)** — Clicking ✓ on the channel delete confirmation now reliably deletes the channel:
+  - **Client fix**: The channel row `div` is no longer `draggable` while the delete-confirmation UI is active (`draggable={isOwner && !isDeleting && !isRenaming}`). The `draggable` attribute on the parent was causing Tauri/WebView to suppress click events on child buttons in some configurations. `e.stopPropagation()` also added to confirm/cancel buttons.
+  - **Server fix**: `handle_delete_channel` now deletes all messages for the channel before deleting the channel itself (via new `db.delete_channel_messages()`). This prevents silent failures from SQLite FK constraint violations and cleans up orphaned message rows.
+  - **Server fix**: DB errors in `handle_delete_channel` now send an `ERROR` response to the client instead of propagating silently.
+  - Affected: `client/src/components/ChannelList.tsx`, `server/src/db.rs`, `server/src/handlers.rs`
+
+---
+
 ## ✅ v0.1.3 — Released 2026-02-27
 
 **Type:** Feature Release + Bug Fixes

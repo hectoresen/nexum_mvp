@@ -380,6 +380,15 @@ impl Database {
         Ok(channels)
     }
 
+    pub fn delete_channel_messages(&self, channel_id: Uuid) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "DELETE FROM messages WHERE channel_id = ?1",
+            params![channel_id.to_string()],
+        )?;
+        Ok(())
+    }
+
     pub fn delete_channel(&self, channel_id: Uuid) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
