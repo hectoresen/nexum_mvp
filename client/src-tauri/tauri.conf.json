@@ -18,9 +18,7 @@
       "digestAlgorithm": "sha256",
       "timestampUrl": "",
       "nsis": {
-        "installMode": "currentUser",
-        "shortcutName": "Nexum",
-        "allowWebviewInstall": false
+        "installMode": "currentUser"
       }
     },
     "resources": {
