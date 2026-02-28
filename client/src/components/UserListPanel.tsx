@@ -8,6 +8,7 @@ interface UserListPanelProps {
   currentUserId: string | null
   serverAddress?: string
   openDmTabs?: string[] // userIds with open DM tabs
+  unreadDmUserIds?: string[] // userIds with unread incoming DMs
   onUserClick?: (user: User) => void // View profile
   onSendDm?: (user: User, message: string) => void // Send first DM & open conversation
   onOpenExistingDm?: (user: User) => void // Open an already-open DM tab
@@ -18,6 +19,7 @@ export default function UserListPanel({
   currentUserId,
   serverAddress,
   openDmTabs = [],
+  unreadDmUserIds = [],
   onUserClick,
   onSendDm,
   onOpenExistingDm,
@@ -100,6 +102,7 @@ export default function UserListPanel({
     const avatarUrl = getAvatarUrl(user)
     const isPopoverOpen = activePopoverId === user.id
     const hasOpenDm = openDmTabs.includes(user.id)
+    const hasUnread = unreadDmUserIds.includes(user.id)
 
     return (
       <div
@@ -127,8 +130,12 @@ export default function UserListPanel({
               {isCurrentUser && <span className={`${tw.textMuted} ml-1`}>(you)</span>}
             </p>
           </div>
-          {/* Badge for open DM tab */}
-          {hasOpenDm && !isCurrentUser && (
+          {/* Unread message badge — red dot */}
+          {hasUnread && !isCurrentUser && (
+            <span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0 animate-pulse" title="Unread message" />
+          )}
+          {/* Open DM tab indicator — blue dot */}
+          {hasOpenDm && !hasUnread && !isCurrentUser && (
             <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0" title="Open conversation" />
           )}
           {user.role === 'owner' && (
@@ -144,6 +151,7 @@ export default function UserListPanel({
   // Find active user for portal popover
   const activeUser = users ? users.find(u => u.id === activePopoverId) ?? null : null
   const hasOpenDmForActive = activeUser ? openDmTabs.includes(activeUser.id) : false
+  const hasUnreadForActive = activeUser ? unreadDmUserIds.includes(activeUser.id) : false
 
   return (
     <div className={`w-56 ${tw.bgHeader} border-l ${tw.borderDefault} flex flex-col`}>
@@ -200,6 +208,9 @@ export default function UserListPanel({
                   )}
                 </div>
                 <span className={`text-xs ${tw.textSecondary} truncate flex-1 text-left`}>{tabUser.username}</span>
+                {unreadDmUserIds.includes(tabUserId) && (
+                  <span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0 animate-pulse" />
+                )}
               </button>
             )
           })}
@@ -212,22 +223,23 @@ export default function UserListPanel({
           ref={popoverRef}
           style={{ position: 'fixed', top: popoverPos.top, right: popoverPos.right, zIndex: 9999 }}
           className={`w-52 ${tw.bgCard} rounded-lg shadow-xl border ${tw.borderDefault} p-3`}>
-          <p className={`text-xs font-semibold ${tw.textPrimary} mb-2`}>{activeUser.username}</p>
+          <p className={`text-xs font-semibold ${tw.textPrimary} mb-2 flex items-center gap-2`}>
+            {activeUser.username}
+            {hasUnreadForActive && <span className="text-red-400 text-xs">● unread</span>}
+          </p>
 
-          {/* Open existing conversation */}
-          {hasOpenDmForActive && (
-            <button
-              onClick={() => {
-                onOpenExistingDm?.(activeUser)
-                closePopover()
-              }}
-              className={`w-full px-2 py-1.5 mb-2 text-xs rounded ${tw.btnSecondary} ${tw.textPrimary} transition-colors flex items-center gap-2`}>
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              Open conversation
-            </button>
-          )}
+          {/* Open / view conversation — always visible for any other user */}
+          <button
+            onClick={() => {
+              onOpenExistingDm?.(activeUser)
+              closePopover()
+            }}
+            className={`w-full px-2 py-1.5 mb-2 text-xs rounded ${hasUnreadForActive ? 'bg-red-500/20 border border-red-500/40 text-red-300 hover:bg-red-500/30' : `${tw.btnSecondary} ${tw.textPrimary}`} transition-colors flex items-center gap-2`}>
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            {hasUnreadForActive ? 'See new message' : hasOpenDmForActive ? 'View conversation' : 'Open conversation'}
+          </button>
 
           {/* Send new message */}
           <form

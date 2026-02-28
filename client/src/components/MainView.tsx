@@ -40,6 +40,7 @@ interface MainViewProps {
   onCloseDmTab?: (userId: string) => void
   onSwitchToDmView?: (userId: string) => void
   onSwitchToChannelView?: () => void
+  unreadDmUserIds?: string[]
 }
 
 export default function MainView({
@@ -74,6 +75,7 @@ export default function MainView({
   onCloseDmTab,
   onSwitchToDmView,
   onSwitchToChannelView,
+  unreadDmUserIds = [],
 }: MainViewProps) {
   const { tw } = useAppTheme()
   const [showCreateChannel, setShowCreateChannel] = useState(false)
@@ -331,6 +333,7 @@ export default function MainView({
             {openDmTabs.map(tabUserId => {
               const tabUser = serverUsers?.find(u => u.id === tabUserId)
               const isActive = activeDmUserId === tabUserId
+              const hasUnread = unreadDmUserIds.includes(tabUserId)
               const label = tabUser?.username ?? '…'
               return (
                 <div key={tabUserId} className={`flex items-center gap-1 rounded flex-shrink-0 ${isActive ? 'bg-blue-600' : tw.bgHoverSubtle}`}>
@@ -341,6 +344,9 @@ export default function MainView({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                     {label}
+                    {hasUnread && !isActive && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
+                    )}
                   </button>
                   <button
                     onClick={() => onCloseDmTab?.(tabUserId)}
@@ -420,6 +426,7 @@ export default function MainView({
         currentUserId={state.userId}
         serverAddress={serverAddress}
         openDmTabs={openDmTabs}
+        unreadDmUserIds={unreadDmUserIds}
         onUserClick={setSelectedUser}
         onSendDm={onSendDmFromPopover}
         onOpenExistingDm={user => {

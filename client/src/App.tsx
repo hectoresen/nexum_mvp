@@ -52,6 +52,7 @@ interface ActiveConnection {
   dmMessages: Map<string, DmMessage[]>   // otherUserId -> messages (encrypted content)
   openDmTabs: string[]                   // userIds with open DM tabs
   activeDmUserId: string | null          // currently displayed DM conversation
+  unreadDmUserIds: string[]             // userIds with unread incoming DMs
 }
 
 type AppView = { type: 'server-list' } | { type: 'connected'; connection: ActiveConnection }
@@ -177,6 +178,7 @@ function App() {
         dmMessages: new Map(),
         openDmTabs: [],
         activeDmUserId: null,
+        unreadDmUserIds: [],
       }
 
       // Set up handlers
@@ -318,6 +320,7 @@ function App() {
         dmMessages: new Map(),
         openDmTabs: [],
         activeDmUserId: null,
+        unreadDmUserIds: [],
       }
 
       // Set up message handler
@@ -648,7 +651,12 @@ function App() {
         const newOpenTabs = connection.openDmTabs.includes(otherParty)
           ? connection.openDmTabs
           : [...connection.openDmTabs, otherParty]
-        return { ...connection, dmMessages: newDmMessages, openDmTabs: newOpenTabs }
+        // Mark as unread if the user is not currently viewing this conversation
+        const isViewing = connection.activeDmUserId === otherParty
+        const newUnread = isViewing || connection.unreadDmUserIds.includes(otherParty)
+          ? connection.unreadDmUserIds
+          : [...connection.unreadDmUserIds, otherParty]
+        return { ...connection, dmMessages: newDmMessages, openDmTabs: newOpenTabs, unreadDmUserIds: newUnread }
       }
 
       case 'DM_HISTORY': {
@@ -837,7 +845,8 @@ function App() {
       const newTabs = conn.openDmTabs.includes(user.id)
         ? conn.openDmTabs
         : [...conn.openDmTabs, user.id]
-      return { type: 'connected', connection: { ...conn, openDmTabs: newTabs, activeDmUserId: user.id } }
+      const newUnread = conn.unreadDmUserIds.filter(id => id !== user.id)
+      return { type: 'connected', connection: { ...conn, openDmTabs: newTabs, activeDmUserId: user.id, unreadDmUserIds: newUnread } }
     })
   }
 
@@ -889,7 +898,9 @@ function App() {
   const handleSwitchToDmView = (userId: string) => {
     setView(prev => {
       if (prev.type !== 'connected') return prev
-      return { type: 'connected', connection: { ...prev.connection, activeDmUserId: userId } }
+      const conn = prev.connection
+      const newUnread = conn.unreadDmUserIds.filter(id => id !== userId)
+      return { type: 'connected', connection: { ...conn, activeDmUserId: userId, unreadDmUserIds: newUnread } }
     })
   }
 
@@ -1375,6 +1386,7 @@ function App() {
         dmMessages={conn.dmMessages}
         openDmTabs={conn.openDmTabs}
         activeDmUserId={conn.activeDmUserId}
+        unreadDmUserIds={conn.unreadDmUserIds}
         onDisconnect={handleDisconnect}
         onCreateChannel={handleCreateChannel}
         onJoinChannel={handleJoinChannel}
