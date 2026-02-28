@@ -324,6 +324,7 @@ function App() {
       }
 
       // Set up message handler
+      let hasReceivedWelcome = false
       wsClient.onMessage((message: ServerMessage) => {
         // Private server: ask for join password
         if (message.type === 'ERROR' && message.payload.code === 'PASSWORD_REQUIRED') {
@@ -337,8 +338,19 @@ function App() {
           setJoinPasswordError(message.payload.message.includes('Incorrect') ? message.payload.message : null)
           return
         }
+        // Pre-auth errors (e.g. username taken) — arrived before WELCOME
+        if (message.type === 'ERROR' && !hasReceivedWelcome) {
+          wsClient.shouldReconnect = false
+          wsClient.disconnect()
+          setView({ type: 'server-list' })
+          setConnectingServer(targetServer)
+          setConnectionError(message.payload.message)
+          setIsConnecting(false)
+          return
+        }
         // Request user list after successful connection
         if (message.type === 'WELCOME') {
+          hasReceivedWelcome = true
           wsClient.send({ type: 'GET_USERS' })
         }
         // Handle admin auth errors specifically
