@@ -6,6 +6,22 @@
 
 This phase integrates the CLI server with the client for a unified user experience.
 
+### 0.5.22 / 0.5.23 — Installer Fix + Private Messaging ✅
+
+- [x] **NSIS installer launch checkbox (0.5.22)** — Fixed "Launch Nexum" checkbox not working after NSIS install. Added `nsis.installMode: "currentUser"` to `tauri.conf.json`.
+
+- [x] **Private direct messages (0.5.23)** — End-to-end encrypted DMs between server members
+  - ✅ Server: `direct_messages` DB table (id, sender_id, recipient_id, encrypted_content, created_at)
+  - ✅ Server: `SEND_DM` + `GET_DM_HISTORY` WebSocket message types + handlers
+  - ✅ Client: `dmCrypto.ts` — AES-GCM 256 + PBKDF2(100k) key derivation with module-level cache
+  - ✅ Client: `DirectMessageView` component with message grouping, date separators, privacy banner
+  - ✅ Client: UserListPanel popover (click user → inline input + "Send message" button)
+  - ✅ Client: DM tab bar in MainView (Server tab + DM tabs with × close)
+  - ✅ Client: App.tsx DM state (`dmMessages`, `openDmTabs`, `activeDmUserId`) + handlers
+  - Future: unread message badges on DM tabs
+  - Future: true forward-secret key exchange (ECDH)
+  - Future: message delete/edit in DMs
+
 ### 0.5.0 Admin Features & UX Polish ✅
 
 - [x] **Username persistence** — server sends username back in `WELCOME`, saved to localStorage; no more username prompts on reconnect

@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 use chrono::Utc;
 
-use crate::models::{User, UserRole, Channel, ChannelType, Message, Category};
+use crate::models::{User, UserRole, Channel, ChannelType, Message, Category, DirectMessage};
 
 #[derive(Clone)]
 pub struct Database {
@@ -87,8 +87,21 @@ impl Database {
                 created_at TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS direct_messages (
+                id TEXT PRIMARY KEY,
+                sender_id TEXT NOT NULL,
+                recipient_id TEXT NOT NULL,
+                encrypted_content TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (sender_id) REFERENCES users(id),
+                FOREIGN KEY (recipient_id) REFERENCES users(id)
+            );
+
             CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel_id);
             CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);
+            CREATE INDEX IF NOT EXISTS idx_dm_sender ON direct_messages(sender_id);
+            CREATE INDEX IF NOT EXISTS idx_dm_recipient ON direct_messages(recipient_id);
+            CREATE INDEX IF NOT EXISTS idx_dm_created ON direct_messages(created_at);
             "#
         )?;
 
@@ -673,5 +686,68 @@ impl Database {
         )?;
 
         Ok(())
+    }
+
+    // ========================================================================
+    // Direct Message Operations
+    // ========================================================================
+
+    /// Persist an encrypted direct message and return the stored record.
+    pub fn save_dm(
+        &self,
+        sender_id: Uuid,
+        recipient_id: Uuid,
+        encrypted_content: &str,
+    ) -> Result<DirectMessage> {
+        let dm = DirectMessage {
+            id: Uuid::new_v4(),
+            sender_id,
+            recipient_id,
+            encrypted_content: encrypted_content.to_string(),
+            created_at: Utc::now(),
+        };
+
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO direct_messages (id, sender_id, recipient_id, encrypted_content, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                dm.id.to_string(),
+                dm.sender_id.to_string(),
+                dm.recipient_id.to_string(),
+                &dm.encrypted_content,
+                dm.created_at.to_rfc3339(),
+            ],
+        )?;
+
+        Ok(dm)
+    }
+
+    /// Retrieve the last 100 DMs between two users, ordered oldest-first.
+    pub fn get_dm_history(&self, user_a: Uuid, user_b: Uuid) -> Result<Vec<DirectMessage>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, sender_id, recipient_id, encrypted_content, created_at \
+             FROM direct_messages \
+             WHERE (sender_id = ?1 AND recipient_id = ?2) \
+                OR (sender_id = ?2 AND recipient_id = ?1) \
+             ORDER BY created_at ASC \
+             LIMIT 100",
+        )?;
+
+        let rows = stmt.query_map(
+            params![user_a.to_string(), user_b.to_string()],
+            |row| {
+                Ok(DirectMessage {
+                    id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                    sender_id: Uuid::parse_str(&row.get::<_, String>(1)?).unwrap(),
+                    recipient_id: Uuid::parse_str(&row.get::<_, String>(2)?).unwrap(),
+                    encrypted_content: row.get(3)?,
+                    created_at: row.get::<_, String>(4)?.parse().unwrap(),
+                })
+            },
+        )?
+        .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(rows)
     }
 }

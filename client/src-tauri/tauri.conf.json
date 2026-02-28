@@ -16,7 +16,12 @@
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
-      "timestampUrl": ""
+      "timestampUrl": "",
+      "nsis": {
+        "installMode": "currentUser",
+        "shortcutName": "Nexum",
+        "allowWebviewInstall": false
+      }
     },
     "resources": {
       "../../server/target/release/voice-server.exe": "./"

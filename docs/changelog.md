@@ -10,6 +10,11 @@ All notable changes and completed tasks are documented here.
 
 ### 🐛 Bug Fixes
 
+- [x] **NSIS installer "Launch Nexum" checkbox not working (0.5.22)** — Checking "Launch Nexum" on the final page of the NSIS installer had no effect; the app never launched after clicking Finish:
+  - Added explicit `nsis` section to `bundle.windows` in `tauri.conf.json` with `installMode: "currentUser"`. Installing per-user (in AppData) rather than system-wide prevents UAC elevation from blocking the post-install launch.
+  - Also added `shortcutName: "Nexum"` for Start-menu consistency and `allowWebviewInstall: false` (WebView2 is always present on Win 10+).
+  - Affected: `client/src-tauri/tauri.conf.json`
+
 - [x] **Server disconnect detection (0.5.16)** — Clients now react immediately when the server goes offline:
   - `WebSocketClient` gains an `onGiveUp` callback that fires when all 5 reconnect attempts are exhausted
   - During reconnect attempts, a yellow "Reconnecting to server…" banner is shown at the top of the main view (only shown after a successful session, not during initial connection)
@@ -45,6 +50,16 @@ All notable changes and completed tasks are documented here.
   - Affected: `server/src/config.rs`, `server/Cargo.toml`
 
 ### ✨ New Features
+
+- [x] **Private direct messages between users (0.5.23)** — Users can now send private end-to-end encrypted messages to other server members:
+  - **Member list popover**: Clicking any other user in the right-sidebar opens an inline popover with a text input and "Send message" button. The first message opens a dedicated conversation view.
+  - **DM tab bar**: A tab strip appears at the top of the main content area showing an "Server" (channel view) tab followed by one tab per open conversation. Tabs include an × close button; closing removes the tab from the bar (the encrypted history stays in the server DB).
+  - **DirectMessageView**: Full scrollable conversation with grouped messages, date separators, sender avatars, and a message input at the bottom.
+  - **Privacy notice**: A collapsible amber banner at the top of every DM conversation explains that messages are end-to-end encrypted — the server relays encrypted ciphertext and the server owner cannot read message content.
+  - **End-to-end encryption (AES-GCM 256)**: Messages are encrypted in the browser before transmission using the Web Crypto API. Key derivation: `PBKDF2(SHA-256, sorted_user_ids, 100,000 iterations)`. Derived keys are cached per conversation. The server stores only the opaque ciphertext — no plaintext is ever transmitted. This is MVP-level privacy (deterministic shared secret, no forward secrecy).
+  - **Server-side**: New `direct_messages` SQLite table; `SEND_DM` and `GET_DM_HISTORY` WebSocket message types; server routes DM to recipient if online, persists regardless.
+  - **Affected server files**: `server/src/models.rs`, `server/src/db.rs`, `server/src/handlers.rs`
+  - **Affected client files**: `client/src/lib/dmCrypto.ts` (NEW), `client/src/components/DirectMessageView.tsx` (NEW), `client/src/types/protocol.ts`, `client/src/App.tsx`, `client/src/components/MainView.tsx`, `client/src/components/UserListPanel.tsx`
 
 - [x] **Pre-launch admin password reset (0.5.18)** — The Security tab of the "Start Server" modal now allows resetting the admin password even when the server is already configured:
   - New "Reset Admin Password" button expands an inline form with a password input, Generate button, and "Update Password" action

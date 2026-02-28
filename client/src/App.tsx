@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { WebSocketClient } from './lib/websocket'
 import { ServerManager } from './lib/serverManager'
-import { Channel, Message as ProtocolMessage, ServerMessage, UserRole, User, ServerSettingsPayload, Category } from './types/protocol'
+import { Channel, Message as ProtocolMessage, ServerMessage, UserRole, User, ServerSettingsPayload, Category, DmMessage } from './types/protocol'
+import { encryptDm } from './lib/dmCrypto'
 import { SavedServer, LocalServerStatus } from './types/server'
 import ServerListView from './components/ServerListView'
 import ServerConnectModal from './components/ServerConnectModal'
@@ -48,6 +49,9 @@ interface ActiveConnection {
   error: string | null
   serverSettings: ServerSettingsPayload | null
   serverUsers: User[] | null
+  dmMessages: Map<string, DmMessage[]>   // otherUserId -> messages (encrypted content)
+  openDmTabs: string[]                   // userIds with open DM tabs
+  activeDmUserId: string | null          // currently displayed DM conversation
 }
 
 type AppView = { type: 'server-list' } | { type: 'connected'; connection: ActiveConnection }
@@ -170,6 +174,9 @@ function App() {
         error: null,
         serverSettings: null,
         serverUsers: null,
+        dmMessages: new Map(),
+        openDmTabs: [],
+        activeDmUserId: null,
       }
 
       // Set up handlers
@@ -308,6 +315,9 @@ function App() {
         error: null,
         serverSettings: null,
         serverUsers: null,
+        dmMessages: new Map(),
+        openDmTabs: [],
+        activeDmUserId: null,
       }
 
       // Set up message handler
@@ -614,6 +624,53 @@ function App() {
           channels: connection.channels.map(ch => (ch.id === message.payload.channel_id ? { ...ch, category_id: message.payload.category_id ?? undefined } : ch)),
         }
 
+      case 'DM_RECEIVED': {
+        const p = message.payload
+        const myId = connection.userId
+        const otherParty = p.sender_id === myId ? p.recipient_id : p.sender_id
+        const existing = connection.dmMessages.get(otherParty) || []
+        // Avoid duplicates (server echoes the message back to sender)
+        if (existing.some(m => m.id === p.message_id)) return connection
+        const dm: DmMessage = {
+          id: p.message_id,
+          sender_id: p.sender_id,
+          recipient_id: p.recipient_id,
+          encrypted_content: p.encrypted_content,
+          content: '', // Decrypted lazily in DirectMessageView
+          created_at: typeof p.created_at === 'string' ? p.created_at : new Date(p.created_at as unknown as number).toISOString(),
+          sender_username: p.sender_username,
+          sender_avatar_url: p.sender_avatar_url,
+          sender_avatar_path: p.sender_avatar_path,
+          sender_avatar_version: p.sender_avatar_version,
+        }
+        const newDmMessages = new Map(connection.dmMessages)
+        newDmMessages.set(otherParty, [...existing, dm])
+        const newOpenTabs = connection.openDmTabs.includes(otherParty)
+          ? connection.openDmTabs
+          : [...connection.openDmTabs, otherParty]
+        return { ...connection, dmMessages: newDmMessages, openDmTabs: newOpenTabs }
+      }
+
+      case 'DM_HISTORY': {
+        const newMap = new Map(connection.dmMessages)
+        newMap.set(
+          message.payload.other_user_id,
+          message.payload.messages.map(m => ({
+            id: m.message_id,
+            sender_id: m.sender_id,
+            recipient_id: m.recipient_id,
+            encrypted_content: m.encrypted_content,
+            content: '',
+            created_at: typeof m.created_at === 'string' ? m.created_at : new Date(m.created_at as unknown as number).toISOString(),
+            sender_username: m.sender_username,
+            sender_avatar_url: m.sender_avatar_url,
+            sender_avatar_path: m.sender_avatar_path,
+            sender_avatar_version: m.sender_avatar_version,
+          })),
+        )
+        return { ...connection, dmMessages: newMap }
+      }
+
       default:
         console.warn('Unknown message type:', message)
         return connection
@@ -763,6 +820,83 @@ function App() {
     view.connection.client.send({
       type: 'MOVE_CHANNEL_TO_CATEGORY',
       payload: { channel_id: channelId, category_id: categoryId },
+    })
+  }
+
+  // ============================================================================
+  // Direct Message Handlers
+  // ============================================================================
+
+  const handleOpenDm = (user: User) => {
+    if (view.type !== 'connected') return
+    // Request history before switching view
+    view.connection.client.send({ type: 'GET_DM_HISTORY', payload: { other_user_id: user.id } })
+    setView(prev => {
+      if (prev.type !== 'connected') return prev
+      const conn = prev.connection
+      const newTabs = conn.openDmTabs.includes(user.id)
+        ? conn.openDmTabs
+        : [...conn.openDmTabs, user.id]
+      return { type: 'connected', connection: { ...conn, openDmTabs: newTabs, activeDmUserId: user.id } }
+    })
+  }
+
+  /** Called from UserListPanel popover: first message + open conversation */
+  const handleSendDmFromPopover = (user: User, plaintext: string) => {
+    if (view.type !== 'connected') return
+    // Open the DM tab and request history
+    handleOpenDm(user)
+    // Encrypt and send asynchronously
+    void (async () => {
+      const myUserId = view.connection.userId
+      if (!myUserId) return
+      try {
+        const encrypted = await encryptDm(plaintext, myUserId, user.id)
+        view.connection.client.send({ type: 'SEND_DM', payload: { recipient_id: user.id, encrypted_content: encrypted } })
+      } catch (e) {
+        console.error('Failed to encrypt DM:', e)
+      }
+    })()
+  }
+
+  /** Called from DirectMessageView input */
+  const handleSendDm = (recipientId: string, plaintext: string) => {
+    if (view.type !== 'connected') return
+    const myUserId = view.connection.userId
+    if (!myUserId) return
+    void (async () => {
+      try {
+        const encrypted = await encryptDm(plaintext, myUserId, recipientId)
+        view.connection.client.send({ type: 'SEND_DM', payload: { recipient_id: recipientId, encrypted_content: encrypted } })
+      } catch (e) {
+        console.error('Failed to encrypt DM:', e)
+      }
+    })()
+  }
+
+  const handleCloseDmTab = (userId: string) => {
+    setView(prev => {
+      if (prev.type !== 'connected') return prev
+      const conn = prev.connection
+      const newTabs = conn.openDmTabs.filter(id => id !== userId)
+      const newActive = conn.activeDmUserId === userId
+        ? (newTabs.length > 0 ? newTabs[newTabs.length - 1] : null)
+        : conn.activeDmUserId
+      return { type: 'connected', connection: { ...conn, openDmTabs: newTabs, activeDmUserId: newActive } }
+    })
+  }
+
+  const handleSwitchToDmView = (userId: string) => {
+    setView(prev => {
+      if (prev.type !== 'connected') return prev
+      return { type: 'connected', connection: { ...prev.connection, activeDmUserId: userId } }
+    })
+  }
+
+  const handleSwitchToChannelView = () => {
+    setView(prev => {
+      if (prev.type !== 'connected') return prev
+      return { type: 'connected', connection: { ...prev.connection, activeDmUserId: null } }
     })
   }
 
@@ -1238,6 +1372,9 @@ function App() {
         serverAddress={conn.server.address}
         currentUserAvatar={currentUserAvatar}
         serverUsers={conn.serverUsers}
+        dmMessages={conn.dmMessages}
+        openDmTabs={conn.openDmTabs}
+        activeDmUserId={conn.activeDmUserId}
         onDisconnect={handleDisconnect}
         onCreateChannel={handleCreateChannel}
         onJoinChannel={handleJoinChannel}
@@ -1254,6 +1391,12 @@ function App() {
         onDeleteCategory={handleDeleteCategory}
         onRenameCategory={handleRenameCategory}
         onMoveChannelToCategory={handleMoveChannelToCategory}
+        onSendDmFromPopover={handleSendDmFromPopover}
+        onOpenExistingDm={handleOpenDm}
+        onSendDm={handleSendDm}
+        onCloseDmTab={handleCloseDmTab}
+        onSwitchToDmView={handleSwitchToDmView}
+        onSwitchToChannelView={handleSwitchToChannelView}
       />
 
       {showAdminAuthModal && (

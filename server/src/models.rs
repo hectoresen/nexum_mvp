@@ -109,6 +109,18 @@ pub struct CallHistory {
     pub duration_seconds: Option<i64>,
 }
 
+/// A direct message between two users. Content is always encrypted client-side.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirectMessage {
+    pub id: Uuid,
+    pub sender_id: Uuid,
+    pub recipient_id: Uuid,
+    /// AES-GCM encrypted content (base64-encoded: `<iv_b64>.<ciphertext_b64>`).
+    /// The server never sees the plaintext.
+    pub encrypted_content: String,
+    pub created_at: DateTime<Utc>,
+}
+
 // ============================================================================
 // WebSocket Protocol Messages
 // ============================================================================
@@ -178,6 +190,12 @@ pub enum ClientMessage {
     
     #[serde(rename = "MOVE_CHANNEL_TO_CATEGORY")]
     MoveChannelToCategory(MoveChannelToCategoryPayload),
+
+    #[serde(rename = "SEND_DM")]
+    SendDm(SendDmPayload),
+
+    #[serde(rename = "GET_DM_HISTORY")]
+    GetDmHistory(GetDmHistoryPayload),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -355,6 +373,12 @@ pub enum ServerMessage {
     
     #[serde(rename = "CHANNEL_MOVED")]
     ChannelMoved(ChannelMovedPayload),
+
+    #[serde(rename = "DM_RECEIVED")]
+    DmReceived(DmReceivedPayload),
+
+    #[serde(rename = "DM_HISTORY")]
+    DmHistory(DmHistoryPayload),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -541,4 +565,41 @@ pub struct CategoryRenamedPayload {
 pub struct ChannelMovedPayload {
     pub channel_id: Uuid,
     pub category_id: Option<Uuid>,
+}
+
+// ============================================================================
+// Direct Message Payloads
+// ============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SendDmPayload {
+    pub recipient_id: Uuid,
+    /// AES-GCM encrypted content (base64-encoded: `<iv_b64>.<ciphertext_b64>`).
+    pub encrypted_content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetDmHistoryPayload {
+    pub other_user_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DmReceivedPayload {
+    pub message_id: Uuid,
+    pub sender_id: Uuid,
+    pub recipient_id: Uuid,
+    /// AES-GCM encrypted content — clients decrypt, server stores as opaque blob.
+    pub encrypted_content: String,
+    pub created_at: DateTime<Utc>,
+    pub sender_username: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sender_avatar_url: Option<String>,
+    pub sender_avatar_path: Option<String>,
+    pub sender_avatar_version: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DmHistoryPayload {
+    pub other_user_id: Uuid,
+    pub messages: Vec<DmReceivedPayload>,
 }
