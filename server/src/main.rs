@@ -27,7 +27,15 @@ struct Args {
     /// Set admin password directly (skips interactive prompt)
     #[arg(long)]
     admin_password: Option<String>,
-    
+
+    /// Set server name directly (skips interactive prompt)
+    #[arg(long)]
+    server_name: Option<String>,
+
+    /// Set join password directly — makes server private (skips interactive prompt)
+    #[arg(long)]
+    join_password: Option<String>,
+
     /// Custom data directory path
     #[arg(long)]
     data_path: Option<String>,
@@ -49,7 +57,7 @@ async fn main() -> Result<()> {
     info!("🚀 Voice Server starting...");
 
     // Load configuration
-    let config = Config::load(args.non_interactive, args.admin_password, args.data_path)?;
+    let config = Config::load(args.non_interactive, args.admin_password, args.data_path, args.server_name, args.join_password)?;
     info!("📋 Configuration loaded");
     info!("   WebSocket: {}:{}", config.server.host, config.server.ws_port);
     info!("   UDP: {}:{}", config.server.host, config.server.udp_port);

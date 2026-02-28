@@ -435,6 +435,41 @@ Allow server owners to require a password for joining, making the server private
 
 ---
 
+### 0.5.20 Standalone Server First-Run Setup Wizard ✅
+
+**Priority: HIGH - Missing UX**
+
+**Problem:** The standalone server binary only asked for an admin password on first run. It did not ask for server name or whether the server should be public or private, even though these settings exist in `server.toml` and are fully supported. Users were forced to edit the TOML file manually after setup.
+
+#### Tasks
+
+- [x] **Expand `prompt_for_setup()` in `server/src/config.rs`** — replace the old password-only `prompt_for_password()` with a full wizard:
+  - Step 1: Server name (`dialoguer::Input` with default "My Nexum Server")
+  - Step 2: Admin password (existing generate/manual logic, unchanged)
+  - Step 3: Server visibility — Public / Private; if Private, prompts for join password (`dialoguer::Password` with confirmation)
+  - Returns `(name, password, join_password)` tuple; applies all three fields to `Config` before writing `server.toml`
+- [x] **Add `--server-name` and `--join-password` CLI args to `server/src/main.rs`** — for non-interactive/scripted launches (bypasses wizard, uses provided values or defaults)
+- [x] **Updated confirmation printout** — shows Server name and Visibility (🌐 Public / 🔒 Private) alongside admin password
+
+**Affected files:** `server/src/config.rs`, `server/src/main.rs`
+
+---
+
+### 0.5.21 Standalone Server Data Path Unification ✅
+
+**Priority: HIGH - Data Consistency Bug**
+
+**Problem:** The standalone server stored `server.toml` and `data/` in the current working directory (wherever the user launched the binary). The Tauri client always used `~/.nexum/server/`. This meant a server configured via the client would not be found when re-launched standalone, and vice-versa — effectively two isolated environments.
+
+#### Tasks
+
+- [x] **`server/Cargo.toml`**: Add `dirs = "5.0"` dependency
+- [x] **`server/src/config.rs`**: Add `nexum_server_dir()` helper that returns `~/.nexum/server/`; update `Config::load()` to use it as default config and data path (respects existing `CONFIG_PATH` env var override)
+
+**Affected files:** `server/src/config.rs`, `server/Cargo.toml`
+
+---
+
 ### 0.5.14 Notification System 🚧
 
 **Priority: LOW - User Convenience**
@@ -560,23 +595,23 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
   - [x] Binary path display for troubleshooting
 - [x] Integrate `LocalServerPanel` into `ConnectView`
 - [ ] Collapse/expand panel option
-- [ ] "Connect to Local" quick button after server starts
+- [x] "Connect to Local" quick button after server starts — "Connect Now →" button in launch modal
 
 ### 0.5.6 Auto-Connection 🚧
 
-- [ ] Auto-fill `localhost:8080` on server start (✅ basic version done)
-- [ ] Auto-trigger Connect after server starts with saved username
+- [x] Auto-fill `localhost:8080` on server start
+- [x] Auto-trigger Connect after server starts — "Connect Now →" in launch ready step
 - [ ] Handle connection failures gracefully
 - [ ] Add retry logic with exponential backoff
 
 ### 0.5.7 Configuration Management 🚧
 
-- [ ] Add "Local Server Settings" to Settings modal
-  - [ ] Change admin password
+- [x] Add "Local Server Settings" to Settings modal — implemented as `ServerConfigModal` (tabbed: General, Security, Moderation)
+  - [x] Change admin password — Security tab (manage mode + pre-launch 0.5.18)
   - [ ] Change server ports (WS / UDP)
-  - [ ] Toggle auto-start on client launch
+  - [x] Toggle auto-start on client launch — Auto-start toggle in Client Settings (0.5.10)
   - [ ] View last server log lines
-- [ ] Implement config file editing from client
+- [x] Implement config file editing from client — `write_initial_server_config` + `update_server_admin_password` + `read_server_config`
 - [ ] Restart server when config changes
 - [ ] Validate configuration before applying
 
@@ -840,18 +875,18 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 
 ### 5.1 Server Binary
 
-- [ ] Cross-compile for Windows x64
+- [x] Cross-compile for Windows x64
 - [ ] Cross-compile for macOS (Intel + ARM)
-- [ ] Test binary standalone
+- [x] Test binary standalone
 - [x] Create default config structure (creates server.example.toml)
 
-### 5.2 Client Bundling (DEFERRED)
+### 5.2 Client Bundling ✅
 
-- [ ] Embed server binary in Tauri resources
-- [ ] Implement "Start Local Server" button
-- [ ] Spawn server process from client
+- [x] Embed server binary in Tauri resources
+- [x] Implement "Start Local Server" button
+- [x] Spawn server process from client
 - [ ] Display server logs in UI (optional)
-- [ ] Handle server process lifecycle
+- [x] Handle server process lifecycle
 
 **Decisions:**
 
@@ -864,8 +899,8 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [x] 🎯 **Create app icons (PNG, ICO, ICNS)** - Generated via Tauri CLI from SVG
 - [x] 🎯 **Configure bundle metadata in tauri.conf.json**
 - [x] 🎯 **Build Linux bundles with Tauri** - Generated `.deb`, `.rpm`, `.AppImage`
-- [ ] 🎯 **Build Windows .msi with Tauri** - Requires compilation on Windows (see [windows_build_guide.md](windows_build_guide.md))
-- [ ] 🎯 **Test installation on Windows** - Pending Windows build
+- [x] 🎯 **Build Windows .msi with Tauri** - Built `Nexum_0.1.3_x64_en-US.msi` + `Nexum_0.1.3_x64-setup.exe`
+- [x] 🎯 **Test installation on Windows** - Verified running on Windows
 - [ ] Build macOS .dmg with Tauri (later)
 - [ ] Test installation flow on macOS (later)
 
