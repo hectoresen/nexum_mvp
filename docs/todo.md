@@ -6,6 +6,49 @@
 
 This phase integrates the CLI server with the client for a unified user experience.
 
+### ✅ Identidad de dispositivo criptográfica ed25519 (0.5.24) — COMPLETADO
+
+**Problema:** Los usuarios se persisten en la base de datos del servidor con un `user_id` generado en el primer login, vinculado a la IP del cliente en ese momento. Si el usuario cambia de IP (IP dinámica, VPN, reinstalación del cliente), el servidor no puede relacionarlo con su `user_id` anterior y su username aparece como "ya en uso".
+
+**Solución: par de claves ed25519 estable por dispositivo**
+
+El cliente genera un par de claves ed25519 en el primer arranque y persiste la clave privada en `~/.nexum/device.key`. La clave pública se convierte en el "Device ID" del usuario — sin datos de hardware, sin fingerprinting invasivo. Es exactamente el modelo de SSH/Git/libp2p.
+
+- ✅ **Identidad estable** — no depende de IP ni del servidor
+- ✅ **Sin Privacy issues** — no recopila ni transmite datos de hardware
+- ✅ **Sobrevive a reinstalaciones** — `~/.nexum/device.key` persiste entre versiones
+- ⚠️ **Cambio de ordenador** — se pierde la identidad (aceptado, trabajo futuro)
+
+**Flujos:**
+- Primera conexión: genera keypair → envía `device_public_key` en CONNECT → servidor crea user ligando la clave pública
+- Reconexión (IP cambiada): envía `device_public_key` → servidor encuentra el user por clave pública → resume sin error "username taken"
+- Clientes viejos sin `device_public_key`: flujo actual inalterado (compatible)
+
+**Tareas:**
+- [x] Tauri: comando `get_device_public_key` — genera/persiste keypair ed25519 en `~/.nexum/device.key`, retorna clave pública hex
+- [x] Cliente TS: `protocol.ts` — añadir `device_public_key?: string` a `ConnectPayload`
+- [x] Cliente TS: `App.tsx` — obtener device key via `invoke` y enviarla en todos los `CONNECT`
+- [x] Servidor: `models.rs` — `ConnectPayload.device_public_key: Option<String>`
+- [x] Servidor: `db.rs` — migración columna `device_public_key` en users, `get_user_by_device_key`, `link_device_key`, `create_user` acepta clave opcional
+- [x] Servidor: `handlers.rs` — si llega `device_public_key` sin `resume_session_id`: buscar user por device key → si existe, resume; si no, crear nuevo user con esa clave
+
+---
+### 0.5.22 / 0.5.23 — Installer Fix + Private Messaging ✅
+
+- [x] **NSIS installer launch checkbox (0.5.22)** — Fixed "Launch Nexum" checkbox not working after NSIS install. Added `nsis.installMode: "currentUser"` to `tauri.conf.json`.
+
+- [x] **Private direct messages (0.5.23)** — End-to-end encrypted DMs between server members
+  - ✅ Server: `direct_messages` DB table (id, sender_id, recipient_id, encrypted_content, created_at)
+  - ✅ Server: `SEND_DM` + `GET_DM_HISTORY` WebSocket message types + handlers
+  - ✅ Client: `dmCrypto.ts` — AES-GCM 256 + PBKDF2(100k) key derivation with module-level cache
+  - ✅ Client: `DirectMessageView` component with message grouping, date separators, privacy banner
+  - ✅ Client: UserListPanel popover (click user → inline input + "Send message" button)
+  - ✅ Client: DM tab bar in MainView (Server tab + DM tabs with × close)
+  - ✅ Client: App.tsx DM state (`dmMessages`, `openDmTabs`, `activeDmUserId`) + handlers
+  - ✅ Client: DM tab unread badges, always-show chat button, pulsing indicators (0.5.23)
+  - Future: true forward-secret key exchange (ECDH)
+  - Future: message delete/edit in DMs
+
 ### 0.5.0 Admin Features & UX Polish ✅
 
 - [x] **Username persistence** — server sends username back in `WELCOME`, saved to localStorage; no more username prompts on reconnect
@@ -354,6 +397,122 @@ Allow server owners to require a password for joining, making the server private
 - [x] **`is_private` flag in `ServerSettingsPayload`** — server sends `is_private: bool` so the client knows privacy status without revealing the actual password
 - [x] **Empty = open** — empty string / absent field means no password required
 
+### 0.5.16 Server Disconnect Detection ✅
+
+**Priority: HIGH - Critical UX Bug**
+
+**Bug:** When the server process is killed while clients are connected, the clients do not react at all. They remain on the "connected" view showing a stale UI. They only discover something is wrong when they try to interact (send a message, etc.).
+
+#### Expected Behavior
+
+- When the WebSocket connection closes unexpectedly and all reconnect attempts are exhausted, the client should navigate back to the server-list view with a clear "Lost connection to server" error message.
+- While reconnect attempts are in progress, show a visible "Reconnecting…" banner in the connected view.
+
+#### Tasks
+
+- [x] Add `onGiveUp?: () => void` callback to `WebSocketClient` — fires when all `maxReconnectAttempts` are exhausted
+- [x] In `WebSocketClient.onclose`: call `onGiveUp?.()` when reconnect loop will not retry
+- [x] In App.tsx `handleConnectWithUserId` and `handleConnect`: set `wsClient.onGiveUp` to navigate to `server-list` with a "Lost connection to server" error
+- [x] Add "Reconnecting…" status indicator in the connected view (based on `connection.connecting` flag already in state)
+
+**Affected files:** `client/src/lib/websocket.ts`, `client/src/App.tsx`, `client/src/components/MainView.tsx`
+
+---
+
+### 0.5.17 Channel Deletion Bug Fix ✅
+
+**Priority: HIGH - Functionality Bug**
+
+**Bug:** Clicking the trash icon on a channel shows the delete confirmation UI (✓ / ✕). However, clicking ✓ does nothing — the channel is not deleted from the list and no error is shown.
+
+#### Root Causes
+
+1. **Client (ChannelList.tsx):** The channel row `div` has `draggable={isOwner}` applied even when the delete-confirmation UI is active. On Tauri/WebView, the draggable attribute on a parent can suppress click events on child buttons in certain configurations. The ✓ button clicks are intercepted before the handler fires.
+2. **Server (handlers.rs / db.rs):** `delete_channel` does not delete associated messages first. If SQLite foreign-key enforcement is active (it is enabled per-connection in some rusqlite builds), the `DELETE FROM channels` statement fails silently, no `CHANNEL_DELETED` broadcast is sent, and the client sees nothing happen. Even when FK enforcement is off, messages remain as orphaned rows.
+
+#### Tasks
+
+- [x] **Client — `ChannelList.tsx`:** Change `draggable={isOwner}` to `draggable={isOwner && !isDeleting && !isRenaming}` so the row is never draggable while edit/delete UI is active
+- [x] **Client — `ChannelList.tsx`:** Add `e.stopPropagation()` to the ✓ confirm button `onClick` to prevent any parent event interference
+- [x] **Server — `db.rs`:** Add `delete_channel_messages(channel_id: Uuid) -> Result<()>` method that deletes all messages for a channel
+- [x] **Server — `handlers.rs`:** In `handle_delete_channel`, call `state.db.delete_channel_messages(payload.channel_id)?` before `state.db.delete_channel(...)` — ensures cascade cleanup and no FK violations
+- [x] **Server — `handlers.rs`:** Wrap DB errors in `send_error` so the client receives feedback if deletion fails
+
+**Affected files:** `client/src/components/ChannelList.tsx`, `server/src/db.rs`, `server/src/handlers.rs`
+
+---
+
+### 0.5.18 Pre-launch Admin Password Reset ✅
+
+**Priority: HIGH - UX Gap**
+
+**Problem:** When clicking "Start Server" with a server already configured, the Security tab shows a static info note saying "To change the password use Server → Configure Server → Reset Password after the server is running." The user cannot reset the admin password from the pre-launch modal — they are forced to start the server first, connect, open manage mode and change it there.
+
+#### Tasks
+
+- [x] **Rust — `client/src-tauri/src/main.rs`:** Add `update_server_admin_password(new_password: String)` Tauri command
+  - Reads `~/.nexum/server/server.toml`, replaces the `admin_password = "..."` line, writes back
+  - Returns error if server currently running or if server.toml does not exist
+  - Register in `invoke_handler`
+- [x] **Frontend — `ServerConfigModal.tsx`:** Replace static info note (pre-launch + isConfigured) with an inline password reset section:
+  - Collapses behind a "Reset Password" button; clicking it reveals: new password input + Generate button + "Update" button
+  - On "Update": calls `update_server_admin_password`, shows success/error feedback inline
+  - On "Launch Server": if `newAdminPassword` is non-empty and not yet saved, auto-call `update_server_admin_password` before starting
+
+**Affected files:** `client/src-tauri/src/main.rs`, `client/src/components/ServerConfigModal.tsx`
+
+---
+
+### 0.5.19 Pre-launch Modal Config Not Persisting ✅
+
+**Priority: HIGH - UX Bug**
+
+**Problem:** When re-opening the "Start Server" modal on an already-configured server, the General tab always showed the default "My Nexum Server" name and default limits instead of the previously saved values. `ServerConfigModal` initialises from the `settings` prop (which is only populated in manage mode) and had no mechanism to read `server.toml` in pre-launch mode.
+
+#### Tasks
+
+- [x] **Rust — `client/src-tauri/src/main.rs`:** Add `read_server_config()` Tauri command — parses `~/.nexum/server/server.toml` line-by-line, returns `{ name, max_users, max_users_per_voice_channel, max_message_size, is_private }` as a serialised struct
+- [x] **Frontend — `ServerConfigModal.tsx`:** Add `useEffect` on mount that calls `read_server_config` when `mode === 'pre-launch' && isConfigured`, then sets `serverName`, `maxUsers`, `maxVoice`, `maxMessage`, `isPrivate` from the result
+
+**Affected files:** `client/src-tauri/src/main.rs`, `client/src/components/ServerConfigModal.tsx`
+
+---
+
+### 0.5.20 Standalone Server First-Run Setup Wizard ✅
+
+**Priority: HIGH - Missing UX**
+
+**Problem:** The standalone server binary only asked for an admin password on first run. It did not ask for server name or whether the server should be public or private, even though these settings exist in `server.toml` and are fully supported. Users were forced to edit the TOML file manually after setup.
+
+#### Tasks
+
+- [x] **Expand `prompt_for_setup()` in `server/src/config.rs`** — replace the old password-only `prompt_for_password()` with a full wizard:
+  - Step 1: Server name (`dialoguer::Input` with default "My Nexum Server")
+  - Step 2: Admin password (existing generate/manual logic, unchanged)
+  - Step 3: Server visibility — Public / Private; if Private, prompts for join password (`dialoguer::Password` with confirmation)
+  - Returns `(name, password, join_password)` tuple; applies all three fields to `Config` before writing `server.toml`
+- [x] **Add `--server-name` and `--join-password` CLI args to `server/src/main.rs`** — for non-interactive/scripted launches (bypasses wizard, uses provided values or defaults)
+- [x] **Updated confirmation printout** — shows Server name and Visibility (🌐 Public / 🔒 Private) alongside admin password
+
+**Affected files:** `server/src/config.rs`, `server/src/main.rs`
+
+---
+
+### 0.5.21 Standalone Server Data Path Unification ✅
+
+**Priority: HIGH - Data Consistency Bug**
+
+**Problem:** The standalone server stored `server.toml` and `data/` in the current working directory (wherever the user launched the binary). The Tauri client always used `~/.nexum/server/`. This meant a server configured via the client would not be found when re-launched standalone, and vice-versa — effectively two isolated environments.
+
+#### Tasks
+
+- [x] **`server/Cargo.toml`**: Add `dirs = "5.0"` dependency
+- [x] **`server/src/config.rs`**: Add `nexum_server_dir()` helper that returns `~/.nexum/server/`; update `Config::load()` to use it as default config and data path (respects existing `CONFIG_PATH` env var override)
+
+**Affected files:** `server/src/config.rs`, `server/Cargo.toml`
+
+---
+
 ### 0.5.14 Notification System 🚧
 
 **Priority: LOW - User Convenience**
@@ -479,23 +638,23 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
   - [x] Binary path display for troubleshooting
 - [x] Integrate `LocalServerPanel` into `ConnectView`
 - [ ] Collapse/expand panel option
-- [ ] "Connect to Local" quick button after server starts
+- [x] "Connect to Local" quick button after server starts — "Connect Now →" button in launch modal
 
 ### 0.5.6 Auto-Connection 🚧
 
-- [ ] Auto-fill `localhost:8080` on server start (✅ basic version done)
-- [ ] Auto-trigger Connect after server starts with saved username
+- [x] Auto-fill `localhost:8080` on server start
+- [x] Auto-trigger Connect after server starts — "Connect Now →" in launch ready step
 - [ ] Handle connection failures gracefully
 - [ ] Add retry logic with exponential backoff
 
 ### 0.5.7 Configuration Management 🚧
 
-- [ ] Add "Local Server Settings" to Settings modal
-  - [ ] Change admin password
+- [x] Add "Local Server Settings" to Settings modal — implemented as `ServerConfigModal` (tabbed: General, Security, Moderation)
+  - [x] Change admin password — Security tab (manage mode + pre-launch 0.5.18)
   - [ ] Change server ports (WS / UDP)
-  - [ ] Toggle auto-start on client launch
+  - [x] Toggle auto-start on client launch — Auto-start toggle in Client Settings (0.5.10)
   - [ ] View last server log lines
-- [ ] Implement config file editing from client
+- [x] Implement config file editing from client — `write_initial_server_config` + `update_server_admin_password` + `read_server_config`
 - [ ] Restart server when config changes
 - [ ] Validate configuration before applying
 
@@ -759,18 +918,18 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 
 ### 5.1 Server Binary
 
-- [ ] Cross-compile for Windows x64
+- [x] Cross-compile for Windows x64
 - [ ] Cross-compile for macOS (Intel + ARM)
-- [ ] Test binary standalone
+- [x] Test binary standalone
 - [x] Create default config structure (creates server.example.toml)
 
-### 5.2 Client Bundling (DEFERRED)
+### 5.2 Client Bundling ✅
 
-- [ ] Embed server binary in Tauri resources
-- [ ] Implement "Start Local Server" button
-- [ ] Spawn server process from client
+- [x] Embed server binary in Tauri resources
+- [x] Implement "Start Local Server" button
+- [x] Spawn server process from client
 - [ ] Display server logs in UI (optional)
-- [ ] Handle server process lifecycle
+- [x] Handle server process lifecycle
 
 **Decisions:**
 
@@ -783,8 +942,8 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [x] 🎯 **Create app icons (PNG, ICO, ICNS)** - Generated via Tauri CLI from SVG
 - [x] 🎯 **Configure bundle metadata in tauri.conf.json**
 - [x] 🎯 **Build Linux bundles with Tauri** - Generated `.deb`, `.rpm`, `.AppImage`
-- [ ] 🎯 **Build Windows .msi with Tauri** - Requires compilation on Windows (see [windows_build_guide.md](windows_build_guide.md))
-- [ ] 🎯 **Test installation on Windows** - Pending Windows build
+- [x] 🎯 **Build Windows .msi with Tauri** - Built `Nexum_0.1.3_x64_en-US.msi` + `Nexum_0.1.3_x64-setup.exe`
+- [x] 🎯 **Test installation on Windows** - Verified running on Windows
 - [ ] Build macOS .dmg with Tauri (later)
 - [ ] Test installation flow on macOS (later)
 

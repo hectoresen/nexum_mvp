@@ -4,7 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 use rand::Rng;
 use rand::distributions::Alphanumeric;
-use dialoguer::{Select, Password, Confirm};
+use dialoguer::{Input, Select, Password, Confirm};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -70,128 +70,190 @@ impl Default for Config {
 }
 
 impl Config {
-    pub fn load(non_interactive: bool, admin_password: Option<String>, data_path: Option<String>) -> Result<Self> {
-        // Try to load from file, otherwise use defaults
-        let config_path = std::env::var("CONFIG_PATH")
-            .unwrap_or_else(|_| "server.toml".to_string());
+    /// Returns the canonical server data directory: ~/.nexum/server/
+    /// This is the same path used by the Tauri client, so standalone and
+    /// client-managed servers share the same config and database.
+    fn nexum_server_dir() -> Option<PathBuf> {
+        dirs::home_dir().map(|h| h.join(".nexum").join("server"))
+    }
+
+    pub fn load(non_interactive: bool, admin_password: Option<String>, data_path: Option<String>, server_name: Option<String>, join_password: Option<String>) -> Result<Self> {
+        // Resolve config path:
+        //   1. CONFIG_PATH env var (explicit override, keeps legacy behaviour)
+        //   2. ~/.nexum/server/server.toml — matches what the Tauri client uses,
+        //      so standalone and client-managed servers share the same data.
+        let config_path = if let Ok(p) = std::env::var("CONFIG_PATH") {
+            PathBuf::from(p)
+        } else {
+            let server_dir = Self::nexum_server_dir()
+                .context("Could not determine home directory for ~/.nexum/server/")?;
+            std::fs::create_dir_all(&server_dir)
+                .with_context(|| format!("Failed to create server directory: {}", server_dir.display()))?;
+            server_dir.join("server.toml")
+        };
 
         if let Ok(contents) = fs::read_to_string(&config_path) {
             toml::from_str(&contents)
-                .with_context(|| format!("Failed to parse config file: {}", config_path))
+                .with_context(|| format!("Failed to parse config file: {}", config_path.display()))
         } else {
             // First time setup
             let mut config = Config::default();
-            
-            // Override data_path if provided
-            if let Some(path) = data_path {
+
+            // Resolve data directory
+            if let Some(path) = &data_path {
+                // Explicit --data-path takes priority
                 config.server.data_path = PathBuf::from(path);
+            } else if let Some(server_dir) = Self::nexum_server_dir() {
+                // Default: store data next to config in ~/.nexum/server/data
+                config.server.data_path = server_dir.join("data");
             }
-            
-            let password = if let Some(pwd) = admin_password {
-                // Password provided via command line
-                pwd
-            } else if non_interactive {
-                // Non-interactive mode: generate random password
-                Self::generate_secure_password()
+            // else fall back to the struct default ("./data") already set above
+
+            let (name, password, jp) = if non_interactive {
+                let pwd = admin_password.unwrap_or_else(|| Self::generate_secure_password());
+                let nm = server_name.unwrap_or_else(|| "My Nexum Server".to_string());
+                (nm, pwd, join_password)
             } else {
-                // Interactive mode: ask user
-                Self::prompt_for_password()?
+                // Interactive: full setup wizard
+                Self::prompt_for_setup(admin_password)?
             };
-            
-            let mut config = Self::default();
+
+            config.server.name = name.clone();
             config.server.admin_password = password.clone();
-            
-            // Save config to server.toml
+            config.server.join_password = jp.clone();
+
+            // Save config
             let config_contents = toml::to_string_pretty(&config)?;
             fs::write(&config_path, &config_contents)
-                .with_context(|| format!("Failed to write config file: {}", config_path))?;
-            
-            // Also create example config
+                .with_context(|| format!("Failed to write config file: {}", config_path.display()))?;
+
+            // Write example config alongside it
+            let example_path = config_path.with_file_name("server.example.toml");
             let example_config = toml::to_string_pretty(&Self::default())?;
-            if let Err(e) = fs::write("server.example.toml", example_config) {
+            if let Err(e) = fs::write(&example_path, example_config) {
                 tracing::warn!("Could not write example config: {}", e);
             }
-            
+
             if !non_interactive {
-                // Print confirmation
                 println!("\n{}", "=".repeat(70));
                 println!("✅ SERVER CONFIGURATION SAVED");
                 println!("{}", "=".repeat(70));
                 println!();
-                println!("Configuration file created: {}", config_path);
-                println!("Admin password: {}", password);
+                println!("Configuration file: {}", config_path.display());
+                println!("Server name:        {}", name);
+                println!("Visibility:         {}", if jp.is_some() { "🔒 Private (join password required)" } else { "🌐 Public" });
+                println!("Admin password:     {}", password);
                 println!();
                 println!("⚠️  Keep this password secure! You'll need it to authenticate as admin.");
                 println!("{}", "=".repeat(70));
                 println!();
             }
-            
+
             Ok(config)
         }
     }
 
-    fn prompt_for_password() -> Result<String> {
+    /// Interactive first-time setup wizard.
+    /// Returns (server_name, admin_password, join_password).
+    fn prompt_for_setup(provided_password: Option<String>) -> Result<(String, String, Option<String>)> {
         println!("\n{}", "=".repeat(70));
-        println!("🔐 SERVER FIRST-TIME SETUP");
+        println!("🔒 SERVER FIRST-TIME SETUP");
         println!("{}", "=".repeat(70));
         println!();
-        println!("You need to set an admin password for this server.");
+
+        // ── Server name ─────────────────────────────────────────────────────
+        let name: String = Input::<String>::new()
+            .with_prompt("Server name")
+            .default("My Nexum Server".to_string())
+            .interact_text()?;
+
         println!();
 
-        let options = vec![
-            "Generate a secure random password (recommended)",
-            "Enter a custom password",
+        // ── Admin password ───────────────────────────────────────────────────
+        println!("Set an admin password for this server.");
+        println!();
+
+        let password = if let Some(pwd) = provided_password {
+            pwd
+        } else {
+            let options = vec![
+                "Generate a secure random password (recommended)",
+                "Enter a custom password",
+            ];
+
+            let selection = Select::new()
+                .with_prompt("Choose password setup method")
+                .items(&options)
+                .default(0)
+                .interact()?;
+
+            match selection {
+                0 => {
+                    let pwd = Self::generate_secure_password();
+                    println!();
+                    println!("Generated password: {}", pwd);
+                    println!();
+                    println!("⚠️  Save this password! You won't be able to see it again.");
+                    println!("   (You can find it later in server.toml if needed)");
+                    println!();
+
+                    let confirm = Confirm::new()
+                        .with_prompt("Have you saved the password?")
+                        .default(false)
+                        .interact()?;
+
+                    if !confirm {
+                        println!();
+                        println!("Password: {}", pwd);
+                        println!();
+                        std::io::stdin().read_line(&mut String::new())?;
+                    }
+
+                    pwd
+                }
+                1 => {
+                    println!();
+                    let pwd = Password::new()
+                        .with_prompt("Enter admin password")
+                        .with_confirmation("Confirm password", "Passwords don't match")
+                        .interact()?;
+
+                    if pwd.len() < 8 {
+                        anyhow::bail!("Password must be at least 8 characters long");
+                    }
+
+                    pwd
+                }
+                _ => unreachable!(),
+            }
+        };
+
+        println!();
+
+        // ── Server visibility ────────────────────────────────────────────────
+        let visibility_options = vec![
+            "🌐 Public  — anyone can join",
+            "🔒 Private — require a join password",
         ];
 
-        let selection = Select::new()
-            .with_prompt("Choose password setup method")
-            .items(&options)
+        let visibility = Select::new()
+            .with_prompt("Server visibility")
+            .items(&visibility_options)
             .default(0)
             .interact()?;
 
-        let password = match selection {
-            0 => {
-                // Generate random password
-                let pwd = Self::generate_secure_password();
-                println!();
-                println!("Generated password: {}", pwd);
-                println!();
-                println!("⚠️  Save this password! You won't be able to see it again.");
-                println!("   (You can find it later in server.toml if needed)");
-                println!();
-                
-                let confirm = Confirm::new()
-                    .with_prompt("Have you saved the password?")
-                    .default(false)
-                    .interact()?;
-                
-                if !confirm {
-                    println!();
-                    println!("Password: {}", pwd);
-                    println!();
-                    std::io::stdin().read_line(&mut String::new())?; // Wait for Enter
-                }
-                
-                pwd
-            }
-            1 => {
-                // Custom password
-                println!();
-                let pwd = Password::new()
-                    .with_prompt("Enter admin password")
-                    .with_confirmation("Confirm password", "Passwords don't match")
-                    .interact()?;
-                
-                if pwd.len() < 8 {
-                    anyhow::bail!("Password must be at least 8 characters long");
-                }
-                
-                pwd
-            }
-            _ => unreachable!(),
+        let join_password = if visibility == 1 {
+            println!();
+            let jp = Password::new()
+                .with_prompt("Enter join password")
+                .with_confirmation("Confirm join password", "Passwords don't match")
+                .interact()?;
+            if jp.is_empty() { None } else { Some(jp) }
+        } else {
+            None
         };
 
-        Ok(password)
+        Ok((name, password, join_password))
     }
 
     fn generate_secure_password() -> String {

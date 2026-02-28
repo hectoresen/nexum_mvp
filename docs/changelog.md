@@ -4,6 +4,92 @@ All notable changes and completed tasks are documented here.
 
 ---
 
+## 🚧 v0.1.4 — In Progress
+
+**Branch:** `develop`
+
+### 🐛 Bug Fixes
+
+- [x] **NSIS installer "Launch Nexum" checkbox not working (0.5.22)** — Checking "Launch Nexum" on the final page of the NSIS installer had no effect; the app never launched after clicking Finish:
+  - Added explicit `nsis` section to `bundle.windows` in `tauri.conf.json` with `installMode: "currentUser"`. Installing per-user (in AppData) rather than system-wide prevents UAC elevation from blocking the post-install launch.
+  - Also added `shortcutName: "Nexum"` for Start-menu consistency and `allowWebviewInstall: false` (WebView2 is always present on Win 10+).
+  - Affected: `client/src-tauri/tauri.conf.json`
+
+- [x] **Server disconnect detection (0.5.16)** — Clients now react immediately when the server goes offline:
+  - `WebSocketClient` gains an `onGiveUp` callback that fires when all 5 reconnect attempts are exhausted
+  - During reconnect attempts, a yellow "Reconnecting to server…" banner is shown at the top of the main view (only shown after a successful session, not during initial connection)
+  - When all attempts fail, the client is navigated back to the server-list view and the "Last connection error" modal opens with "Lost connection to server. The server may have gone offline."
+  - Affected: `client/src/lib/websocket.ts`, `client/src/App.tsx`, `client/src/components/MainView.tsx`
+
+- [x] **Channel deletion not working (0.5.17)** — Clicking ✓ on the channel delete confirmation now reliably deletes the channel:
+  - **Client fix**: The channel row `div` is no longer `draggable` while the delete-confirmation UI is active (`draggable={isOwner && !isDeleting && !isRenaming}`). The `draggable` attribute on the parent was causing Tauri/WebView to suppress click events on child buttons in some configurations. `e.stopPropagation()` also added to confirm/cancel buttons.
+  - **Server fix**: `handle_delete_channel` now deletes all messages for the channel before deleting the channel itself (via new `db.delete_channel_messages()`). This prevents silent failures from SQLite FK constraint violations and cleans up orphaned message rows.
+  - **Server fix**: DB errors in `handle_delete_channel` now send an `ERROR` response to the client instead of propagating silently.
+  - Affected: `client/src/components/ChannelList.tsx`, `server/src/db.rs`, `server/src/handlers.rs`
+
+- [x] **Pre-launch modal not restoring configured server name (0.5.19)** — When re-opening the "Start Server" modal on an already-configured server, the General tab always showed "My Nexum Server" instead of the previously saved name and limits:
+  - New `read_server_config` Tauri command reads `~/.nexum/server/server.toml` line-by-line and returns the current `name`, `max_users`, `max_users_per_voice_channel`, `max_message_size`, and `is_private` fields
+  - `ServerConfigModal` calls this command on mount (pre-launch + isConfigured) and pre-fills all form fields with the persisted values
+  - Affected: `client/src-tauri/src/main.rs`, `client/src/components/ServerConfigModal.tsx`
+
+- [x] **Standalone server first-run setup wizard (0.5.20)** — The standalone server binary now guides users through a full configuration wizard on first launch instead of only asking for an admin password:
+  - **Step 1 — Server name**: `dialoguer::Input` prompt with default "My Nexum Server"
+  - **Step 2 — Admin password**: existing generate-or-custom logic (unchanged)
+  - **Step 3 — Visibility**: Select between 🌐 Public and 🔒 Private; if private, prompts for a join password with confirmation
+  - Non-interactive/scripted mode: new `--server-name` and `--join-password` CLI args bypass the wizard
+  - Confirmation printout now shows server name and visibility alongside admin password
+  - Affected: `server/src/config.rs`, `server/src/main.rs`
+
+- [x] **Standalone server data path unification (0.5.21)** — The standalone server now stores its config and data in `~/.nexum/server/` by default, the same location used by the Tauri client. Previously the standalone used the current working directory (`./server.toml`, `./data/`), causing a mismatch: a server configured via the client would not be found when re-launched standalone and vice-versa:
+  - `Config::load()` now resolves the config path to `~/.nexum/server/server.toml` instead of `./server.toml` (unless `CONFIG_PATH` env var is set)
+  - Default `data_path` is set to `~/.nexum/server/data` (absolute, not `./data`)
+  - `~/.nexum/server/` is created automatically if it doesn't exist
+  - `server.example.toml` is written to the same directory as the config
+  - `dirs` crate added to server dependencies
+  - The `CONFIG_PATH` env var still overrides everything for advanced/scripted use
+  - Affected: `server/src/config.rs`, `server/Cargo.toml`
+
+- [x] **DM popover clipped by overflow container (0.5.23)** — Clicking a user in the Server Members panel showed no popover because the element was being clipped by the `overflow-y-auto` scroll container. Fixed by rendering the popover via `ReactDOM.createPortal` directly to `document.body` with `position: fixed` coordinates calculated from `getBoundingClientRect()`.
+  - Affected: `client/src/components/UserListPanel.tsx`
+
+- [x] **Username-taken error not shown to user (0.5.23)** — When a new user tried to connect with an already-used username the server sent an `ERROR` before `WELCOME`, but the client had already switched to the connected view. The error was stored in `conn.error` which nothing rendered. Added a `hasReceivedWelcome` guard in `handleConnect` that intercepts pre-auth errors and surfaces them in the connection modal — mirrors the logic already present in `handleConnectWithUserId`.
+  - Affected: `client/src/App.tsx`
+
+### ✨ New Features
+
+- [x] **Private direct messages between users (0.5.23)** — Users can now send private end-to-end encrypted messages to other server members:
+  - **Member list popover**: Clicking any other user in the right-sidebar opens an inline popover with a text input and "Send message" button. The first message opens a dedicated conversation view.
+  - **DM tab bar**: A tab strip appears at the top of the main content area showing an "Server" (channel view) tab followed by one tab per open conversation. Tabs include an × close button; closing removes the tab from the bar (the encrypted history stays in the server DB).
+  - **DirectMessageView**: Full scrollable conversation with grouped messages, date separators, sender avatars, and a message input at the bottom.
+  - **Privacy notice**: A collapsible amber banner at the top of every DM conversation explains that messages are end-to-end encrypted — the server relays encrypted ciphertext and the server owner cannot read message content.
+  - **End-to-end encryption (AES-GCM 256)**: Messages are encrypted in the browser before transmission using the Web Crypto API. Key derivation: `PBKDF2(SHA-256, sorted_user_ids, 100,000 iterations)`. Derived keys are cached per conversation. The server stores only the opaque ciphertext — no plaintext is ever transmitted. This is MVP-level privacy (deterministic shared secret, no forward secrecy).
+  - **Server-side**: New `direct_messages` SQLite table; `SEND_DM` and `GET_DM_HISTORY` WebSocket message types; server routes DM to recipient if online, persists regardless.
+  - **Affected server files**: `server/src/models.rs`, `server/src/db.rs`, `server/src/handlers.rs`
+  - **Affected client files**: `client/src/lib/dmCrypto.ts` (NEW), `client/src/components/DirectMessageView.tsx` (NEW), `client/src/types/protocol.ts`, `client/src/App.tsx`, `client/src/components/MainView.tsx`, `client/src/components/UserListPanel.tsx`
+
+- [x] **Unread DM notifications and tab recovery (0.5.23)** — Closing a DM tab and messaging UX significantly improved:
+  - **Unread badges**: `unreadDmUserIds` tracked in `ActiveConnection`; populated when a `DM_RECEIVED` arrives whilst that conversation is not in focus; cleared when the user opens the conversation. Red dot badges appear on DM tabs in the tab bar and on the corresponding user row in the member list sidebar.
+  - **Always-show chat button**: The "Open DM" button in the member-list popover is always visible (not only when a tab exists). Button label adapts: "See new message" (unread), "View conversation" (tab open), "Open conversation" (history exists but tab closed). Clicking while the tab is closed re-opens it and fetches history via `GET_DM_HISTORY`.
+  - **Pulsing unread indicator**: A red pulsing dot next to users with unread DMs in the member list gives ambient notification without opening the popover.
+  - Affected: `client/src/App.tsx`, `client/src/components/MainView.tsx`, `client/src/components/UserListPanel.tsx`
+
+- [x] **Device-bound ed25519 cryptographic identity (0.5.24)** — Users now have a stable identity that persists across IP changes and reconnections without collecting any hardware data:
+  - **Key generation (Tauri)**: New `get_device_public_key` command generates a 32-byte ed25519 keypair on first run using a CSPRNG, stores the private key as hex in `~/.nexum/device.key`, and returns the 64-char hex public key. Subsequent calls read and decode the existing key — key is never regenerated unless the file is deleted.
+  - **Client integration**: `device_public_key` added to `ConnectPayload`; `App.tsx` invokes the Tauri command on mount and injects the key into every `CONNECT` payload.
+  - **Server resumption**: `device_public_key TEXT` column (+ unique index) added to the `users` table via an `ALTER TABLE` migration. On `CONNECT` with a device key and no `resume_session_id`: server looks up existing user by key → if found, resumes that user (preserving username, avatar, permissions across IP changes); if not found, creates a new user and links the key.
+  - No hardware fingerprinting; the key file can be deleted to get a new identity. Same trust model as SSH/Git/libp2p client keys.
+  - New Cargo deps: `ed25519-dalek = "2"`, `rand = "0.8"`, `hex = "0.4"`
+  - Affected: `client/src-tauri/Cargo.toml`, `client/src-tauri/src/main.rs`, `client/src/types/protocol.ts`, `client/src/App.tsx`, `server/src/models.rs`, `server/src/db.rs`, `server/src/handlers.rs`
+
+- [x] **Pre-launch admin password reset (0.5.18)** — The Security tab of the "Start Server" modal now allows resetting the admin password even when the server is already configured:
+  - New "Reset Admin Password" button expands an inline form with a password input, Generate button, and "Update Password" action
+  - A new `update_server_admin_password` Tauri command reads `~/.nexum/server/server.toml` and replaces only the `admin_password` field line-by-line (non-destructive — all other settings preserved), then writes back
+  - If a new password is entered but not yet explicitly saved, `handleLaunch` automatically applies it before starting the server
+  - Inline success/error feedback; "Update Password" button allows explicit pre-launch saves without starting the server
+  - Affected: `client/src-tauri/src/main.rs`, `client/src/components/ServerConfigModal.tsx`
+
+---
+
 ## ✅ v0.1.3 — Released 2026-02-27
 
 **Type:** Feature Release + Bug Fixes

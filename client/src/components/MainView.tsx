@@ -1,25 +1,29 @@
 import { useState, useRef, useEffect } from 'react'
 import { AppState } from '../App'
-import { Channel, Category, User } from '../types/protocol'
+import { Channel, Category, User, DmMessage } from '../types/protocol'
 import ChannelList from './ChannelList'
 import ChatArea from './ChatArea'
 import UserListPanel from './UserListPanel'
 import UserProfileModal from './UserProfileModal'
+import DirectMessageView from './DirectMessageView'
 import { useAppTheme } from '../hooks/useAppTheme'
 
 interface MainViewProps {
   state: AppState
   categories: Category[]
-  serverName?: string // Optional server name to display
-  serverAddress?: string // Server address for avatar URLs
-  currentUserAvatar?: string | null // Current user's avatar URL
-  serverUsers: User[] | null // List of all server users
+  serverName?: string
+  serverAddress?: string
+  currentUserAvatar?: string | null
+  serverUsers: User[] | null
+  dmMessages: Map<string, DmMessage[]>
+  openDmTabs: string[]
+  activeDmUserId: string | null
   onDisconnect: () => void
   onCreateChannel: (name: string, type: 'text' | 'voice', categoryId?: string) => void
   onJoinChannel: (channelId: string) => void
   onSendMessage: (content: string) => void
-  onDeleteMessage?: (messageId: string) => void // New: Delete message handler
-  onEditMessage?: (messageId: string, content: string) => void // New: Edit message handler
+  onDeleteMessage?: (messageId: string) => void
+  onEditMessage?: (messageId: string, content: string) => void
   onAuthenticateAdmin?: () => void
   onOpenServerSettings?: () => void
   onOpenClientSettings?: (section: 'general' | 'voice-video') => void
@@ -30,6 +34,13 @@ interface MainViewProps {
   onDeleteCategory?: (categoryId: string) => void
   onRenameCategory?: (categoryId: string, newName: string) => void
   onMoveChannelToCategory?: (channelId: string, categoryId: string | null) => void
+  onSendDmFromPopover?: (user: User, message: string) => void
+  onOpenExistingDm?: (user: User) => void
+  onSendDm?: (recipientId: string, content: string) => void
+  onCloseDmTab?: (userId: string) => void
+  onSwitchToDmView?: (userId: string) => void
+  onSwitchToChannelView?: () => void
+  unreadDmUserIds?: string[]
 }
 
 export default function MainView({
@@ -39,6 +50,9 @@ export default function MainView({
   serverAddress,
   currentUserAvatar,
   serverUsers,
+  dmMessages,
+  openDmTabs,
+  activeDmUserId,
   onDisconnect,
   onCreateChannel,
   onJoinChannel,
@@ -55,6 +69,13 @@ export default function MainView({
   onDeleteCategory,
   onRenameCategory,
   onMoveChannelToCategory,
+  onSendDmFromPopover,
+  onOpenExistingDm,
+  onSendDm,
+  onCloseDmTab,
+  onSwitchToDmView,
+  onSwitchToChannelView,
+  unreadDmUserIds = [],
 }: MainViewProps) {
   const { tw } = useAppTheme()
   const [showCreateChannel, setShowCreateChannel] = useState(false)
@@ -290,8 +311,82 @@ export default function MainView({
       </div>
 
       {/* Main content area */}
-      <div className="flex-1 flex flex-col">
-        {currentChannel ? (
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* DM tab bar — shown when there are open DM conversations */}
+        {openDmTabs.length > 0 && (
+          <div className={`flex items-center gap-1 px-2 py-1.5 border-b ${tw.borderDefault} ${tw.bgHeader} overflow-x-auto flex-shrink-0`}>
+            {/* Server tab */}
+            <button
+              onClick={onSwitchToChannelView}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors flex-shrink-0 ${
+                !activeDmUserId ? `bg-blue-600 text-white` : `${tw.bgHoverSubtle} ${tw.textSecondary} hover:${tw.textPrimary}`
+              }`}>
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                />
+              </svg>
+              Server
+            </button>
+
+            {/* DM tabs */}
+            {openDmTabs.map(tabUserId => {
+              const tabUser = serverUsers?.find(u => u.id === tabUserId)
+              const isActive = activeDmUserId === tabUserId
+              const hasUnread = unreadDmUserIds.includes(tabUserId)
+              const label = tabUser?.username ?? '…'
+              return (
+                <div key={tabUserId} className={`flex items-center gap-1 rounded flex-shrink-0 ${isActive ? 'bg-blue-600' : tw.bgHoverSubtle}`}>
+                  <button
+                    onClick={() => onSwitchToDmView?.(tabUserId)}
+                    className={`flex items-center gap-1.5 px-2 py-1 text-xs font-medium transition-colors ${isActive ? 'text-white' : `${tw.textSecondary} hover:${tw.textPrimary}`}`}>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    {label}
+                    {hasUnread && !isActive && <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />}
+                  </button>
+                  <button
+                    onClick={() => onCloseDmTab?.(tabUserId)}
+                    className={`pr-1.5 py-1 transition-colors ${isActive ? 'text-white/70 hover:text-white' : `${tw.textMuted} hover:${tw.textSecondary}`}`}
+                    title="Close conversation">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Reconnecting banner — shown only after a successful session is lost */}
+        {state.connecting && state.sessionId !== null && (
+          <div className="flex items-center justify-center gap-2 px-4 py-2 bg-amber-500/20 border-b border-amber-500/40 text-amber-400 text-sm">
+            <svg className="w-4 h-4 animate-spin flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Reconnecting to server…
+          </div>
+        )}
+
+        {/* DM view or channel view */}
+        {activeDmUserId ? (
+          (() => {
+            const otherUser = serverUsers?.find(u => u.id === activeDmUserId)
+            if (!otherUser)
+              return (
+                <div className="flex-1 flex items-center justify-center">
+                  <p className={`${tw.textMuted} text-sm`}>Loading conversation…</p>
+                </div>
+              )
+            const dms = dmMessages.get(activeDmUserId) || []
+            return <DirectMessageView otherUser={otherUser} messages={dms} currentUserId={state.userId || ''} serverAddress={serverAddress} onSendMessage={content => onSendDm?.(activeDmUserId, content)} />
+          })()
+        ) : currentChannel ? (
           <ChatArea
             channel={currentChannel}
             messages={currentMessages}
@@ -320,7 +415,19 @@ export default function MainView({
       </div>
 
       {/* Right sidebar - User list */}
-      <UserListPanel users={serverUsers} currentUserId={state.userId} serverAddress={serverAddress} onUserClick={setSelectedUser} />
+      <UserListPanel
+        users={serverUsers}
+        currentUserId={state.userId}
+        serverAddress={serverAddress}
+        openDmTabs={openDmTabs}
+        unreadDmUserIds={unreadDmUserIds}
+        onUserClick={setSelectedUser}
+        onSendDm={onSendDmFromPopover}
+        onOpenExistingDm={user => {
+          onSwitchToDmView?.(user.id)
+          onOpenExistingDm?.(user)
+        }}
+      />
     </div>
   )
 }

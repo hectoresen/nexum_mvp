@@ -125,6 +125,104 @@ fn write_initial_server_config(
     std::fs::write(&config_path, content).map_err(|e| e.to_string())
 }
 
+/// Update just the admin_password field in an existing server.toml, without
+/// overwriting any other settings. Called from the pre-launch Security tab.
+#[tauri::command]
+fn update_server_admin_password(
+    new_password: String,
+    state: State<AppState>,
+) -> Result<(), String> {
+    // Refuse if server is currently running
+    let health = {
+        let manager = state.server_manager.lock().unwrap();
+        manager.check_process_health()
+    };
+    if health {
+        return Err("Cannot change admin password while the server is running. Stop it first.".to_string());
+    }
+
+    let server_dir = crate::server_manager::ServerManager::get_server_data_dir()
+        .ok_or("Could not determine server data directory")?;
+    let config_path = server_dir.join("server.toml");
+
+    if !config_path.exists() {
+        return Err("Server is not configured yet. Use Launch Server to configure it first.".to_string());
+    }
+
+    let content = std::fs::read_to_string(&config_path).map_err(|e| e.to_string())?;
+    let safe_pwd = new_password.replace('"', "\\\"");
+    let new_content: String = content
+        .lines()
+        .map(|line| {
+            if line.trim_start().starts_with("admin_password") {
+                format!("admin_password = \"{safe_pwd}\"")
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    // Preserve trailing newline if original had one
+    let new_content = if content.ends_with('\n') {
+        new_content + "\n"
+    } else {
+        new_content
+    };
+    std::fs::write(&config_path, new_content).map_err(|e| e.to_string())
+}
+
+#[derive(serde::Serialize)]
+struct ServerConfigSnapshot {
+    name: String,
+    max_users: u32,
+    max_users_per_voice_channel: u32,
+    max_message_size: u32,
+    is_private: bool,
+}
+
+/// Read the current server.toml and return user-visible config fields.
+/// Used by the pre-launch modal to pre-fill the form when the server is already configured.
+#[tauri::command]
+fn read_server_config() -> Result<ServerConfigSnapshot, String> {
+    let server_dir = crate::server_manager::ServerManager::get_server_data_dir()
+        .ok_or("Could not determine server data directory")?;
+    let config_path = server_dir.join("server.toml");
+    if !config_path.exists() {
+        return Err("Server is not configured yet.".to_string());
+    }
+    let content = std::fs::read_to_string(&config_path).map_err(|e| e.to_string())?;
+
+    let mut name = String::from("My Nexum Server");
+    let mut max_users: u32 = 200;
+    let mut max_users_per_voice_channel: u32 = 100;
+    let mut max_message_size: u32 = 2000;
+    let mut is_private = false;
+
+    for line in content.lines() {
+        let trimmed = line.trim_start();
+        if let Some(rest) = trimmed.strip_prefix("name = ") {
+            name = rest.trim().trim_matches('"').to_string();
+        } else if let Some(rest) = trimmed.strip_prefix("max_users = ") {
+            if let Ok(v) = rest.trim().parse::<u32>() { max_users = v; }
+        } else if let Some(rest) = trimmed.strip_prefix("max_users_per_voice_channel = ") {
+            if let Ok(v) = rest.trim().parse::<u32>() { max_users_per_voice_channel = v; }
+        } else if let Some(rest) = trimmed.strip_prefix("max_message_size = ") {
+            if let Ok(v) = rest.trim().parse::<u32>() { max_message_size = v; }
+        } else if trimmed.starts_with("join_password = ") {
+            let val = trimmed["join_password = ".len()..].trim().trim_matches('"');
+            if !val.is_empty() { is_private = true; }
+        }
+    }
+
+    Ok(ServerConfigSnapshot {
+        name,
+        max_users,
+        max_users_per_voice_channel,
+        max_message_size,
+        is_private,
+    })
+}
+
 /// Check if the server is accepting TCP connections on a given port.
 /// Used to confirm the server is ready after `start_local_server`.
 #[tauri::command]
@@ -134,6 +232,35 @@ fn check_server_ready(port: u16) -> bool {
         std::time::Duration::from_millis(500),
     )
     .is_ok()
+}
+
+/// Get (or create on first run) the device's ed25519 public key.
+/// The private key is stored in `~/.nexum/device.key` as a 64-char hex string.
+/// The returned value is the 32-byte public key encoded as 64 hex chars.
+/// This key is the stable "Device ID" — no hardware data is ever read or transmitted.
+#[tauri::command]
+fn get_device_public_key() -> Result<String, String> {
+    let key_dir = dirs::home_dir()
+        .ok_or_else(|| "Could not find home directory".to_string())?;
+    let nexum_dir = key_dir.join(".nexum");
+    std::fs::create_dir_all(&nexum_dir).map_err(|e| e.to_string())?;
+    let key_path = nexum_dir.join("device.key");
+
+    let secret_bytes: [u8; 32] = if key_path.exists() {
+        let hex_str = std::fs::read_to_string(&key_path).map_err(|e| e.to_string())?;
+        let bytes = hex::decode(hex_str.trim()).map_err(|e| format!("Corrupt device key: {}", e))?;
+        bytes.try_into().map_err(|_| "Device key has wrong length".to_string())?
+    } else {
+        use rand::RngCore;
+        let mut secret = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut secret);
+        std::fs::write(&key_path, hex::encode(&secret)).map_err(|e| e.to_string())?;
+        secret
+    };
+
+    let signing_key = ed25519_dalek::SigningKey::from_bytes(&secret_bytes);
+    let public_key = signing_key.verifying_key();
+    Ok(hex::encode(public_key.as_bytes()))
 }
 
 /// Check if Nexum is registered in Windows startup (HKCU Run key)
@@ -232,6 +359,9 @@ fn main() {
             disable_auto_start,
             write_initial_server_config,
             check_server_ready,
+            update_server_admin_password,
+            read_server_config,
+            get_device_public_key,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

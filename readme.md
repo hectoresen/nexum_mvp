@@ -6,7 +6,7 @@
 [![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)](https://www.rust-lang.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![Tauri](https://img.shields.io/badge/tauri-2.0-blue.svg)](https://tauri.app/)
-[![Release](https://img.shields.io/github/v/release/hectoresen/nexum_mvp)](https://github.com/hectoresen/nexum/releases)
+[![Release](https://img.shields.io/github/v/release/hectoresen/nexum_mvp)](https://github.com/hectoresen/nexum_mvp/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](https://github.com/yourusername/nexum)
 
 ---
@@ -247,23 +247,74 @@ Nexum is perfect for:
 
 ## 📦 Current Status
 
-**Version:** 0.5 (MVP Complete - Text Chat)  
+**Version:** 0.1.4 (Feature Release + Bug Fixes)  
 **Release:** Beta / Active Development
 
-| Component           | Status                     |
-| ------------------- | -------------------------- |
-| Text Chat           | ✅ Production-ready        |
-| User Management     | ✅ Fully functional        |
-| Channel System      | ✅ Create, rename, delete  |
-| Avatar System       | ✅ Upload & URL support    |
-| Server Settings     | ✅ Editable from UI        |
-| Local Server Mgmt   | ✅ Start/Stop/Reset/Wipe   |
-| Dark & Light Themes | ✅ Persistent preference   |
-| Desktop Client      | ✅ Windows/macOS/Linux     |
-| Voice Chat          | 🚧 UI ready, audio pending |
-| Mobile Apps         | 📋 Future consideration    |
+| Component           | Status                          |
+| ------------------- | ------------------------------- |
+| Text Chat           | ✅ Production-ready             |
+| Private DMs         | ✅ E2E encrypted (AES-GCM 256)  |
+| User Management     | ✅ Fully functional             |
+| Channel System      | ✅ Create, rename, delete       |
+| Avatar System       | ✅ Upload & URL support         |
+| Server Settings     | ✅ Editable from UI             |
+| Local Server Mgmt   | ✅ Start/Stop/Reset/Wipe        |
+| Device Identity     | ✅ ed25519 key (stable across IPs) |
+| Private Servers     | ✅ Join password support        |
+| Dark & Light Themes | ✅ Persistent preference        |
+| Desktop Client      | ✅ Windows/macOS/Linux          |
+| Voice Chat          | 🚧 UI ready, audio pending      |
+| Mobile Apps         | 📋 Future consideration         |
 
-**Latest builds:** Check [Releases](../../releases) (coming soon)
+**Latest builds:** Check [Releases](../../releases)
+
+---
+
+## 🏷️ Release History
+
+### v0.1.4 — February 28, 2026 _(current)_
+
+**Type:** Feature Release + Bug Fixes
+
+#### ✨ New
+- **Private E2E Encrypted DMs (0.5.23)** — AES-GCM 256 via Web Crypto API; server stores only ciphertext. DM tab bar, unread badges, tab recovery, pulsing notifications.
+- **Device-bound ed25519 Identity (0.5.24)** — Stable user identity across IP changes. Keypair generated on first run, stored in `~/.nexum/device.key`. No hardware fingerprinting.
+- **Admin Password Reset (0.5.18)** — Reset admin password pre-launch from the Security tab without wiping config.
+- **Pre-launch Config Persistence (0.5.19)** — Server name and limits now correctly restored when re-opening the "Start Server" modal.
+- **Standalone Server First-Run Wizard (0.5.20)** — Guides through server name, password and visibility step-by-step on first launch.
+- **Standalone Server Data Path Unification (0.5.21)** — Server binary and client now both use `~/.nexum/server/` for config and data.
+
+#### 🐛 Fixes
+- NSIS installer "Launch Nexum" checkbox now correctly launches the app post-install (0.5.22).
+- DM popover rendered via `createPortal` to fix `overflow-y` clipping (0.5.23).
+- Username-taken error now shown in the connection modal instead of being swallowed (0.5.23).
+- Server disconnect detection with 5-attempt reconnect and user-facing banner (0.5.16).
+- Channel deletion now reliably cleans up messages and sends error feedback (0.5.17).
+
+---
+
+### v0.1.3 — February 27, 2026
+
+**Type:** Feature Release + Bug Fixes  
+- Private servers with join password (0.5.13)  
+- Unified "Start Server" tabbed config modal with health-check polling (0.5.15)  
+- Auto-start on Windows startup toggle (0.5.10)  
+- Server binary detection fix for versioned filenames
+
+---
+
+### v0.1.2 — February 25, 2026
+
+- Avatar system (upload + URL), real-time updates  
+- Channel rename and delete from UI  
+- Editable server settings modal  
+- Dark mode, server user list, admin auth improvements  
+
+---
+
+### v0.1.0 — February 22, 2026
+
+- Initial MVP: text channels, WebSocket server, Tauri desktop client, user join/leave, basic admin, SQLite persistence
 
 ---
 
@@ -327,7 +378,7 @@ A: Text chat works perfectly. Voice UI is ready but audio implementation is pend
 A: Similar UX, but fully self-hosted with no corporate servers or data collection.
 
 **Q: What about end-to-end encryption?**  
-A: Planned for private messages. Server uses TLS via reverse proxy for transport security.
+A: Private messages (DMs) between users are end-to-end encrypted using AES-GCM 256 via the Web Crypto API. The server relays and stores only ciphertext — plaintext is never transmitted.
 
 **Q: Can I run multiple servers?**  
 A: Yes! Each server is independent. The client can connect to multiple servers.

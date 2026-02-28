@@ -59,6 +59,8 @@ pub async fn handle_message(
                 ClientMessage::RenameCategory(p) => handle_rename_category(sid, p, state, tx).await,
                 ClientMessage::MoveChannelToCategory(p) => handle_move_channel_to_category(sid, p, state, tx).await,
                 ClientMessage::Ping => handle_ping(tx).await,
+                ClientMessage::SendDm(p) => handle_send_dm(sid, p, state, tx).await,
+                ClientMessage::GetDmHistory(p) => handle_get_dm_history(sid, p, state, tx).await,
                 _ => unreachable!(),
             }?;
 
@@ -113,17 +115,48 @@ async fn handle_connect(
         }
     }
 
-    // Determine user: resume existing session or create new user
+    // Determine user: resume by session ID, resume by device key, or create new user
     let user = if let Some(resume_id) = payload.resume_session_id {
         // Client is trying to resume with existing user ID
         match state.db.get_user(resume_id)? {
             Some(existing_user) => {
-                info!("User resumed: {} ({}) as {:?}", existing_user.username, existing_user.id, existing_user.role);
+                info!("User resumed by session ID: {} ({}) as {:?}", existing_user.username, existing_user.id, existing_user.role);
                 existing_user
             }
             None => {
                 send_error(tx, ErrorCode::InvalidRequest, "Invalid user ID")?;
                 bail!("User ID not found");
+            }
+        }
+    } else if let Some(ref device_key) = payload.device_public_key {
+        // Client sends a stable ed25519 device public key — look up by it first
+        match state.db.get_user_by_device_key(device_key)? {
+            Some(existing_user) => {
+                // Known device: resume regardless of IP change
+                info!("User resumed by device key: {} ({}) as {:?}", existing_user.username, existing_user.id, existing_user.role);
+                existing_user
+            }
+            None => {
+                // Unknown device: create new user and link the key
+                let username = match payload.username {
+                    Some(name) => name,
+                    None => {
+                        send_error(tx, ErrorCode::InvalidPayload, "Username is required for new connections")?;
+                        bail!("Username missing");
+                    }
+                };
+                if let Some(_existing) = state.db.get_user_by_username(&username)? {
+                    send_error(tx, ErrorCode::InvalidRequest, "Username already in use")?;
+                    bail!("Username already taken");
+                }
+                let role = UserRole::Member;
+                let new_user = state.db.create_user(&username, role, client_ip.map(|s| s.to_string()))?;
+                // Bind the device key so future connections from this device resume automatically
+                if let Err(e) = state.db.link_device_key(new_user.id, device_key) {
+                    warn!("Could not link device key for {}: {}", new_user.id, e);
+                }
+                info!("New user created with device key: {} ({}) as {:?}", new_user.username, new_user.id, new_user.role);
+                new_user
             }
         }
     } else {
@@ -231,8 +264,19 @@ async fn handle_delete_channel(
         return Ok(());
     }
 
+    // Delete associated messages first (prevents FK violations and cleans up orphaned rows)
+    if let Err(e) = state.db.delete_channel_messages(payload.channel_id) {
+        warn!("Failed to delete messages for channel {}: {}", payload.channel_id, e);
+        send_error(tx, ErrorCode::Internal, "Failed to delete channel messages")?;
+        return Ok(());
+    }
+
     // Delete channel
-    state.db.delete_channel(payload.channel_id)?;
+    if let Err(e) = state.db.delete_channel(payload.channel_id) {
+        warn!("Failed to delete channel {}: {}", payload.channel_id, e);
+        send_error(tx, ErrorCode::Internal, "Failed to delete channel")?;
+        return Ok(());
+    }
     info!("Channel deleted: {}", payload.channel_id);
 
     // Broadcast to all
@@ -881,4 +925,128 @@ fn broadcast_to_channel(
     if let Ok(json) = serde_json::to_string(msg) {
         session_manager.broadcast_to_channel(channel_id, Message::Text(json));
     }
+}
+
+// ============================================================================
+// Direct Message Handlers
+// ============================================================================
+
+async fn handle_send_dm(
+    session_id: Uuid,
+    payload: SendDmPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let sender_id = state
+        .session_manager
+        .get_session(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    // Validate recipient exists
+    let recipient = match state.db.get_user(payload.recipient_id)? {
+        Some(u) => u,
+        None => {
+            send_error(tx, ErrorCode::UserNotFound, "Recipient not found")?;
+            return Ok(());
+        }
+    };
+
+    // Cannot DM yourself
+    if sender_id == payload.recipient_id {
+        send_error(tx, ErrorCode::InvalidRequest, "Cannot send a DM to yourself")?;
+        return Ok(());
+    }
+
+    // Validate encrypted_content is non-empty and not too large (max 8 KB)
+    if payload.encrypted_content.is_empty() || payload.encrypted_content.len() > 16_384 {
+        send_error(tx, ErrorCode::MessageTooLarge, "Encrypted content is empty or too large")?;
+        return Ok(());
+    }
+
+    // Persist message
+    let dm = state
+        .db
+        .save_dm(sender_id, payload.recipient_id, &payload.encrypted_content)?;
+
+    let sender = state
+        .db
+        .get_user(sender_id)?
+        .ok_or_else(|| anyhow::anyhow!("Sender not found"))?;
+
+    let dm_payload = DmReceivedPayload {
+        message_id: dm.id,
+        sender_id,
+        recipient_id: payload.recipient_id,
+        encrypted_content: dm.encrypted_content.clone(),
+        created_at: dm.created_at,
+        sender_username: sender.username.clone(),
+        sender_avatar_url: sender.avatar_url.clone(),
+        sender_avatar_path: sender.avatar_path.clone(),
+        sender_avatar_version: sender.avatar_version,
+    };
+
+    let msg = ServerMessage::DmReceived(dm_payload);
+    let json = serde_json::to_string(&msg)?;
+
+    // Deliver to sender (so their UI can show the message)
+    tx.send(Message::Text(json.clone()))?;
+
+    // Deliver to recipient if online
+    state
+        .session_manager
+        .send_to_user(recipient.id, Message::Text(json));
+
+    Ok(())
+}
+
+async fn handle_get_dm_history(
+    session_id: Uuid,
+    payload: GetDmHistoryPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let my_user_id = state
+        .session_manager
+        .get_session(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    let messages = state.db.get_dm_history(my_user_id, payload.other_user_id)?;
+
+    let mut dm_payloads: Vec<DmReceivedPayload> = Vec::with_capacity(messages.len());
+    for dm in messages {
+        let sender = state
+            .db
+            .get_user(dm.sender_id)?
+            .unwrap_or_else(|| crate::models::User {
+                id: dm.sender_id,
+                username: "[deleted]".to_string(),
+                role: crate::models::UserRole::Member,
+                ip_address: None,
+                avatar_url: None,
+                avatar_path: None,
+                avatar_version: 0,
+                created_at: dm.created_at,
+            });
+        dm_payloads.push(DmReceivedPayload {
+            message_id: dm.id,
+            sender_id: dm.sender_id,
+            recipient_id: dm.recipient_id,
+            encrypted_content: dm.encrypted_content,
+            created_at: dm.created_at,
+            sender_username: sender.username,
+            sender_avatar_url: sender.avatar_url,
+            sender_avatar_path: sender.avatar_path,
+            sender_avatar_version: sender.avatar_version,
+        });
+    }
+
+    send_message(
+        tx,
+        &ServerMessage::DmHistory(DmHistoryPayload {
+            other_user_id: payload.other_user_id,
+            messages: dm_payloads,
+        }),
+    )?;
+
+    Ok(())
 }
