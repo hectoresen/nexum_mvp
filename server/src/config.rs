@@ -70,22 +70,44 @@ impl Default for Config {
 }
 
 impl Config {
+    /// Returns the canonical server data directory: ~/.nexum/server/
+    /// This is the same path used by the Tauri client, so standalone and
+    /// client-managed servers share the same config and database.
+    fn nexum_server_dir() -> Option<PathBuf> {
+        dirs::home_dir().map(|h| h.join(".nexum").join("server"))
+    }
+
     pub fn load(non_interactive: bool, admin_password: Option<String>, data_path: Option<String>, server_name: Option<String>, join_password: Option<String>) -> Result<Self> {
-        // Try to load from file, otherwise use defaults
-        let config_path = std::env::var("CONFIG_PATH")
-            .unwrap_or_else(|_| "server.toml".to_string());
+        // Resolve config path:
+        //   1. CONFIG_PATH env var (explicit override, keeps legacy behaviour)
+        //   2. ~/.nexum/server/server.toml — matches what the Tauri client uses,
+        //      so standalone and client-managed servers share the same data.
+        let config_path = if let Ok(p) = std::env::var("CONFIG_PATH") {
+            PathBuf::from(p)
+        } else {
+            let server_dir = Self::nexum_server_dir()
+                .context("Could not determine home directory for ~/.nexum/server/")?;
+            std::fs::create_dir_all(&server_dir)
+                .with_context(|| format!("Failed to create server directory: {}", server_dir.display()))?;
+            server_dir.join("server.toml")
+        };
 
         if let Ok(contents) = fs::read_to_string(&config_path) {
             toml::from_str(&contents)
-                .with_context(|| format!("Failed to parse config file: {}", config_path))
+                .with_context(|| format!("Failed to parse config file: {}", config_path.display()))
         } else {
             // First time setup
             let mut config = Config::default();
 
-            // Override data_path if provided
+            // Resolve data directory
             if let Some(path) = &data_path {
+                // Explicit --data-path takes priority
                 config.server.data_path = PathBuf::from(path);
+            } else if let Some(server_dir) = Self::nexum_server_dir() {
+                // Default: store data next to config in ~/.nexum/server/data
+                config.server.data_path = server_dir.join("data");
             }
+            // else fall back to the struct default ("./data") already set above
 
             let (name, password, jp) = if non_interactive {
                 let pwd = admin_password.unwrap_or_else(|| Self::generate_secure_password());
@@ -99,32 +121,34 @@ impl Config {
             config.server.name = name.clone();
             config.server.admin_password = password.clone();
             config.server.join_password = jp.clone();
-            
-            // Save config to server.toml
+
+            // Save config
             let config_contents = toml::to_string_pretty(&config)?;
             fs::write(&config_path, &config_contents)
-                .with_context(|| format!("Failed to write config file: {}", config_path))?;
-            
-            // Also create example config
+                .with_context(|| format!("Failed to write config file: {}", config_path.display()))?;
+
+            // Write example config alongside it
+            let example_path = config_path.with_file_name("server.example.toml");
             let example_config = toml::to_string_pretty(&Self::default())?;
-            if let Err(e) = fs::write("server.example.toml", example_config) {
+            if let Err(e) = fs::write(&example_path, example_config) {
                 tracing::warn!("Could not write example config: {}", e);
             }
-            
+
             if !non_interactive {
-                // Print confirmation
                 println!("\n{}", "=".repeat(70));
                 println!("✅ SERVER CONFIGURATION SAVED");
                 println!("{}", "=".repeat(70));
                 println!();
-                println!("Configuration file created: {}", config_path);                println!("Server name:    {}", name);
-                println!("Visibility:     {}", if jp.is_some() { "\u{1f512} Private (join password required)" } else { "\u{1f310} Public" });                println!("Admin password: {}", password);
+                println!("Configuration file: {}", config_path.display());
+                println!("Server name:        {}", name);
+                println!("Visibility:         {}", if jp.is_some() { "🔒 Private (join password required)" } else { "🌐 Public" });
+                println!("Admin password:     {}", password);
                 println!();
                 println!("⚠️  Keep this password secure! You'll need it to authenticate as admin.");
                 println!("{}", "=".repeat(70));
                 println!();
             }
-            
+
             Ok(config)
         }
     }

@@ -35,6 +35,15 @@ All notable changes and completed tasks are documented here.
   - Confirmation printout now shows server name and visibility alongside admin password
   - Affected: `server/src/config.rs`, `server/src/main.rs`
 
+- [x] **Standalone server data path unification (0.5.21)** — The standalone server now stores its config and data in `~/.nexum/server/` by default, the same location used by the Tauri client. Previously the standalone used the current working directory (`./server.toml`, `./data/`), causing a mismatch: a server configured via the client would not be found when re-launched standalone and vice-versa:
+  - `Config::load()` now resolves the config path to `~/.nexum/server/server.toml` instead of `./server.toml` (unless `CONFIG_PATH` env var is set)
+  - Default `data_path` is set to `~/.nexum/server/data` (absolute, not `./data`)
+  - `~/.nexum/server/` is created automatically if it doesn't exist
+  - `server.example.toml` is written to the same directory as the config
+  - `dirs` crate added to server dependencies
+  - The `CONFIG_PATH` env var still overrides everything for advanced/scripted use
+  - Affected: `server/src/config.rs`, `server/Cargo.toml`
+
 ### ✨ New Features
 
 - [x] **Pre-launch admin password reset (0.5.18)** — The Security tab of the "Start Server" modal now allows resetting the admin password even when the server is already configured:

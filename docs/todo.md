@@ -455,6 +455,21 @@ Allow server owners to require a password for joining, making the server private
 
 ---
 
+### 0.5.21 Standalone Server Data Path Unification ✅
+
+**Priority: HIGH - Data Consistency Bug**
+
+**Problem:** The standalone server stored `server.toml` and `data/` in the current working directory (wherever the user launched the binary). The Tauri client always used `~/.nexum/server/`. This meant a server configured via the client would not be found when re-launched standalone, and vice-versa — effectively two isolated environments.
+
+#### Tasks
+
+- [x] **`server/Cargo.toml`**: Add `dirs = "5.0"` dependency
+- [x] **`server/src/config.rs`**: Add `nexum_server_dir()` helper that returns `~/.nexum/server/`; update `Config::load()` to use it as default config and data path (respects existing `CONFIG_PATH` env var override)
+
+**Affected files:** `server/src/config.rs`, `server/Cargo.toml`
+
+---
+
 ### 0.5.14 Notification System 🚧
 
 **Priority: LOW - User Convenience**
