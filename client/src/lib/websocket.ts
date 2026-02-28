@@ -15,6 +15,7 @@ export class WebSocketClient {
 
   public status: ConnectionStatus = 'disconnected';
   public onStatusChange?: (status: ConnectionStatus) => void;
+  public onGiveUp?: () => void;
 
   connect(serverUrl: string): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -55,6 +56,7 @@ export class WebSocketClient {
           if (this.shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
             console.log(`Reconnecting... attempt ${this.reconnectAttempts}`);
+            this.setStatus('connecting');
 
             setTimeout(() => {
               this.connect(this.serverUrl).catch(console.error);
@@ -62,6 +64,11 @@ export class WebSocketClient {
 
             // Exponential backoff
             this.reconnectDelay = Math.min(this.reconnectDelay * 2, 10000);
+          } else if (this.shouldReconnect) {
+            // All reconnect attempts exhausted
+            console.log('All reconnect attempts exhausted. Giving up.');
+            this.shouldReconnect = false;
+            this.onGiveUp?.();
           }
         };
       } catch (error) {

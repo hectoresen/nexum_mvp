@@ -231,8 +231,19 @@ async fn handle_delete_channel(
         return Ok(());
     }
 
+    // Delete associated messages first (prevents FK violations and cleans up orphaned rows)
+    if let Err(e) = state.db.delete_channel_messages(payload.channel_id) {
+        warn!("Failed to delete messages for channel {}: {}", payload.channel_id, e);
+        send_error(tx, ErrorCode::Internal, "Failed to delete channel messages")?;
+        return Ok(());
+    }
+
     // Delete channel
-    state.db.delete_channel(payload.channel_id)?;
+    if let Err(e) = state.db.delete_channel(payload.channel_id) {
+        warn!("Failed to delete channel {}: {}", payload.channel_id, e);
+        send_error(tx, ErrorCode::Internal, "Failed to delete channel")?;
+        return Ok(());
+    }
     info!("Channel deleted: {}", payload.channel_id);
 
     // Broadcast to all

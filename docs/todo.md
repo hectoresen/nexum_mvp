@@ -354,6 +354,51 @@ Allow server owners to require a password for joining, making the server private
 - [x] **`is_private` flag in `ServerSettingsPayload`** — server sends `is_private: bool` so the client knows privacy status without revealing the actual password
 - [x] **Empty = open** — empty string / absent field means no password required
 
+### 0.5.16 Server Disconnect Detection ✅
+
+**Priority: HIGH - Critical UX Bug**
+
+**Bug:** When the server process is killed while clients are connected, the clients do not react at all. They remain on the "connected" view showing a stale UI. They only discover something is wrong when they try to interact (send a message, etc.).
+
+#### Expected Behavior
+
+- When the WebSocket connection closes unexpectedly and all reconnect attempts are exhausted, the client should navigate back to the server-list view with a clear "Lost connection to server" error message.
+- While reconnect attempts are in progress, show a visible "Reconnecting…" banner in the connected view.
+
+#### Tasks
+
+- [x] Add `onGiveUp?: () => void` callback to `WebSocketClient` — fires when all `maxReconnectAttempts` are exhausted
+- [x] In `WebSocketClient.onclose`: call `onGiveUp?.()` when reconnect loop will not retry
+- [x] In App.tsx `handleConnectWithUserId` and `handleConnect`: set `wsClient.onGiveUp` to navigate to `server-list` with a "Lost connection to server" error
+- [x] Add "Reconnecting…" status indicator in the connected view (based on `connection.connecting` flag already in state)
+
+**Affected files:** `client/src/lib/websocket.ts`, `client/src/App.tsx`, `client/src/components/MainView.tsx`
+
+---
+
+### 0.5.17 Channel Deletion Bug Fix ✅
+
+**Priority: HIGH - Functionality Bug**
+
+**Bug:** Clicking the trash icon on a channel shows the delete confirmation UI (✓ / ✕). However, clicking ✓ does nothing — the channel is not deleted from the list and no error is shown.
+
+#### Root Causes
+
+1. **Client (ChannelList.tsx):** The channel row `div` has `draggable={isOwner}` applied even when the delete-confirmation UI is active. On Tauri/WebView, the draggable attribute on a parent can suppress click events on child buttons in certain configurations. The ✓ button clicks are intercepted before the handler fires.
+2. **Server (handlers.rs / db.rs):** `delete_channel` does not delete associated messages first. If SQLite foreign-key enforcement is active (it is enabled per-connection in some rusqlite builds), the `DELETE FROM channels` statement fails silently, no `CHANNEL_DELETED` broadcast is sent, and the client sees nothing happen. Even when FK enforcement is off, messages remain as orphaned rows.
+
+#### Tasks
+
+- [x] **Client — `ChannelList.tsx`:** Change `draggable={isOwner}` to `draggable={isOwner && !isDeleting && !isRenaming}` so the row is never draggable while edit/delete UI is active
+- [x] **Client — `ChannelList.tsx`:** Add `e.stopPropagation()` to the ✓ confirm button `onClick` to prevent any parent event interference
+- [x] **Server — `db.rs`:** Add `delete_channel_messages(channel_id: Uuid) -> Result<()>` method that deletes all messages for a channel
+- [x] **Server — `handlers.rs`:** In `handle_delete_channel`, call `state.db.delete_channel_messages(payload.channel_id)?` before `state.db.delete_channel(...)` — ensures cascade cleanup and no FK violations
+- [x] **Server — `handlers.rs`:** Wrap DB errors in `send_error` so the client receives feedback if deletion fails
+
+**Affected files:** `client/src/components/ChannelList.tsx`, `server/src/db.rs`, `server/src/handlers.rs`
+
+---
+
 ### 0.5.14 Notification System 🚧
 
 **Priority: LOW - User Convenience**

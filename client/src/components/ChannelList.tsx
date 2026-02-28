@@ -136,8 +136,8 @@ export default function ChannelList({
     return (
       <div
         key={ch.id}
-        draggable={isOwner}
-        onDragStart={isOwner ? e => handleDragStart(e, ch.id) : undefined}
+        draggable={isOwner && !isDeleting && !isRenaming}
+        onDragStart={isOwner && !isDeleting && !isRenaming ? e => handleDragStart(e, ch.id) : undefined}
         className={`group flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer text-sm transition-colors ${isActive ? `${tw.bgActive} ${tw.textPrimary}` : `${tw.textSecondary} ${tw.bgHoverSubtle}`}`}>
         {/* Channel icon */}
         <span className={`flex-shrink-0 ${isActive ? tw.textPrimary : tw.textTertiary}`}>{ch.channel_type === 'voice' ? <VoiceIcon /> : <TextIcon />}</span>
@@ -171,14 +171,20 @@ export default function ChannelList({
           <div className="flex-1 flex items-center gap-1 text-xs">
             <span className="text-red-400 truncate">Delete?</span>
             <button
-              onClick={() => {
+              onClick={e => {
+                e.stopPropagation()
                 onDeleteChannel?.(ch.id)
                 setDeletingChannelId(null)
               }}
               className="text-red-400 hover:text-red-300">
               ✓
             </button>
-            <button onClick={() => setDeletingChannelId(null)} className={tw.textTertiary}>
+            <button
+              onClick={e => {
+                e.stopPropagation()
+                setDeletingChannelId(null)
+              }}
+              className={tw.textTertiary}>
               ✕
             </button>
           </div>
