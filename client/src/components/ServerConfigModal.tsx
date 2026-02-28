@@ -99,9 +99,11 @@ export default function ServerConfigModal({ mode, isConfigured, port, settings, 
           setMaxMessage(cfg.max_message_size)
           setIsPrivate(cfg.is_private)
         })
-        .catch(() => { /* silently fall back to defaults */ })
+        .catch(() => {
+          /* silently fall back to defaults */
+        })
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
