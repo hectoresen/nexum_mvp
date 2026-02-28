@@ -72,6 +72,8 @@ export type ClientMessage =
   | { type: 'DELETE_CATEGORY'; payload: DeleteCategoryPayload }
   | { type: 'RENAME_CATEGORY'; payload: RenameCategoryPayload }
   | { type: 'MOVE_CHANNEL_TO_CATEGORY'; payload: MoveChannelToCategoryPayload }
+  | { type: 'SEND_DM'; payload: SendDmPayload }
+  | { type: 'GET_DM_HISTORY'; payload: GetDmHistoryPayload }
   | { type: 'PING' };
 
 export interface ConnectPayload {
@@ -80,6 +82,8 @@ export interface ConnectPayload {
   resume_session_id?: string;
   /** Password required to join a private server. */
   join_password?: string;
+  /** Hex-encoded ed25519 public key — stable device identity, no hardware data */
+  device_public_key?: string;
 }
 
 export interface CreateChannelPayload {
@@ -169,6 +173,8 @@ export type ServerMessage =
   | { type: 'CATEGORY_DELETED'; payload: CategoryDeletedPayload }
   | { type: 'CATEGORY_RENAMED'; payload: CategoryRenamedPayload }
   | { type: 'CHANNEL_MOVED'; payload: ChannelMovedPayload }
+  | { type: 'DM_RECEIVED'; payload: DmReceivedPayload }
+  | { type: 'DM_HISTORY'; payload: DmHistoryPayload }
   | { type: 'PONG' };
 
 export interface WelcomePayload {
@@ -328,4 +334,54 @@ export interface CategoryRenamedPayload {
 export interface ChannelMovedPayload {
   channel_id: string;
   category_id: string | null;
+}
+
+// ============================================================================
+// Direct Message Types
+// ============================================================================
+
+/**
+ * A direct message as stored/displayed in the client.
+ * `content` is the decrypted plaintext; `encrypted_content` is what the server holds.
+ */
+export interface DmMessage {
+  id: string;
+  sender_id: string;
+  recipient_id: string;
+  /** Encrypted wire representation stored by the server. */
+  encrypted_content: string;
+  /** Decrypted plaintext — populated after client-side decryption. */
+  content: string;
+  created_at: string;
+  sender_username: string;
+  sender_avatar_url?: string;
+  sender_avatar_path?: string;
+  sender_avatar_version: number;
+}
+
+export interface SendDmPayload {
+  recipient_id: string;
+  /** AES-GCM encrypted content: `<iv_base64>.<ciphertext_base64>` */
+  encrypted_content: string;
+}
+
+export interface GetDmHistoryPayload {
+  other_user_id: string;
+}
+
+export interface DmReceivedPayload {
+  message_id: string;
+  sender_id: string;
+  recipient_id: string;
+  encrypted_content: string;
+  created_at: string;
+  sender_username: string;
+  sender_avatar_url?: string;
+  sender_avatar_path?: string;
+  sender_avatar_version: number;
+}
+
+export interface DmHistoryPayload {
+  other_user_id: string;
+  messages: DmReceivedPayload[];
 }

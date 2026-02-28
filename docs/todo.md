@@ -6,6 +6,49 @@
 
 This phase integrates the CLI server with the client for a unified user experience.
 
+### 🔴 CRÍTICO — Identidad de dispositivo criptográfica (ed25519)
+
+**Problema:** Los usuarios se persisten en la base de datos del servidor con un `user_id` generado en el primer login, vinculado a la IP del cliente en ese momento. Si el usuario cambia de IP (IP dinámica, VPN, reinstalación del cliente), el servidor no puede relacionarlo con su `user_id` anterior y su username aparece como "ya en uso".
+
+**Solución: par de claves ed25519 estable por dispositivo**
+
+El cliente genera un par de claves ed25519 en el primer arranque y persiste la clave privada en `~/.nexum/device.key`. La clave pública se convierte en el "Device ID" del usuario — sin datos de hardware, sin fingerprinting invasivo. Es exactamente el modelo de SSH/Git/libp2p.
+
+- ✅ **Identidad estable** — no depende de IP ni del servidor
+- ✅ **Sin Privacy issues** — no recopila ni transmite datos de hardware
+- ✅ **Sobrevive a reinstalaciones** — `~/.nexum/device.key` persiste entre versiones
+- ⚠️ **Cambio de ordenador** — se pierde la identidad (aceptado, trabajo futuro)
+
+**Flujos:**
+- Primera conexión: genera keypair → envía `device_public_key` en CONNECT → servidor crea user ligando la clave pública
+- Reconexión (IP cambiada): envía `device_public_key` → servidor encuentra el user por clave pública → resume sin error "username taken"
+- Clientes viejos sin `device_public_key`: flujo actual inalterado (compatible)
+
+**Tareas:**
+- [x] Tauri: comando `get_device_public_key` — genera/persiste keypair ed25519 en `~/.nexum/device.key`, retorna clave pública hex
+- [x] Cliente TS: `protocol.ts` — añadir `device_public_key?: string` a `ConnectPayload`
+- [x] Cliente TS: `App.tsx` — obtener device key via `invoke` y enviarla en todos los `CONNECT`
+- [x] Servidor: `models.rs` — `ConnectPayload.device_public_key: Option<String>`
+- [x] Servidor: `db.rs` — migración columna `device_public_key` en users, `get_user_by_device_key`, `link_device_key`, `create_user` acepta clave opcional
+- [x] Servidor: `handlers.rs` — si llega `device_public_key` sin `resume_session_id`: buscar user por device key → si existe, resume; si no, crear nuevo user con esa clave
+
+---
+### 0.5.22 / 0.5.23 — Installer Fix + Private Messaging ✅
+
+- [x] **NSIS installer launch checkbox (0.5.22)** — Fixed "Launch Nexum" checkbox not working after NSIS install. Added `nsis.installMode: "currentUser"` to `tauri.conf.json`.
+
+- [x] **Private direct messages (0.5.23)** — End-to-end encrypted DMs between server members
+  - ✅ Server: `direct_messages` DB table (id, sender_id, recipient_id, encrypted_content, created_at)
+  - ✅ Server: `SEND_DM` + `GET_DM_HISTORY` WebSocket message types + handlers
+  - ✅ Client: `dmCrypto.ts` — AES-GCM 256 + PBKDF2(100k) key derivation with module-level cache
+  - ✅ Client: `DirectMessageView` component with message grouping, date separators, privacy banner
+  - ✅ Client: UserListPanel popover (click user → inline input + "Send message" button)
+  - ✅ Client: DM tab bar in MainView (Server tab + DM tabs with × close)
+  - ✅ Client: App.tsx DM state (`dmMessages`, `openDmTabs`, `activeDmUserId`) + handlers
+  - Future: unread message badges on DM tabs
+  - Future: true forward-secret key exchange (ECDH)
+  - Future: message delete/edit in DMs
+
 ### 0.5.0 Admin Features & UX Polish ✅
 
 - [x] **Username persistence** — server sends username back in `WELCOME`, saved to localStorage; no more username prompts on reconnect
