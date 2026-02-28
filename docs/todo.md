@@ -399,6 +399,27 @@ Allow server owners to require a password for joining, making the server private
 
 ---
 
+### 0.5.18 Pre-launch Admin Password Reset ✅
+
+**Priority: HIGH - UX Gap**
+
+**Problem:** When clicking "Start Server" with a server already configured, the Security tab shows a static info note saying "To change the password use Server → Configure Server → Reset Password after the server is running." The user cannot reset the admin password from the pre-launch modal — they are forced to start the server first, connect, open manage mode and change it there.
+
+#### Tasks
+
+- [x] **Rust — `client/src-tauri/src/main.rs`:** Add `update_server_admin_password(new_password: String)` Tauri command
+  - Reads `~/.nexum/server/server.toml`, replaces the `admin_password = "..."` line, writes back
+  - Returns error if server currently running or if server.toml does not exist
+  - Register in `invoke_handler`
+- [x] **Frontend — `ServerConfigModal.tsx`:** Replace static info note (pre-launch + isConfigured) with an inline password reset section:
+  - Collapses behind a "Reset Password" button; clicking it reveals: new password input + Generate button + "Update" button
+  - On "Update": calls `update_server_admin_password`, shows success/error feedback inline
+  - On "Launch Server": if `newAdminPassword` is non-empty and not yet saved, auto-call `update_server_admin_password` before starting
+
+**Affected files:** `client/src-tauri/src/main.rs`, `client/src/components/ServerConfigModal.tsx`
+
+---
+
 ### 0.5.14 Notification System 🚧
 
 **Priority: LOW - User Convenience**

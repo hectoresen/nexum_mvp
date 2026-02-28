@@ -125,6 +125,52 @@ fn write_initial_server_config(
     std::fs::write(&config_path, content).map_err(|e| e.to_string())
 }
 
+/// Update just the admin_password field in an existing server.toml, without
+/// overwriting any other settings. Called from the pre-launch Security tab.
+#[tauri::command]
+fn update_server_admin_password(
+    new_password: String,
+    state: State<AppState>,
+) -> Result<(), String> {
+    // Refuse if server is currently running
+    let health = {
+        let manager = state.server_manager.lock().unwrap();
+        manager.check_process_health()
+    };
+    if health {
+        return Err("Cannot change admin password while the server is running. Stop it first.".to_string());
+    }
+
+    let server_dir = crate::server_manager::ServerManager::get_server_data_dir()
+        .ok_or("Could not determine server data directory")?;
+    let config_path = server_dir.join("server.toml");
+
+    if !config_path.exists() {
+        return Err("Server is not configured yet. Use Launch Server to configure it first.".to_string());
+    }
+
+    let content = std::fs::read_to_string(&config_path).map_err(|e| e.to_string())?;
+    let safe_pwd = new_password.replace('"', "\\\"");
+    let new_content: String = content
+        .lines()
+        .map(|line| {
+            if line.trim_start().starts_with("admin_password") {
+                format!("admin_password = \"{safe_pwd}\"")
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    // Preserve trailing newline if original had one
+    let new_content = if content.ends_with('\n') {
+        new_content + "\n"
+    } else {
+        new_content
+    };
+    std::fs::write(&config_path, new_content).map_err(|e| e.to_string())
+}
+
 /// Check if the server is accepting TCP connections on a given port.
 /// Used to confirm the server is ready after `start_local_server`.
 #[tauri::command]
@@ -232,6 +278,7 @@ fn main() {
             disable_auto_start,
             write_initial_server_config,
             check_server_ready,
+            update_server_admin_password,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
