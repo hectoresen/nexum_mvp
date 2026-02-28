@@ -6,6 +6,29 @@
 
 This phase integrates the CLI server with the client for a unified user experience.
 
+### 🔴 CRÍTICO — Identidad de usuario vinculada a hardware (sin recopilar datos)
+
+**Problema:** Los usuarios se persisten en la base de datos del servidor con un `user_id` generado en el primer login, vinculado a la IP del cliente en ese momento. Si el usuario cambia de IP (IP dinámica, VPN, reinstalación del cliente), el servidor no puede relacionarlo con su `user_id` anterior y su username aparece como "ya en uso".
+
+**Solución propuesta:**
+- Generar en el cliente un **identificador UUID v4 estable** almacenado localmente en el keychain del sistema operativo via Tauri (sin enviar datos de hardware al servidor).  
+  - En Windows: `Windows Credential Manager`  
+  - En macOS: `Keychain`  
+  - En Linux: `libsecret` / `.config` fallback  
+- Este UUID se genera **una sola vez** en el primer arranque y sobrevive a cambios de IP, reconexiones y reinstalaciones del cliente (salvo borrado manual del keychain).
+- El servidor recibe este `client_identity_token` en el `CONNECT` payload y lo usa para localizar al usuario existente en lugar de apoyarse en `resume_session_id` + IP.
+- El token **nunca contiene información del hardware** — es solo un UUID aleatorio guardado de forma segura en el cliente.
+- ⚠️ Cambio de ordenador: el usuario perderá su identidad (aceptable, se trabaja a futuro).
+
+**Tareas:**
+- [ ] Tauri: implementar comando `get_or_create_client_token` que lea/escriba el UUID en el keychain del SO
+- [ ] Servidor: aceptar `client_identity_token` opcional en `CONNECT`; si coincide con un user existente, tratar como resume aunque el `user_id` no se envíe
+- [ ] Servidor: si `username` enviado coincide con el user del token → permitir reentrada sin error "username taken"
+- [ ] Cliente: enviar el token en todos los `CONNECT` + `CONNECT_WITH_ID` payloads
+- [ ] Tests de regresión: usuario con IP dinámica, reinstalación limpia, cambio de máquina
+
+---
+
 ### 0.5.22 / 0.5.23 — Installer Fix + Private Messaging ✅
 
 - [x] **NSIS installer launch checkbox (0.5.22)** — Fixed "Launch Nexum" checkbox not working after NSIS install. Added `nsis.installMode: "currentUser"` to `tauri.conf.json`.
