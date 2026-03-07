@@ -75,10 +75,14 @@ export default function UserListPanel({ users, currentUserId, currentUserRole, s
       const anchor = anchorRefs.current.get(user.id)
       if (anchor) {
         const rect = anchor.getBoundingClientRect()
-        setPopoverPos({
-          top: rect.top,
-          right: window.innerWidth - rect.left + 8, // 8px gap to the left of the panel
-        })
+        // Anchor from top unless the row is in the lower half — then anchor from bottom
+        // so the popover opens upward and stays on screen
+        const useBottomAnchor = rect.top > window.innerHeight * 0.5
+        setPopoverPos(
+          useBottomAnchor
+            ? { top: -(window.innerHeight - rect.bottom), right: window.innerWidth - rect.left + 8 }
+            : { top: rect.top, right: window.innerWidth - rect.left + 8 }
+        )
       }
       setActivePopoverId(user.id)
       setDmInput('')
@@ -202,13 +206,22 @@ export default function UserListPanel({ users, currentUserId, currentUserRole, s
       {activeUser &&
         popoverPos &&
         createPortal(
-          <div ref={popoverRef} style={{ position: 'fixed', top: popoverPos.top, right: popoverPos.right, zIndex: 9999 }} className={`w-52 ${tw.bgCard} rounded-lg shadow-xl border ${tw.borderDefault} p-3`}>
+          <div
+            ref={popoverRef}
+            style={
+              popoverPos.top < 0
+                ? { position: 'fixed', bottom: -popoverPos.top, right: popoverPos.right, zIndex: 9999 }
+                : { position: 'fixed', top: popoverPos.top, right: popoverPos.right, zIndex: 9999 }
+            }
+            className={`w-56 ${tw.bgCard} rounded-lg shadow-xl border ${tw.borderDefault} p-3`}>
+            {/* Header */}
             <p className={`text-xs font-semibold ${tw.textPrimary} mb-2 flex items-center gap-2`}>
               {activeUser.username}
+              {activeUser.role === 'owner' && <span className="text-amber-400 text-xs">★ admin</span>}
               {hasUnreadForActive && <span className="text-red-400 text-xs">● unread</span>}
             </p>
 
-            {/* Open / view conversation — always visible for any other user */}
+            {/* Open / view conversation */}
             <button
               onClick={() => {
                 onOpenExistingDm?.(activeUser)
@@ -258,47 +271,99 @@ export default function UserListPanel({ users, currentUserId, currentUserRole, s
               View profile
             </button>
 
-            {/* Admin moderation actions */}
-            {currentUserRole === 'owner' && activeUser.id !== currentUserId && (
-              <div className={`mt-2 pt-2 border-t ${tw.borderDefault} flex flex-col gap-1`}>
-                <button
-                  onClick={() => { onKick?.(activeUser.id); closePopover() }}
-                  className="w-full px-2 py-1 text-xs text-orange-400 hover:bg-orange-500/20 rounded transition-colors text-left">
-                  👢 Kick
-                </button>
-                <button
-                  onClick={() => { onBan?.(activeUser.id); closePopover() }}
-                  className="w-full px-2 py-1 text-xs text-red-400 hover:bg-red-500/20 rounded transition-colors text-left">
-                  🔨 Ban
-                </button>
-                {!activeUser.is_text_muted ? (
+            {/* ── Moderation section — visible to owners only, disabled when target is admin ── */}
+            {currentUserRole === 'owner' && activeUser.id !== currentUserId && (() => {
+              const isTargetAdmin = activeUser.role === 'owner'
+              const bothMuted = !!activeUser.is_text_muted && !!activeUser.is_voice_muted
+              const btnBase = 'w-full px-2 py-1.5 text-xs rounded transition-colors text-left flex items-center gap-2'
+              const disabledCls = 'opacity-40 cursor-not-allowed'
+              return (
+                <div className={`mt-2 pt-2 border-t ${tw.borderDefault} flex flex-col gap-0.5`}>
+                  {isTargetAdmin && (
+                    <p className={`text-xs ${tw.textTertiary} px-2 pb-1`}>
+                      No se puede moderar a un administrador
+                    </p>
+                  )}
+
+                  {/* Kick */}
                   <button
-                    onClick={() => { onMute?.(activeUser.id, true, !!activeUser.is_voice_muted); closePopover() }}
-                    className={`w-full px-2 py-1 text-xs ${tw.textMuted} hover:bg-yellow-500/20 rounded transition-colors text-left`}>
-                    🚫💬 Mute text
+                    disabled={isTargetAdmin}
+                    onClick={() => { if (!isTargetAdmin) { onKick?.(activeUser.id); closePopover() } }}
+                    title={isTargetAdmin ? 'No se puede kickear a un admin' : 'Expulsar temporalmente (puede reconectarse)'}
+                    className={`${btnBase} text-orange-400 hover:bg-orange-500/20 ${isTargetAdmin ? disabledCls : ''}`}>
+                    <span>👢</span> Kick
                   </button>
-                ) : (
+
+                  {/* Ban */}
                   <button
-                    onClick={() => { onMute?.(activeUser.id, false, !!activeUser.is_voice_muted); closePopover() }}
-                    className={`w-full px-2 py-1 text-xs text-yellow-400 hover:bg-yellow-500/20 rounded transition-colors text-left`}>
-                    💬 Unmute text
+                    disabled={isTargetAdmin}
+                    onClick={() => { if (!isTargetAdmin) { onBan?.(activeUser.id); closePopover() } }}
+                    title={isTargetAdmin ? 'No se puede banear a un admin' : 'Banear permanentemente'}
+                    className={`${btnBase} text-red-400 hover:bg-red-500/20 ${isTargetAdmin ? disabledCls : ''}`}>
+                    <span>🔨</span> Ban
                   </button>
-                )}
-                {!activeUser.is_voice_muted ? (
-                  <button
-                    onClick={() => { onMute?.(activeUser.id, !!activeUser.is_text_muted, true); closePopover() }}
-                    className={`w-full px-2 py-1 text-xs ${tw.textMuted} hover:bg-yellow-500/20 rounded transition-colors text-left`}>
-                    🚫🎙️ Mute voice
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => { onMute?.(activeUser.id, !!activeUser.is_text_muted, false); closePopover() }}
-                    className={`w-full px-2 py-1 text-xs text-yellow-400 hover:bg-yellow-500/20 rounded transition-colors text-left`}>
-                    🎙️ Unmute voice
-                  </button>
-                )}
-              </div>
-            )}
+
+                  <div className={`my-0.5 border-t ${tw.borderDefault} opacity-40`} />
+
+                  {/* Mute text */}
+                  {!activeUser.is_text_muted ? (
+                    <button
+                      disabled={isTargetAdmin}
+                      onClick={() => { if (!isTargetAdmin) { onMute?.(activeUser.id, true, !!activeUser.is_voice_muted); closePopover() } }}
+                      title={isTargetAdmin ? 'No se puede mutear a un admin' : 'Silenciar en canales de texto'}
+                      className={`${btnBase} ${tw.textSecondary} hover:bg-yellow-500/10 ${isTargetAdmin ? disabledCls : ''}`}>
+                      <span>🚫💬</span> Mutear texto
+                    </button>
+                  ) : (
+                    <button
+                      disabled={isTargetAdmin}
+                      onClick={() => { if (!isTargetAdmin) { onMute?.(activeUser.id, false, !!activeUser.is_voice_muted); closePopover() } }}
+                      title={isTargetAdmin ? 'No se puede desmutear a un admin' : 'Activar mensajes de texto'}
+                      className={`${btnBase} text-yellow-400 hover:bg-yellow-500/10 ${isTargetAdmin ? disabledCls : ''}`}>
+                      <span>💬</span> Desmutear texto
+                    </button>
+                  )}
+
+                  {/* Mute voice */}
+                  {!activeUser.is_voice_muted ? (
+                    <button
+                      disabled={isTargetAdmin}
+                      onClick={() => { if (!isTargetAdmin) { onMute?.(activeUser.id, !!activeUser.is_text_muted, true); closePopover() } }}
+                      title={isTargetAdmin ? 'No se puede mutear a un admin' : 'Silenciar en canales de voz'}
+                      className={`${btnBase} ${tw.textSecondary} hover:bg-yellow-500/10 ${isTargetAdmin ? disabledCls : ''}`}>
+                      <span>🚫🎙️</span> Mutear voz
+                    </button>
+                  ) : (
+                    <button
+                      disabled={isTargetAdmin}
+                      onClick={() => { if (!isTargetAdmin) { onMute?.(activeUser.id, !!activeUser.is_text_muted, false); closePopover() } }}
+                      title={isTargetAdmin ? 'No se puede desmutear a un admin' : 'Activar voz'}
+                      className={`${btnBase} text-yellow-400 hover:bg-yellow-500/10 ${isTargetAdmin ? disabledCls : ''}`}>
+                      <span>🎙️</span> Desmutear voz
+                    </button>
+                  )}
+
+                  {/* Mute total / Unmute all */}
+                  {!bothMuted ? (
+                    <button
+                      disabled={isTargetAdmin}
+                      onClick={() => { if (!isTargetAdmin) { onMute?.(activeUser.id, true, true); closePopover() } }}
+                      title={isTargetAdmin ? 'No se puede mutear a un admin' : 'Silenciar texto y voz a la vez'}
+                      className={`${btnBase} ${tw.textSecondary} hover:bg-yellow-500/10 ${isTargetAdmin ? disabledCls : ''}`}>
+                      <span>🔇</span> Mutear total
+                    </button>
+                  ) : (
+                    <button
+                      disabled={isTargetAdmin}
+                      onClick={() => { if (!isTargetAdmin) { onMute?.(activeUser.id, false, false); closePopover() } }}
+                      title={isTargetAdmin ? 'No se puede desmutear a un admin' : 'Quitar todo el silencio'}
+                      className={`${btnBase} text-yellow-400 hover:bg-yellow-500/10 ${isTargetAdmin ? disabledCls : ''}`}>
+                      <span>🔊</span> Desmutear todo
+                    </button>
+                  )}
+                </div>
+              )
+            })()}
           </div>,
           document.body,
         )}
