@@ -99,6 +99,14 @@ impl SessionManager {
         false
     }
 
+    /// Find the session_id for an active user (for kick/ban: send error then drop).
+    pub fn get_session_id_for_user(&self, user_id: Uuid) -> Option<Uuid> {
+        let sessions = self.sessions.read().unwrap();
+        sessions.values()
+            .find(|s| s.user_id == user_id)
+            .map(|s| s.session_id)
+    }
+
     pub fn broadcast(&self, message: Message) {
         let sessions = self.sessions.read().unwrap();
         for session in sessions.values() {

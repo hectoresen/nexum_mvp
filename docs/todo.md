@@ -20,11 +20,13 @@ El cliente genera un par de claves ed25519 en el primer arranque y persiste la c
 - ⚠️ **Cambio de ordenador** — se pierde la identidad (aceptado, trabajo futuro)
 
 **Flujos:**
+
 - Primera conexión: genera keypair → envía `device_public_key` en CONNECT → servidor crea user ligando la clave pública
 - Reconexión (IP cambiada): envía `device_public_key` → servidor encuentra el user por clave pública → resume sin error "username taken"
 - Clientes viejos sin `device_public_key`: flujo actual inalterado (compatible)
 
 **Tareas:**
+
 - [x] Tauri: comando `get_device_public_key` — genera/persiste keypair ed25519 en `~/.nexum/device.key`, retorna clave pública hex
 - [x] Cliente TS: `protocol.ts` — añadir `device_public_key?: string` a `ConnectPayload`
 - [x] Cliente TS: `App.tsx` — obtener device key via `invoke` y enviarla en todos los `CONNECT`
@@ -33,6 +35,7 @@ El cliente genera un par de claves ed25519 en el primer arranque y persiste la c
 - [x] Servidor: `handlers.rs` — si llega `device_public_key` sin `resume_session_id`: buscar user por device key → si existe, resume; si no, crear nuevo user con esa clave
 
 ---
+
 ### 0.5.22 / 0.5.23 — Installer Fix + Private Messaging ✅
 
 - [x] **NSIS installer launch checkbox (0.5.22)** — Fixed "Launch Nexum" checkbox not working after NSIS install. Added `nsis.installMode: "currentUser"` to `tauri.conf.json`.
@@ -365,22 +368,164 @@ Once the local server was running, the "Configure Server" button in the dropdown
 - [ ] Implement end-to-end encryption for private messages
 - [ ] Add encryption indicator in private chat UI
 
+### 0.5.25 Message History Pagination 🔴 CRÍTICO
+
+**Priority: HIGH — Scalability**
+
+Actualmente `GET_MESSAGE_HISTORY` carga **todos** los mensajes de un canal en memoria de una sola vez. En servidores con uso prolongado esto provocará tiempos de carga altos, consumo de RAM elevado y una UX degradada.
+
+**Comportamiento esperado (igual que Discord):**
+
+- Al abrir un canal se cargan los **N mensajes más recientes** (p.ej. 50).
+- Al hacer scroll hacia **arriba** se cargan bloques anteriores bajo demanda (infinite scroll hacia el pasado).
+- Al hacer scroll hacia **abajo** se muestran siempre los mensajes más nuevos.
+
+#### Tareas
+
+- [ ] **Protocolo** — añadir `before_id?: string` y `limit?: number` a `GET_MESSAGE_HISTORY` payload; el servidor devuelve mensajes anteriores al `message_id` dado, ordenados DESC, limitados a `limit` (default 50)
+- [ ] **Servidor `db.rs`** — modificar `get_message_history(channel_id, before_id, limit)` para usar cursor-based pagination (`WHERE id < before_id ORDER BY created_at DESC LIMIT ?`)
+- [ ] **Servidor `handlers.rs`** — pasar `before_id` y `limit` al método de DB; incluir `has_more: bool` en la respuesta para que el cliente sepa si hay más páginas
+- [ ] **Cliente `App.tsx`** — al abrir un canal, solicitar los últimos 50 sin `before_id`; detectar scroll al top → solicitar siguiente página con `before_id = id del mensaje más antiguo cargado`
+- [ ] **Cliente `ChatArea.tsx`** — prepend de mensajes al inicio sin perder la posición de scroll; mostrar spinner de carga en la parte superior mientras se carga la página anterior; quitar spinner cuando `has_more: false`
+- [ ] **Tests manuales** — verificar que el scroll no salta, que los mensajes se insertan en orden y que no se duplican
+
+#### Archivos afectados
+
+| Archivo                              | Cambio                                                                                                  |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `server/src/db.rs`                   | `get_message_history` acepta `before_id: Option<Uuid>` + `limit: i64`                                   |
+| `server/src/handlers.rs`             | Pasar parámetros de paginación; añadir `has_more` a la respuesta                                        |
+| `server/src/models.rs`               | Añadir `before_id?`, `limit?` a `GetMessageHistoryPayload`; `has_more: bool` en `MessageHistoryPayload` |
+| `client/src/types/protocol.ts`       | Actualizar interfaces                                                                                   |
+| `client/src/App.tsx`                 | Lógica de carga incremental                                                                             |
+| `client/src/components/ChatArea.tsx` | Infinite scroll hacia arriba + spinner                                                                  |
+
+---
+
 ### 0.5.12 Moderation System 🚧
 
-**Priority: MEDIUM - Safety & Administration**
+**Priority: HIGH - v0.1.5**
 
-Enable server owners to manage disruptive users.
+Enable server admins to manage disruptive users via kick, ban and per-user mutes.
 
-#### Tasks
+---
 
-- [ ] **Kick user** — owner can remove a user from the server (disconnects them; they can rejoin)
-- [ ] **Ban user** — owner can permanently ban by user ID + IP address; banned users cannot reconnect
-- [ ] **Voice mute** — owner mutes a specific user's microphone (they hear others but nobody hears them)
-- [ ] **Text mute** — owner restricts a user from sending messages in text channels
-- [ ] **Ban list** — admin panel tab showing all bans with username, IP, date; ability to unban
-- [ ] **Protocol changes** — `KICK_USER`, `BAN_USER`, `UNBAN_USER`, `MUTE_USER`, `UNMUTE_USER` client messages + server broadcasts
-- [ ] **Persistence** — bans stored in SQLite `bans` table (`user_id`, `ip_address`, `banned_at`, `reason`)
-- [ ] **Connection check** — server checks ban list on every new connection attempt
+#### Kick
+
+- [ ] Admin can kick a user — forcibly disconnects them; they can reconnect immediately with no restrictions
+- [ ] `KICK_USER` client message → server closes the target's WebSocket with a `KICKED` error code
+- [ ] `USER_KICKED` broadcast so all other clients update their member list
+- [ ] Kicked user's client: show "You were kicked from this server" and navigate back to server list
+- [ ] **Kick log** — each kick is persisted in a `kick_log` SQLite table: `id`, `user_id`, `username`, `ip_address`, `kicked_at`, `kicked_by_user_id`
+
+---
+
+#### Ban
+
+- [ ] Admin can ban a user — permanently blocks reconnection from that device
+- [ ] Ban is enforced by **device_public_key + IP address + user_id** (NOT username — usernames are not a reliable identity signal)
+- [ ] `BAN_USER` client message → server disconnects target, inserts into `bans` table, broadcasts `USER_BANNED`
+- [ ] `UNBAN_USER` client message → server removes row from `bans` (revoke)
+- [ ] On every `CONNECT`: server checks `bans` table against incoming `device_public_key`, origin IP **and** `user_id`; any match → reject with `BANNED` error code
+- [ ] Banned user's client: show "You have been banned from this server" on connect attempt
+- [ ] `bans` table schema: `id TEXT PK`, `user_id TEXT`, `username TEXT`, `ip_address TEXT`, `device_public_key TEXT`, `banned_at TEXT`, `reason TEXT`, `banned_by_user_id TEXT`
+
+---
+
+#### Mute (text and/or voice)
+
+- [ ] Two independent mute types: **text mute** (cannot send messages to any channel) and **voice mute** (cannot transmit audio)
+- [ ] Mutes are applied and removed via **right-click context menu on a member** in the right-panel member list
+  - Context menu entries (admin only): "Mute text", "Mute voice", "Mute both", "Unmute text", "Unmute voice", "Unmute all" — entries shown/hidden based on current mute state
+- [ ] `MUTE_USER` client message: `{ user_id, mute_text: bool, mute_voice: bool }` — sets or clears flags
+- [ ] Server persists mute state in `users` table: `is_text_muted BOOL DEFAULT 0`, `is_voice_muted BOOL DEFAULT 0`
+- [ ] `USER_MUTE_UPDATED` server broadcast: all clients update their local user state
+- [ ] Muted user enforcement:
+  - Text mute: server rejects `SEND_MESSAGE` with `MUTED_TEXT` error code, shows toast to muted user
+  - Voice mute: server rejects audio relay (UDP layer) for `is_voice_muted` users
+- [ ] **Mute icons in member list** (right sidebar):
+  - Text-muted: 🚫💬 icon next to avatar
+  - Voice-muted: 🚫🎙️ icon next to avatar
+  - Both: both icons shown side by side
+  - Icons are removed immediately when the admin revokes the corresponding mute
+- [ ] **Mute indicators in user profile card** — same icons shown in the `UserProfileModal` when viewing a muted user's card
+
+---
+
+#### Moderation tab in Server Settings
+
+- [ ] Add a **"Moderation"** tab to `ServerConfigModal` (manage mode only)
+- [ ] **Banned users section** — paginated list of active bans:
+  - Columns: username, user_id (truncated), IP, banned at, banned by
+  - "Revoke ban" button per row → calls `UNBAN_USER`, row disappears on success
+- [ ] **Kick log section** — read-only list of historical kicks:
+  - Columns: username, user_id (truncated), IP, kicked at
+  - Loaded via new `GET_KICK_LOG` WebSocket message (server reads from `kick_log` table)
+
+---
+
+#### Protocol summary
+
+| Message (client→server) | Payload                                                  |
+| ----------------------- | -------------------------------------------------------- |
+| `KICK_USER`             | `{ user_id: string }`                                    |
+| `BAN_USER`              | `{ user_id: string, reason?: string }`                   |
+| `UNBAN_USER`            | `{ ban_id: string }`                                     |
+| `MUTE_USER`             | `{ user_id: string, mute_text: bool, mute_voice: bool }` |
+| `GET_KICK_LOG`          | `{}`                                                     |
+
+| Message (server→client) | Payload                                                          |
+| ----------------------- | ---------------------------------------------------------------- |
+| `USER_KICKED`           | `{ user_id: string, username: string }`                          |
+| `USER_BANNED`           | `{ user_id: string, username: string }`                          |
+| `USER_MUTE_UPDATED`     | `{ user_id: string, is_text_muted: bool, is_voice_muted: bool }` |
+| `KICK_LOG`              | `{ entries: KickLogEntry[] }`                                    |
+| `BANNED` (error)        | error code sent to banned user on connect                        |
+| `KICKED` (error)        | error code sent to kicked user's session                         |
+
+---
+
+#### Database migrations
+
+```sql
+CREATE TABLE bans (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  username TEXT NOT NULL,
+  ip_address TEXT NOT NULL,
+  device_public_key TEXT,
+  banned_at TEXT NOT NULL,
+  reason TEXT,
+  banned_by_user_id TEXT NOT NULL
+);
+
+CREATE TABLE kick_log (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  username TEXT NOT NULL,
+  ip_address TEXT NOT NULL,
+  kicked_at TEXT NOT NULL,
+  kicked_by_user_id TEXT NOT NULL
+);
+
+ALTER TABLE users ADD COLUMN is_text_muted INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN is_voice_muted INTEGER NOT NULL DEFAULT 0;
+```
+
+---
+
+#### Affected files (expected)
+
+| File                                          | Change                                                                                                          |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `server/src/db.rs`                            | Migrations; `create_ban`, `remove_ban`, `get_bans`, `add_kick_log`, `get_kick_log`, `set_user_mute`             |
+| `server/src/handlers.rs`                      | Handle `KICK_USER`, `BAN_USER`, `UNBAN_USER`, `MUTE_USER`, `GET_KICK_LOG`; ban check in `handle_connect`        |
+| `server/src/models.rs`                        | New payload structs; `is_text_muted`, `is_voice_muted` fields in `User` + `WelcomePayload`/`GET_USERS` response |
+| `client/src/types/protocol.ts`                | New message types + payload interfaces                                                                          |
+| `client/src/App.tsx`                          | Handle `USER_KICKED`, `USER_BANNED`, `USER_MUTE_UPDATED`, `KICK_LOG`; kick/ban/mute dispatch functions          |
+| `client/src/components/UserListPanel.tsx`     | Right-click context menu (admin only); mute icons per user                                                      |
+| `client/src/components/UserProfileModal.tsx`  | Show mute-status icons                                                                                          |
+| `client/src/components/ServerConfigModal.tsx` | New "Moderation" tab (ban list + kick log)                                                                      |
 
 ### 0.5.13 Server Join Password ✅
 
@@ -988,7 +1133,6 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 All features below are OUT OF SCOPE for initial release:
 
 - [ ] TLS support (use reverse proxy)
-- [ ] Message history pagination
 - [ ] Message search
 - [ ] User profile pictures
 - [ ] Custom emojis/reactions
@@ -1032,9 +1176,9 @@ All features below are OUT OF SCOPE for initial release:
 
 - No rate limiting enforcement (structure exists)
 - No call history tracking (table exists, unused)
-- Message pagination (loads all messages)
+- Message pagination → trasladado a **0.5.25** como ítem crítico
 - No user list per channel UI
 
 ---
 
-_Last updated: 2026-02-21 (Phase 0.5 Extension — admin features + UX polish completed)_
+_Last updated: 2026-03-07 (0.5.25 paginación añadida como crítico; 0.5.12 moderación detallada)_

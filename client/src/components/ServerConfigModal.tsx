@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { ServerSettingsPayload } from '../types/protocol'
+import { ServerSettingsPayload, Ban, KickLogEntry } from '../types/protocol'
 import { useAppTheme } from '../hooks/useAppTheme'
 import { WarningButton } from './Button'
 
@@ -25,6 +25,16 @@ export interface ServerConfigModalProps {
   onSaveSettings?: (s: { name?: string; max_users?: number; max_users_per_voice_channel?: number; max_message_size?: number; join_password?: string }) => void
   /** Manage mode: called when user clicks Change Admin Password */
   onChangePassword?: () => void
+  /** Moderation: current ban list (loaded on tab open) */
+  banList?: Ban[]
+  /** Moderation: current kick log (loaded on tab open) */
+  kickLog?: KickLogEntry[]
+  /** Moderation: load/refresh ban list from server */
+  onGetBanList?: () => void
+  /** Moderation: load/refresh kick log from server */
+  onGetKickLog?: () => void
+  /** Moderation: revoke a ban by ID */
+  onUnbanUser?: (banId: string) => void
   /** Pre-launch mode: called when user clicks Connect Now after server is ready */
   onConnectNow?: () => void
   onClose: () => void
@@ -38,7 +48,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 const MAX_POLLS = 30
 
-export default function ServerConfigModal({ mode, isConfigured, port, settings, onSaveSettings, onChangePassword, onConnectNow, onClose }: ServerConfigModalProps) {
+export default function ServerConfigModal({ mode, isConfigured, port, settings, onSaveSettings, onChangePassword, banList, kickLog, onGetBanList, onGetKickLog, onUnbanUser, onConnectNow, onClose }: ServerConfigModalProps) {
   const { theme, tw } = useAppTheme()
 
   // ── Form state ──────────────────────────────────────────────────────────────
@@ -69,6 +79,14 @@ export default function ServerConfigModal({ mode, isConfigured, port, settings, 
   const [launchError, setLaunchError] = useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollCount = useRef(0)
+
+  // Load moderation data when the moderation tab is opened (manage mode)
+  useEffect(() => {
+    if (mode === 'manage' && activeTab === 'moderation') {
+      onGetBanList?.()
+      onGetKickLog?.()
+    }
+  }, [activeTab, mode])
 
   // Sync form fields when settings prop updates (manage mode)
   useEffect(() => {
@@ -597,17 +615,80 @@ export default function ServerConfigModal({ mode, isConfigured, port, settings, 
 
               {/* ── Moderation tab ── */}
               {activeTab === 'moderation' && (
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <svg className={`w-10 h-10 ${tw.textMuted} mb-3`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                    />
-                  </svg>
-                  <p className={`text-sm font-medium ${tw.textSecondary}`}>Moderation tools</p>
-                  <p className={`text-xs ${tw.textTertiary} mt-1`}>Coming in v0.5.12 — kick, ban, mute users</p>
+                <div className="space-y-6">
+                  {/* Ban list */}
+                  <div>
+                    <div className={`flex items-center justify-between mb-3`}>
+                      <h3 className={`text-sm font-semibold ${tw.textPrimary}`}>Ban List</h3>
+                      <button onClick={() => onGetBanList?.()} className={`text-xs ${tw.textMuted} hover:${tw.textSecondary} transition-colors`}>Refresh</button>
+                    </div>
+                    {!banList || banList.length === 0 ? (
+                      <p className={`text-xs ${tw.textTertiary} py-4 text-center`}>No active bans.</p>
+                    ) : (
+                      <div className={`rounded-lg border ${tw.borderDefault} overflow-hidden`}>
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className={`border-b ${tw.borderDefault} ${tw.bgInput}`}>
+                              <th className={`px-3 py-2 text-left ${tw.textMuted} font-medium`}>User</th>
+                              <th className={`px-3 py-2 text-left ${tw.textMuted} font-medium`}>IP</th>
+                              <th className={`px-3 py-2 text-left ${tw.textMuted} font-medium`}>Reason</th>
+                              <th className={`px-3 py-2 text-left ${tw.textMuted} font-medium`}>Banned at</th>
+                              <th className="px-3 py-2"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {banList.map(ban => (
+                              <tr key={ban.id} className={`border-b last:border-0 ${tw.borderDefault}`}>
+                                <td className={`px-3 py-2 ${tw.textSecondary} font-medium`}>{ban.username}</td>
+                                <td className={`px-3 py-2 ${tw.textMuted} font-mono`}>{ban.ip_address}</td>
+                                <td className={`px-3 py-2 ${tw.textMuted}`}>{ban.reason ?? '—'}</td>
+                                <td className={`px-3 py-2 ${tw.textMuted}`}>{new Date(ban.banned_at).toLocaleDateString()}</td>
+                                <td className="px-3 py-2">
+                                  <button
+                                    onClick={() => onUnbanUser?.(ban.id)}
+                                    className="text-xs text-red-400 hover:text-red-300 transition-colors font-medium">
+                                    Revoke
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Kick log */}
+                  <div>
+                    <div className={`flex items-center justify-between mb-3`}>
+                      <h3 className={`text-sm font-semibold ${tw.textPrimary}`}>Kick Log</h3>
+                      <button onClick={() => onGetKickLog?.()} className={`text-xs ${tw.textMuted} hover:${tw.textSecondary} transition-colors`}>Refresh</button>
+                    </div>
+                    {!kickLog || kickLog.length === 0 ? (
+                      <p className={`text-xs ${tw.textTertiary} py-4 text-center`}>No kicks recorded.</p>
+                    ) : (
+                      <div className={`rounded-lg border ${tw.borderDefault} overflow-hidden`}>
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className={`border-b ${tw.borderDefault} ${tw.bgInput}`}>
+                              <th className={`px-3 py-2 text-left ${tw.textMuted} font-medium`}>User</th>
+                              <th className={`px-3 py-2 text-left ${tw.textMuted} font-medium`}>IP</th>
+                              <th className={`px-3 py-2 text-left ${tw.textMuted} font-medium`}>Kicked at</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {kickLog.map(entry => (
+                              <tr key={entry.id} className={`border-b last:border-0 ${tw.borderDefault}`}>
+                                <td className={`px-3 py-2 ${tw.textSecondary} font-medium`}>{entry.username}</td>
+                                <td className={`px-3 py-2 ${tw.textMuted} font-mono`}>{entry.ip_address}</td>
+                                <td className={`px-3 py-2 ${tw.textMuted}`}>{new Date(entry.kicked_at).toLocaleDateString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

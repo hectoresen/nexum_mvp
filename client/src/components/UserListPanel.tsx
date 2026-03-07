@@ -6,15 +6,19 @@ import { useAppTheme } from '../hooks/useAppTheme'
 interface UserListPanelProps {
   users: User[] | null
   currentUserId: string | null
+  currentUserRole?: 'owner' | 'member' | null
   serverAddress?: string
   openDmTabs?: string[] // userIds with open DM tabs
   unreadDmUserIds?: string[] // userIds with unread incoming DMs
   onUserClick?: (user: User) => void // View profile
   onSendDm?: (user: User, message: string) => void // Send first DM & open conversation
   onOpenExistingDm?: (user: User) => void // Open an already-open DM tab
+  onKick?: (userId: string) => void
+  onBan?: (userId: string, reason?: string) => void
+  onMute?: (userId: string, muteText: boolean, muteVoice: boolean) => void
 }
 
-export default function UserListPanel({ users, currentUserId, serverAddress, openDmTabs = [], unreadDmUserIds = [], onUserClick, onSendDm, onOpenExistingDm }: UserListPanelProps) {
+export default function UserListPanel({ users, currentUserId, currentUserRole, serverAddress, openDmTabs = [], unreadDmUserIds = [], onUserClick, onSendDm, onOpenExistingDm, onKick, onBan, onMute }: UserListPanelProps) {
   const { tw } = useAppTheme()
   const [activePopoverId, setActivePopoverId] = useState<string | null>(null)
   const [dmInput, setDmInput] = useState('')
@@ -115,6 +119,9 @@ export default function UserListPanel({ users, currentUserId, serverAddress, ope
               {isCurrentUser && <span className={`${tw.textMuted} ml-1`}>(you)</span>}
             </p>
           </div>
+          {/* Mute status icons */}
+          {user.is_text_muted && <span title="Text muted" className="text-xs">🚫💬</span>}
+          {user.is_voice_muted && <span title="Voice muted" className="text-xs">🚫🎙️</span>}
           {/* Unread message badge — red dot */}
           {hasUnread && !isCurrentUser && <span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0 animate-pulse" title="Unread message" />}
           {/* Open DM tab indicator — blue dot */}
@@ -250,6 +257,48 @@ export default function UserListPanel({ users, currentUserId, serverAddress, ope
               className={`w-full mt-2 px-2 py-1 text-xs ${tw.textMuted} hover:${tw.textSecondary} transition-colors text-left`}>
               View profile
             </button>
+
+            {/* Admin moderation actions */}
+            {currentUserRole === 'owner' && activeUser.id !== currentUserId && (
+              <div className={`mt-2 pt-2 border-t ${tw.borderDefault} flex flex-col gap-1`}>
+                <button
+                  onClick={() => { onKick?.(activeUser.id); closePopover() }}
+                  className="w-full px-2 py-1 text-xs text-orange-400 hover:bg-orange-500/20 rounded transition-colors text-left">
+                  👢 Kick
+                </button>
+                <button
+                  onClick={() => { onBan?.(activeUser.id); closePopover() }}
+                  className="w-full px-2 py-1 text-xs text-red-400 hover:bg-red-500/20 rounded transition-colors text-left">
+                  🔨 Ban
+                </button>
+                {!activeUser.is_text_muted ? (
+                  <button
+                    onClick={() => { onMute?.(activeUser.id, true, !!activeUser.is_voice_muted); closePopover() }}
+                    className={`w-full px-2 py-1 text-xs ${tw.textMuted} hover:bg-yellow-500/20 rounded transition-colors text-left`}>
+                    🚫💬 Mute text
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { onMute?.(activeUser.id, false, !!activeUser.is_voice_muted); closePopover() }}
+                    className={`w-full px-2 py-1 text-xs text-yellow-400 hover:bg-yellow-500/20 rounded transition-colors text-left`}>
+                    💬 Unmute text
+                  </button>
+                )}
+                {!activeUser.is_voice_muted ? (
+                  <button
+                    onClick={() => { onMute?.(activeUser.id, !!activeUser.is_text_muted, true); closePopover() }}
+                    className={`w-full px-2 py-1 text-xs ${tw.textMuted} hover:bg-yellow-500/20 rounded transition-colors text-left`}>
+                    🚫🎙️ Mute voice
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { onMute?.(activeUser.id, !!activeUser.is_text_muted, false); closePopover() }}
+                    className={`w-full px-2 py-1 text-xs text-yellow-400 hover:bg-yellow-500/20 rounded transition-colors text-left`}>
+                    🎙️ Unmute voice
+                  </button>
+                )}
+              </div>
+            )}
           </div>,
           document.body,
         )}

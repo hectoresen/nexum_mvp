@@ -61,6 +61,12 @@ pub async fn handle_message(
                 ClientMessage::Ping => handle_ping(tx).await,
                 ClientMessage::SendDm(p) => handle_send_dm(sid, p, state, tx).await,
                 ClientMessage::GetDmHistory(p) => handle_get_dm_history(sid, p, state, tx).await,
+                ClientMessage::KickUser(p) => handle_kick_user(sid, p, state, tx).await,
+                ClientMessage::BanUser(p) => handle_ban_user(sid, p, state, tx).await,
+                ClientMessage::UnbanUser(p) => handle_unban_user(sid, p, state, tx).await,
+                ClientMessage::MuteUser(p) => handle_mute_user(sid, p, state, tx).await,
+                ClientMessage::GetBanList => handle_get_ban_list(sid, state, tx).await,
+                ClientMessage::GetKickLog => handle_get_kick_log(sid, state, tx).await,
                 _ => unreachable!(),
             }?;
 
@@ -116,6 +122,7 @@ async fn handle_connect(
     }
 
     // Determine user: resume by session ID, resume by device key, or create new user
+    let connecting_device_key = payload.device_public_key.clone();
     let user = if let Some(resume_id) = payload.resume_session_id {
         // Client is trying to resume with existing user ID
         match state.db.get_user(resume_id)? {
@@ -184,6 +191,13 @@ async fn handle_connect(
         info!("New user created: {} ({}) as {:?} from IP {:?}", new_user.username, new_user.id, new_user.role, client_ip);
         new_user
     };
+
+    // Check if user is banned before creating a session
+    let ban_ip = user.ip_address.as_deref().unwrap_or("0.0.0.0");
+    if let Some(_ban) = state.db.is_banned(connecting_device_key.as_deref(), ban_ip, user.id)? {
+        send_error(tx, ErrorCode::Banned, "You have been banned from this server")?;
+        bail!("User is banned");
+    }
 
     // Create session
     let session_id = state.session_manager.create_session(user.clone(), tx.clone());
@@ -390,6 +404,12 @@ async fn handle_send_message(
     // Get user info
     let user = state.db.get_user(user_id)?
         .ok_or_else(|| anyhow::anyhow!("User not found"))?;
+
+    // Reject muted users from sending text
+    if user.is_text_muted {
+        send_error(tx, ErrorCode::MutedText, "You are muted in text channels")?;
+        return Ok(());
+    }
 
     // Store message
     let message = state.db.create_message(payload.channel_id, user_id, &payload.content)?;
@@ -1026,6 +1046,8 @@ async fn handle_get_dm_history(
                 avatar_path: None,
                 avatar_version: 0,
                 created_at: dm.created_at,
+                is_text_muted: false,
+                is_voice_muted: false,
             });
         dm_payloads.push(DmReceivedPayload {
             message_id: dm.id,
@@ -1048,5 +1070,216 @@ async fn handle_get_dm_history(
         }),
     )?;
 
+    Ok(())
+}
+
+// ============================================================================
+// Moderation Handlers
+// ============================================================================
+
+async fn handle_kick_user(
+    session_id: Uuid,
+    payload: KickUserPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let kicker_user_id = state.session_manager.get_session(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can kick users")?;
+        return Ok(());
+    }
+
+    if kicker_user_id == payload.user_id {
+        send_error(tx, ErrorCode::InvalidRequest, "You cannot kick yourself")?;
+        return Ok(());
+    }
+
+    let target = match state.db.get_user(payload.user_id)? {
+        Some(u) => u,
+        None => {
+            send_error(tx, ErrorCode::UserNotFound, "User not found")?;
+            return Ok(());
+        }
+    };
+
+    // Send KICKED error to target's session before dropping it
+    if let Some(target_sid) = state.session_manager.get_session_id_for_user(payload.user_id) {
+        let _ = state.session_manager.send_to_session(
+            target_sid,
+            Message::Text(serde_json::to_string(&ServerMessage::Error(ErrorPayload {
+                code: ErrorCode::Kicked,
+                message: "You have been kicked from the server".to_string(),
+            })).unwrap()),
+        );
+        state.session_manager.remove_session(target_sid);
+    }
+
+    // Log the kick
+    let ip = target.ip_address.as_deref().unwrap_or("0.0.0.0");
+    if let Err(e) = state.db.add_kick_log(payload.user_id, &target.username, ip, kicker_user_id) {
+        warn!("Failed to log kick for {}: {}", payload.user_id, e);
+    }
+
+    info!("User {} kicked by {}", target.username, kicker_user_id);
+
+    // Broadcast to all remaining clients
+    broadcast_message(&state.session_manager, &ServerMessage::UserKicked(UserKickedPayload {
+        user_id: payload.user_id,
+        username: target.username,
+    }));
+
+    Ok(())
+}
+
+async fn handle_ban_user(
+    session_id: Uuid,
+    payload: BanUserPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let banner_user_id = state.session_manager.get_session(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can ban users")?;
+        return Ok(());
+    }
+
+    if banner_user_id == payload.user_id {
+        send_error(tx, ErrorCode::InvalidRequest, "You cannot ban yourself")?;
+        return Ok(());
+    }
+
+    let target = match state.db.get_user(payload.user_id)? {
+        Some(u) => u,
+        None => {
+            send_error(tx, ErrorCode::UserNotFound, "User not found")?;
+            return Ok(());
+        }
+    };
+
+    let ip = target.ip_address.clone().unwrap_or_else(|| "0.0.0.0".to_string());
+
+    // If the user is online, notify them and drop their session first
+    if let Some(target_sid) = state.session_manager.get_session_id_for_user(payload.user_id) {
+        let _ = state.session_manager.send_to_session(
+            target_sid,
+            Message::Text(serde_json::to_string(&ServerMessage::Error(ErrorPayload {
+                code: ErrorCode::Banned,
+                message: "You have been banned from this server".to_string(),
+            })).unwrap()),
+        );
+        state.session_manager.remove_session(target_sid);
+    }
+
+    // Create ban record
+    state.db.create_ban(
+        payload.user_id,
+        &target.username,
+        &ip,
+        None,
+        payload.reason,
+        banner_user_id,
+    )?;
+
+    info!("User {} banned by {}", target.username, banner_user_id);
+
+    broadcast_message(&state.session_manager, &ServerMessage::UserBanned(UserBannedPayload {
+        user_id: payload.user_id,
+        username: target.username,
+    }));
+
+    Ok(())
+}
+
+async fn handle_unban_user(
+    session_id: Uuid,
+    payload: UnbanUserPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can revoke bans")?;
+        return Ok(());
+    }
+
+    state.db.remove_ban(payload.ban_id)?;
+    info!("Ban {} revoked", payload.ban_id);
+
+    let bans = state.db.list_bans()?;
+    send_message(tx, &ServerMessage::BanList(BanListPayload { bans }))?;
+
+    Ok(())
+}
+
+async fn handle_mute_user(
+    session_id: Uuid,
+    payload: MuteUserPayload,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can mute users")?;
+        return Ok(());
+    }
+
+    if state.db.get_user(payload.user_id)?.is_none() {
+        send_error(tx, ErrorCode::UserNotFound, "User not found")?;
+        return Ok(());
+    }
+
+    state.db.set_user_mute(payload.user_id, payload.mute_text, payload.mute_voice)?;
+    info!("User {} mute updated: text={} voice={}", payload.user_id, payload.mute_text, payload.mute_voice);
+
+    broadcast_message(&state.session_manager, &ServerMessage::UserMuteUpdated(UserMuteUpdatedPayload {
+        user_id: payload.user_id,
+        is_text_muted: payload.mute_text,
+        is_voice_muted: payload.mute_voice,
+    }));
+
+    Ok(())
+}
+
+async fn handle_get_ban_list(
+    session_id: Uuid,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can view the ban list")?;
+        return Ok(());
+    }
+
+    let bans = state.db.list_bans()?;
+    send_message(tx, &ServerMessage::BanList(BanListPayload { bans }))?;
+    Ok(())
+}
+
+async fn handle_get_kick_log(
+    session_id: Uuid,
+    state: &Arc<AppState>,
+    tx: &mpsc::UnboundedSender<Message>,
+) -> Result<()> {
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+    if role != UserRole::Owner {
+        send_error(tx, ErrorCode::Unauthorized, "Only owners can view the kick log")?;
+        return Ok(());
+    }
+
+    let entries = state.db.list_kick_log()?;
+    send_message(tx, &ServerMessage::KickLog(KickLogPayload { entries }))?;
     Ok(())
 }
