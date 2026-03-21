@@ -41,6 +41,9 @@ interface MainViewProps {
   onSwitchToDmView?: (userId: string) => void
   onSwitchToChannelView?: () => void
   unreadDmUserIds?: string[]
+  onKickUser?: (userId: string) => void
+  onBanUser?: (userId: string, reason?: string) => void
+  onMuteUser?: (userId: string, muteText: boolean, muteVoice: boolean) => void
 }
 
 export default function MainView({
@@ -76,6 +79,9 @@ export default function MainView({
   onSwitchToDmView,
   onSwitchToChannelView,
   unreadDmUserIds = [],
+  onKickUser,
+  onBanUser,
+  onMuteUser,
 }: MainViewProps) {
   const { tw } = useAppTheme()
   const [showCreateChannel, setShowCreateChannel] = useState(false)
@@ -418,6 +424,7 @@ export default function MainView({
       <UserListPanel
         users={serverUsers}
         currentUserId={state.userId}
+        currentUserRole={state.role}
         serverAddress={serverAddress}
         openDmTabs={openDmTabs}
         unreadDmUserIds={unreadDmUserIds}
@@ -427,6 +434,9 @@ export default function MainView({
           onSwitchToDmView?.(user.id)
           onOpenExistingDm?.(user)
         }}
+        onKick={onKickUser}
+        onBan={onBanUser}
+        onMute={onMuteUser}
       />
     </div>
   )

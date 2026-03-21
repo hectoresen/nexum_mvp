@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { WebSocketClient } from './lib/websocket'
 import { ServerManager } from './lib/serverManager'
-import { Channel, Message as ProtocolMessage, ServerMessage, UserRole, User, ServerSettingsPayload, Category, DmMessage } from './types/protocol'
+import { Channel, Message as ProtocolMessage, ServerMessage, UserRole, User, ServerSettingsPayload, Category, DmMessage, Ban, KickLogEntry } from './types/protocol'
 import { encryptDm } from './lib/dmCrypto'
 import { SavedServer, LocalServerStatus } from './types/server'
 import ServerListView from './components/ServerListView'
@@ -53,6 +53,9 @@ interface ActiveConnection {
   openDmTabs: string[] // userIds with open DM tabs
   activeDmUserId: string | null // currently displayed DM conversation
   unreadDmUserIds: string[] // userIds with unread incoming DMs
+  banList: Ban[]
+  kickLog: KickLogEntry[]
+  kickReason: string | null // non-null when server kicked/banned this user
 }
 
 type AppView = { type: 'server-list' } | { type: 'connected'; connection: ActiveConnection }
@@ -185,6 +188,9 @@ function App() {
         openDmTabs: [],
         activeDmUserId: null,
         unreadDmUserIds: [],
+        banList: [],
+        kickLog: [],
+        kickReason: null,
       }
 
       // Set up handlers
@@ -328,6 +334,9 @@ function App() {
         openDmTabs: [],
         activeDmUserId: null,
         unreadDmUserIds: [],
+        banList: [],
+        kickLog: [],
+        kickReason: null,
       }
 
       // Set up message handler
@@ -695,6 +704,44 @@ function App() {
         return { ...connection, dmMessages: newMap }
       }
 
+      case 'USER_KICKED': {
+        const { user_id } = message.payload
+        if (user_id === connection.userId) {
+          return { ...connection, kickReason: `You were kicked from the server.` }
+        }
+        return {
+          ...connection,
+          serverUsers: connection.serverUsers?.filter(u => u.id !== user_id) ?? null,
+        }
+      }
+
+      case 'USER_BANNED': {
+        const { user_id } = message.payload
+        if (user_id === connection.userId) {
+          return { ...connection, kickReason: 'You have been banned from this server.' }
+        }
+        return {
+          ...connection,
+          serverUsers: connection.serverUsers?.filter(u => u.id !== user_id) ?? null,
+        }
+      }
+
+      case 'USER_MUTE_UPDATED': {
+        const { user_id, is_text_muted, is_voice_muted } = message.payload
+        return {
+          ...connection,
+          serverUsers: connection.serverUsers?.map(u =>
+            u.id === user_id ? { ...u, is_text_muted, is_voice_muted } : u
+          ) ?? null,
+        }
+      }
+
+      case 'BAN_LIST':
+        return { ...connection, banList: message.payload.bans }
+
+      case 'KICK_LOG':
+        return { ...connection, kickLog: message.payload.entries }
+
       default:
         console.warn('Unknown message type:', message)
         return connection
@@ -928,6 +975,49 @@ function App() {
 
     view.connection.client.send({ type: 'GET_SERVER_SETTINGS' })
     setShowServerSettingsModal(true)
+  }
+
+  // ── Moderation: disconnect if kicked/banned ──────────────────────────────
+  useEffect(() => {
+    if (view.type === 'connected' && view.connection.kickReason) {
+      const reason = view.connection.kickReason
+      view.connection.client.disconnect()
+      setShowAdminAuthModal(false)
+      setAdminAuthError(null)
+      setView({ type: 'server-list' })
+      setConnectionError(reason)
+      setServers(ServerManager.loadServers())
+    }
+  }, [view])
+
+  const handleKickUser = (userId: string) => {
+    if (view.type !== 'connected') return
+    view.connection.client.send({ type: 'KICK_USER', payload: { user_id: userId } })
+  }
+
+  const handleBanUser = (userId: string, reason?: string) => {
+    if (view.type !== 'connected') return
+    view.connection.client.send({ type: 'BAN_USER', payload: { user_id: userId, ...(reason ? { reason } : {}) } })
+  }
+
+  const handleUnbanUser = (banId: string) => {
+    if (view.type !== 'connected') return
+    view.connection.client.send({ type: 'UNBAN_USER', payload: { ban_id: banId } })
+  }
+
+  const handleMuteUser = (userId: string, muteText: boolean, muteVoice: boolean) => {
+    if (view.type !== 'connected') return
+    view.connection.client.send({ type: 'MUTE_USER', payload: { user_id: userId, mute_text: muteText, mute_voice: muteVoice } })
+  }
+
+  const handleGetBanList = () => {
+    if (view.type !== 'connected') return
+    view.connection.client.send({ type: 'GET_BAN_LIST' })
+  }
+
+  const handleGetKickLog = () => {
+    if (view.type !== 'connected') return
+    view.connection.client.send({ type: 'GET_KICK_LOG' })
   }
 
   const handleUpdateServerSettings = (settings: { name?: string; max_users?: number; max_users_per_voice_channel?: number; max_message_size?: number; join_password?: string }) => {
@@ -1421,6 +1511,9 @@ function App() {
         onCloseDmTab={handleCloseDmTab}
         onSwitchToDmView={handleSwitchToDmView}
         onSwitchToChannelView={handleSwitchToChannelView}
+        onKickUser={handleKickUser}
+        onBanUser={handleBanUser}
+        onMuteUser={handleMuteUser}
       />
 
       {showAdminAuthModal && (
@@ -1440,9 +1533,14 @@ function App() {
           isConfigured={true}
           port={localServerStatus.port ?? 8080}
           settings={conn.serverSettings}
+          banList={conn.banList}
+          kickLog={conn.kickLog}
           onClose={() => setShowServerSettingsModal(false)}
           onSaveSettings={handleUpdateServerSettings}
           onChangePassword={() => setShowChangePasswordModal(true)}
+          onGetBanList={handleGetBanList}
+          onGetKickLog={handleGetKickLog}
+          onUnbanUser={handleUnbanUser}
         />
       )}
 
