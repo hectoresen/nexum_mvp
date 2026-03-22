@@ -10,6 +10,17 @@ All notable changes and completed tasks are documented here.
 
 ### 🐛 Bug Fixes
 
+- [x] **Binario del servidor obsoleto causaba que todos los fixes del servidor no llegaran al instalador** — `npm run tauri build` no recompila el binario del servidor; el `voice-server.exe` en `src-tauri/resources/` era el ejecutable anterior a todas las correcciones de sesiones previas. Síntoma: el cliente instalado mostraba comportamiento sin parcheár (estado online incorrecto, borrado de mensajes sin permisos, etc.) pese a que el código fuente estaba corregido. Solución: `cargo build --release` en `server/` → copiar a `client/src-tauri/resources/voice-server.exe` → `npm run tauri build`. Automatizado con `build.ps1 -Release -Bundle`. **Documentado en `docs/architecture_spec.md` § Build Pipeline.**
+
+- [x] **Badge en barra de tareas era un cuadrado rojo en lugar de un círculo naranja** — `CreateBitmap` (DDB) de 32bpp ignora la máscara AND de 1bpp en Windows moderno (WebView2); la región exterior siempre se renderizaba opaca. Sustituido por `CreateDIBSection` (DIB, 32bpp BGRA) con alpha por pixel: píxeles del círculo con alpha=255 color `#FF8C00`, exterior alpha=0 transparente. Radio 5 px, centro (8,8) sobre bitmap 16×16.
+  - Afectado: `client/src-tauri/src/main.rs`
+
+- [x] **Avatar upload y visualización fallaba para clientes no-host (Chrome Private Network Access)** — El WebView2 de Tauri funciona bajo el origen `tauri://localhost`. Las peticiones HTTP `fetch()` a IPs de red privada (`192.168.x.x`, `10.x.x.x`) son bloqueadas por la política Chrome PNA si el servidor no incluye `Access-Control-Allow-Private-Network: true` en la respuesta al preflight CORS. Las conexiones WebSocket no tienen preflight y no se veían afectadas. Solución: `.allow_private_network(true)` en el `CorsLayer` de `tower-http`.
+  - Afectado: `server/src/websocket.rs`
+
+- [x] **Avatares no se actualizaban visualmente tras cambio (caché del navegador)** — El WebView cacheaba el recurso de avatar porque la URL era idéntica entre versiones. Solución: se añade `?v=${user.avatar_version ?? 0}` a todas las construcciones de URL de avatar para forzar recarga cuando la versión cambia.
+  - Afectados: `client/src/components/UserListPanel.tsx`, `client/src/components/ChatArea.tsx`, `client/src/App.tsx`
+
 - [x] **DM se quedaba cargando / pestaña mostraba "…" (post-0.5.14)** — Cuando un usuario se conectaba al servidor después de que otro ya estuviera conectado, el usuario ya conectado no lo veía en su lista de usuarios (`serverUsers`). Al intentar abrir un DM, la pantalla se quedaba cargando indefinidamente y la pestaña mostraba "…":
   - **Servidor**: `handle_connect` ahora emite `ServerMessage::ServerUsers` a todos los clientes conectados justo después de enviar `WELCOME`. Así los usuarios ya conectados ven al recién llegado sin necesidad de `USER_JOINED`.
   - **Cliente**: `MainView` construye un objeto `User` temporal a partir de los datos del propio mensaje DM (`sender_username`, `sender_avatar_*`) cuando el usuario no está en `serverUsers`. Las pestañas de DM aplican el mismo fallback para mostrar el nombre en lugar de "…".

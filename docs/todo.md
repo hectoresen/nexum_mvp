@@ -6,6 +6,81 @@
 
 This phase integrates the CLI server with the client for a unified user experience.
 
+### 🔴 Bugs de alta prioridad — PENDIENTE
+
+- [ ] **[BUG] Avatar upload falla con "Failed to fetch" para clientes no-host** — Cuando un usuario conectado a un servidor ajeno (no el host) intenta cambiar su imagen de perfil, la petición de subida HTTP falla con "Failed to fetch" y el avatar nunca se actualiza. El problema afecta únicamente a conexiones remotas; el host local no lo sufre. Relacionado con Chrome PNA / CORS — aunque se añadió `allow_private_network(true)` en el `CorsLayer`, el error persiste, indicando que hay otro punto de bloqueo (posiblemente el endpoint de upload-avatar no está cubierto por la misma política CORS, o hay un problema adicional de CSP en el cliente). Investigar qué petición concreta falla (preflight OPTIONS, la propia POST, o la respuesta) y verificar que `tauri.conf.json` CSP permite `connect-src` a IPs privadas.
+  - Archivos candidatos: `server/src/websocket.rs` (rutas CORS), `client/src/components/AvatarModal.tsx`, `client/src-tauri/tauri.conf.json`
+
+- [ ] **[BUG] Imágenes de perfil de otros usuarios aparecen rotas para clientes no-host** — Al conectarse a un servidor remoto, los avatares de usuarios que han subido una imagen aparecen como imagen rota (broken image). El host del servidor los ve correctamente. La URL construida con `avatar_path + serverAddress` es formalmente correcta, pero la petición HTTP es bloqueada (probablemente mismo origen PNA/CSP que el bug anterior). Verificar que la política CSP `img-src` en `tauri.conf.json` incluye el schema `http:` para IPs de red privada, y que el servidor sirve el endpoint `/avatars/` con las cabeceras CORS correctas incluyendo `Access-Control-Allow-Private-Network: true`.
+  - Archivos candidatos: `server/src/websocket.rs` (rutas de avatares), `client/src-tauri/tauri.conf.json` (CSP img-src), `client/src/components/UserListPanel.tsx`, `client/src/components/ChatArea.tsx`
+
+- [ ] **[BUG] Usuario kickeado no recibe ningún mensaje de notificación** — Cuando un admin kickea a un usuario, la sesión del usuario kickeado se cierra sin mostrar ningún aviso. El comportamiento esperado es que aparezca un modal o mensaje en pantalla indicando "Has sido expulsado del servidor" (o similar) antes de redirigir al usuario a la lista de servidores. El servidor ya emite `USER_KICKED` como broadcast; hay que verificar que el cliente maneja ese mensaje para el propio usuario kickeado y muestra la notificación adecuada.
+  - Archivos candidatos: `client/src/App.tsx` (handler de `USER_KICKED`), `client/src/components/MainView.tsx` o modal dedicado
+
+---
+
+### 🟡 Mejoras de moderación — PENDIENTE
+
+- [ ] **[FEATURE] Mensaje de motivo al kickear a un usuario** — Al kickear a un usuario, el admin debería poder introducir opcionalmente un motivo (texto libre). El usuario kickeado verá ese motivo en la pantalla de notificación de expulsión ("Has sido expulsado: [motivo]"). Si no se introduce motivo, se muestra el mensaje genérico. Requiere:
+  - Servidor: añadir campo `reason: Option<String>` al payload de `KICK_USER` y propagarlo en el mensaje `USER_KICKED` enviado al usuario expulsado.
+  - Cliente admin: añadir un input de texto opcional en el popover de kick antes de confirmar la acción.
+  - Cliente usuario kickeado: mostrar el motivo en el modal/aviso de expulsión.
+  - Archivos candidatos: `server/src/handlers.rs`, `server/src/models.rs`, `client/src/components/UserListPanel.tsx`, `client/src/App.tsx`
+
+---
+
+### 🟢 Sistema de reacciones a mensajes — PENDIENTE (baja prioridad)
+
+- [ ] **[FEATURE] Reacciones con emoticonos en canales de servidor y DMs**
+
+  **Descripción general:** Los usuarios podrán añadir reacciones emoji a cualquier mensaje, tanto en canales de texto de servidor como en conversaciones de DM. Las reacciones son visibles en tiempo real para todos los miembros del servidor.
+
+  **Paleta de emoticonos:**
+  - Usar una librería gratuita de emoji estándar (p.ej. `emoji-picker-react` o `@emoji-mart/react` + `@emoji-mart/data`) que exponga la paleta completa y en color: caras, gestos, manos, animales, banderas, objetos, etc. — la misma que ofrece WhatsApp/Discord. Sin versiones monocromáticas.
+
+  **Reglas de negocio:**
+  - Un usuario puede añadir un máximo de **10 reacciones distintas por mensaje**.
+  - Un usuario puede añadir y quitar sus propias reacciones libremente.
+  - Un usuario **no puede quitar** reacciones de otros usuarios.
+  - Si una reacción ya existe en un mensaje (puesta por otro usuario), cualquier usuario puede hacer clic sobre ella para "sumarla": el contador sube en 1. Si el mismo usuario vuelve a hacer clic, se resta (toggle: add/remove).
+  - Al pasar el ratón sobre una reacción se muestra un tooltip con los nombres de los usuarios que la han añadido.
+  - Un usuario **muteado de texto no puede añadir reacciones**.
+  - Si el mensaje es eliminado, se eliminan todas sus reacciones.
+  - Si un usuario reacciona, es kickeado y luego vuelve al servidor, conserva sus reacciones previas y puede seguir retirándolas o añadiendo nuevas.
+
+  **UX / interacción:**
+  - Al pasar el ratón sobre un mensaje aparece un botón "+" (junto a los botones de editar/borrar ya existentes). Una de las opciones al hacer clic será "Añadir reacción", lo que desplegará la paleta de emoticonos.
+  - Las reacciones existentes se muestran en una fila debajo del texto del mensaje: `[emoji][contador]`. Hacer clic en una reacción existente actúa como toggle (añadir/quitar la propia reacción).
+
+  **Tiempo real:**
+  - Cuando un usuario añade o quita una reacción, el servidor emite un broadcast a todos los clientes conectados al servidor (o a ambos participantes del DM) con el estado actualizado de las reacciones del mensaje.
+
+  **Alcance:**
+  - Canales de texto de servidor ✅
+  - DMs ✅ (mismo límite de 10 reacciones por mensaje)
+
+  **Implementación estimada — áreas afectadas:**
+  - Servidor: nueva tabla SQLite `message_reactions` (`id`, `message_id`, `user_id`, `emoji`, `created_at`); handlers `ADD_REACTION` y `REMOVE_REACTION`; broadcast `REACTION_UPDATED` con el listado completo de reacciones del mensaje; respetar límite de 10 por usuario por mensaje; bloquear si `is_text_muted`; cascade delete al borrar mensaje.
+  - Servidor DM: misma lógica aplicada a `direct_messages`; nueva tabla `dm_reactions` o columna de discriminador.
+  - Cliente: integrar picker de emoji (p.ej. `emoji-mart`); componente `MessageReactions` reutilizable (lista de píldoras emoji+contador + tooltip de autores); botón "+" en hover de mensaje; handler de `REACTION_UPDATED` en `App.tsx`; actualizar `protocol.ts` con los nuevos tipos de mensaje.
+  - Archivos principales: `server/src/db.rs`, `server/src/handlers.rs`, `server/src/models.rs`, `client/src/components/ChatArea.tsx`, `client/src/components/DirectMessageView.tsx`, `client/src/App.tsx`, `client/src/types/protocol.ts`
+
+---
+
+### ✅ Correcciones de bugs ronda 3 QA — COMPLETADO
+
+Diagnosticados y corregidos tras constatar que los arreglos de rondas anteriores no surtían efecto en el instalador.
+
+- [x] **Binario del servidor obsoleto en el instalador** — `npm run tauri build` NO recompila el servidor. El `voice-server.exe` en `client/src-tauri/resources/` era el binario anterior a todas las correcciones. Síntoma: cualquier fix en `server/src/` se ignora al ejecutar el cliente instalado. Solución: `cargo build --release` en `server/` → copiar a `resources/` → volver a empaquetar con `npm run tauri build`. Automatizado con `build.ps1 -Release -Bundle`.
+- [x] **Estado online siempre mostraba 0 conectados** — El servidor no emitía el estado correcto de usuarios conectados en el broadcast de bienvenida y en la actualización periódica. Arreglado en `server/src/handlers.rs` y `server/src/session.rs`, pero el fix solo llegó al cliente tras reconstruir el binario.
+- [x] **Badge de notificaciones en barra de tareas era un cuadrado rojo** — `CreateBitmap` (DDB) de 32bpp ignora la máscara AND de 1bpp en Windows moderno; el resultado siempre es rectangular. Solución: `CreateDIBSection` (DIB, 32bpp) con alpha por pixel — círculo naranja (`#FF8C00`) radio 5px con alpha=255, exterior con alpha=0. Afectado: `client/src-tauri/src/main.rs`.
+- [x] **Avatar upload y visualización fallaba para usuarios no-host** — Chrome Private Network Access (PNA) bloquea peticiones `fetch()` desde `tauri://localhost` a IPs privadas (`192.168.x.x`) si el servidor no responde con `Access-Control-Allow-Private-Network: true`. Los WebSocket no tienen este problema (sin preflight). Solución: `.allow_private_network(true)` en el `CorsLayer` de `tower-http` en `server/src/websocket.rs`.
+- [x] **Avatar no se actualizaba visualmente tras subir una imagen** — El navegador cacheaba la URL del avatar sin `?v=N`. Solución: se añade `?v=${avatar_version}` a todas las URLs de avatar en `UserListPanel.tsx`, `ChatArea.tsx` y `App.tsx` para forzar la recarga cuando la versión cambia.
+- [x] **Admin no podía borrar mensajes** (heredado de rondas anteriores — corregido al reconstruir el binario)
+- [x] **Dot de presencia del owner aparecía gris** (heredado — corregido al reconstruir el binario)
+
+---
+
 ### ✅ Correcciones de bugs post-0.5.14 — COMPLETADO
 
 - [x] **DM se quedaba cargando / pestaña mostraba "…"** — Cuando el usuario A ya estaba conectado y el usuario B se conectaba después, A nunca recibía la lista actualizada, por lo que al abrir un DM con B la pantalla se quedaba cargando. Además la pestaña mostraba "…" en lugar del nombre. Doble arreglo: (1) el servidor ahora emite `ServerUsers` a todos los clientes tras dar la bienvenida a cada nuevo usuario; (2) `MainView` construye un usuario temporal con los datos del propio mensaje DM si el usuario no está aún en `serverUsers`.
