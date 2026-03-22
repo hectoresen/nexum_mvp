@@ -192,6 +192,7 @@ impl Database {
             created_at: Utc::now(),
             is_text_muted: false,
             is_voice_muted: false,
+            device_public_key: None,
         };
 
         let conn = self.conn.lock().unwrap();
@@ -215,7 +216,7 @@ impl Database {
     pub fn get_user(&self, user_id: Uuid) -> Result<Option<User>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at, is_text_muted, is_voice_muted FROM users WHERE id = ?1"
+            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at, is_text_muted, is_voice_muted, device_public_key FROM users WHERE id = ?1"
         )?;
 
         let user = stmt.query_row(params![user_id.to_string()], |row| {
@@ -230,6 +231,7 @@ impl Database {
                 created_at: row.get::<_, String>(7)?.parse().unwrap(),
                 is_text_muted: row.get::<_, i32>(8)? != 0,
                 is_voice_muted: row.get::<_, i32>(9)? != 0,
+                device_public_key: row.get(10)?,
             })
         }).optional()?;
 
@@ -239,7 +241,7 @@ impl Database {
     pub fn get_user_by_username(&self, username: &str) -> Result<Option<User>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at, is_text_muted, is_voice_muted FROM users WHERE username = ?1"
+            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at, is_text_muted, is_voice_muted, device_public_key FROM users WHERE username = ?1"
         )?;
 
         let user = stmt.query_row(params![username], |row| {
@@ -254,6 +256,7 @@ impl Database {
                 created_at: row.get::<_, String>(7)?.parse().unwrap(),
                 is_text_muted: row.get::<_, i32>(8)? != 0,
                 is_voice_muted: row.get::<_, i32>(9)? != 0,
+                device_public_key: row.get(10)?,
             })
         }).optional()?;
 
@@ -264,7 +267,7 @@ impl Database {
     pub fn get_user_by_device_key(&self, device_key: &str) -> Result<Option<User>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at, is_text_muted, is_voice_muted FROM users WHERE device_public_key = ?1"
+            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at, is_text_muted, is_voice_muted, device_public_key FROM users WHERE device_public_key = ?1"
         )?;
         let user = stmt.query_row(params![device_key], |row| {
             Ok(User {
@@ -278,6 +281,7 @@ impl Database {
                 created_at: row.get::<_, String>(7)?.parse().unwrap(),
                 is_text_muted: row.get::<_, i32>(8)? != 0,
                 is_voice_muted: row.get::<_, i32>(9)? != 0,
+                device_public_key: row.get(10)?,
             })
         }).optional()?;
         Ok(user)
@@ -354,7 +358,7 @@ impl Database {
     pub fn list_users(&self) -> Result<Vec<User>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at, is_text_muted, is_voice_muted FROM users ORDER BY created_at"
+            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at, is_text_muted, is_voice_muted, device_public_key FROM users ORDER BY created_at"
         )?;
         let users = stmt.query_map([], |row| {
             Ok(User {
@@ -368,6 +372,7 @@ impl Database {
                 created_at: row.get::<_, String>(7)?.parse().unwrap(),
                 is_text_muted: row.get::<_, i32>(8)? != 0,
                 is_voice_muted: row.get::<_, i32>(9)? != 0,
+                device_public_key: row.get(10)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -377,7 +382,7 @@ impl Database {
     pub fn get_user_by_ip(&self, ip_address: &str) -> Result<Option<User>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at, is_text_muted, is_voice_muted FROM users WHERE ip_address = ?1"
+            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at, is_text_muted, is_voice_muted, device_public_key FROM users WHERE ip_address = ?1"
         )?;
 
         let user = stmt.query_row(params![ip_address], |row| {
@@ -392,6 +397,7 @@ impl Database {
                 created_at: row.get::<_, String>(7)?.parse().unwrap(),
                 is_text_muted: row.get::<_, i32>(8)? != 0,
                 is_voice_muted: row.get::<_, i32>(9)? != 0,
+                device_public_key: row.get(10)?,
             })
         }).optional()?;
 

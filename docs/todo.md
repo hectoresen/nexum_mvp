@@ -402,9 +402,9 @@ Actualmente `GET_MESSAGE_HISTORY` carga **todos** los mensajes de un canal en me
 
 ---
 
-### 0.5.12 Moderation System 🚧
+### 0.5.12 Moderation System ✅
 
-**Priority: HIGH - v0.1.5**
+**Priority: HIGH - v0.1.5 — COMPLETED (merged to develop)**
 
 Enable server admins to manage disruptive users via kick, ban and per-user mutes.
 
@@ -412,120 +412,48 @@ Enable server admins to manage disruptive users via kick, ban and per-user mutes
 
 #### Kick
 
-- [ ] Admin can kick a user — forcibly disconnects them; they can reconnect immediately with no restrictions
-- [ ] `KICK_USER` client message → server closes the target's WebSocket with a `KICKED` error code
-- [ ] `USER_KICKED` broadcast so all other clients update their member list
-- [ ] Kicked user's client: show "You were kicked from this server" and navigate back to server list
-- [ ] **Kick log** — each kick is persisted in a `kick_log` SQLite table: `id`, `user_id`, `username`, `ip_address`, `kicked_at`, `kicked_by_user_id`
+- [x] Admin can kick a user — forcibly disconnects them; they can reconnect immediately with no restrictions
+- [x] `KICK_USER` client message → server closes the target's WebSocket with a `KICKED` error code
+- [x] `USER_KICKED` broadcast so all other clients update their member list
+- [x] Kicked user's client: show "You were kicked from this server" and navigate back to server list
+- [x] **Kick log** — each kick is persisted in a `kick_log` SQLite table: `id`, `user_id`, `username`, `ip_address`, `kicked_at`, `kicked_by_user_id`
 
 ---
 
 #### Ban
 
-- [ ] Admin can ban a user — permanently blocks reconnection from that device
-- [ ] Ban is enforced by **device_public_key + IP address + user_id** (NOT username — usernames are not a reliable identity signal)
-- [ ] `BAN_USER` client message → server disconnects target, inserts into `bans` table, broadcasts `USER_BANNED`
-- [ ] `UNBAN_USER` client message → server removes row from `bans` (revoke)
-- [ ] On every `CONNECT`: server checks `bans` table against incoming `device_public_key`, origin IP **and** `user_id`; any match → reject with `BANNED` error code
-- [ ] Banned user's client: show "You have been banned from this server" on connect attempt
-- [ ] `bans` table schema: `id TEXT PK`, `user_id TEXT`, `username TEXT`, `ip_address TEXT`, `device_public_key TEXT`, `banned_at TEXT`, `reason TEXT`, `banned_by_user_id TEXT`
+- [x] Admin can ban a user — permanently blocks reconnection from that device
+- [x] Ban is enforced by **device_public_key + IP address + user_id** (NOT username)
+- [x] `BAN_USER` client message → server disconnects target, inserts into `bans` table, broadcasts `USER_BANNED`
+- [x] `UNBAN_USER` client message → server removes row from `bans` (revoke)
+- [x] On every `CONNECT`: server checks `bans` table against incoming `device_public_key`, origin IP **and** `user_id`; any match → reject with `BANNED` error code
+- [x] Banned user's client: show "You have been banned from this server" on connect attempt
+- [x] `bans` table schema: `id TEXT PK`, `user_id TEXT`, `username TEXT`, `ip_address TEXT`, `device_public_key TEXT`, `banned_at TEXT`, `reason TEXT`, `banned_by_user_id TEXT`
+- [x] **Bug fix (post-merge)**: `User` struct now includes `device_public_key` field; all DB queries select it; `handle_ban_user` passes `target.device_public_key.as_deref()` to `create_ban` — previously always passed `None`, making device-key ban evasion possible via IP change
 
 ---
 
 #### Mute (text and/or voice)
 
-- [ ] Two independent mute types: **text mute** (cannot send messages to any channel) and **voice mute** (cannot transmit audio)
-- [ ] Mutes are applied and removed via **right-click context menu on a member** in the right-panel member list
-  - Context menu entries (admin only): "Mute text", "Mute voice", "Mute both", "Unmute text", "Unmute voice", "Unmute all" — entries shown/hidden based on current mute state
-- [ ] `MUTE_USER` client message: `{ user_id, mute_text: bool, mute_voice: bool }` — sets or clears flags
-- [ ] Server persists mute state in `users` table: `is_text_muted BOOL DEFAULT 0`, `is_voice_muted BOOL DEFAULT 0`
-- [ ] `USER_MUTE_UPDATED` server broadcast: all clients update their local user state
-- [ ] Muted user enforcement:
-  - Text mute: server rejects `SEND_MESSAGE` with `MUTED_TEXT` error code, shows toast to muted user
-  - Voice mute: server rejects audio relay (UDP layer) for `is_voice_muted` users
-- [ ] **Mute icons in member list** (right sidebar):
-  - Text-muted: 🚫💬 icon next to avatar
-  - Voice-muted: 🚫🎙️ icon next to avatar
-  - Both: both icons shown side by side
-  - Icons are removed immediately when the admin revokes the corresponding mute
-- [ ] **Mute indicators in user profile card** — same icons shown in the `UserProfileModal` when viewing a muted user's card
+- [x] Two independent mute types: **text mute** (cannot send messages) and **voice mute** (flag set, UI shown)
+- [x] Mutes applied via popover in right-panel member list (owner-only controls)
+- [x] `MUTE_USER` client message: `{ user_id, mute_text: bool, mute_voice: bool }` — sets or clears flags
+- [x] Server persists mute state in `users` table: `is_text_muted`, `is_voice_muted`
+- [x] `USER_MUTE_UPDATED` server broadcast: all clients update local user state
+- [x] Text mute enforced: server rejects `SEND_MESSAGE` with `MUTED_TEXT` error code
+- [x] Mute icons in member list (right sidebar): 🚫💬 / 🚫🎙️ icons
+- [x] "Mute all" / "Unmute all" combo buttons in moderation popover
+
+> ⚠️ **Known limitation — voice mute enforcement**: Voice mute flag is stored and broadcast correctly but has no actual audio enforcement. UDP voice forwarding is not yet implemented (stub in `udp.rs`). When UDP relay is added in a future phase, `is_voice_muted` must be checked before forwarding packets from a muted user.
 
 ---
 
 #### Moderation tab in Server Settings
 
-- [ ] Add a **"Moderation"** tab to `ServerConfigModal` (manage mode only)
-- [ ] **Banned users section** — paginated list of active bans:
-  - Columns: username, user_id (truncated), IP, banned at, banned by
-  - "Revoke ban" button per row → calls `UNBAN_USER`, row disappears on success
-- [ ] **Kick log section** — read-only list of historical kicks:
-  - Columns: username, user_id (truncated), IP, kicked at
-  - Loaded via new `GET_KICK_LOG` WebSocket message (server reads from `kick_log` table)
-
----
-
-#### Protocol summary
-
-| Message (client→server) | Payload                                                  |
-| ----------------------- | -------------------------------------------------------- |
-| `KICK_USER`             | `{ user_id: string }`                                    |
-| `BAN_USER`              | `{ user_id: string, reason?: string }`                   |
-| `UNBAN_USER`            | `{ ban_id: string }`                                     |
-| `MUTE_USER`             | `{ user_id: string, mute_text: bool, mute_voice: bool }` |
-| `GET_KICK_LOG`          | `{}`                                                     |
-
-| Message (server→client) | Payload                                                          |
-| ----------------------- | ---------------------------------------------------------------- |
-| `USER_KICKED`           | `{ user_id: string, username: string }`                          |
-| `USER_BANNED`           | `{ user_id: string, username: string }`                          |
-| `USER_MUTE_UPDATED`     | `{ user_id: string, is_text_muted: bool, is_voice_muted: bool }` |
-| `KICK_LOG`              | `{ entries: KickLogEntry[] }`                                    |
-| `BANNED` (error)        | error code sent to banned user on connect                        |
-| `KICKED` (error)        | error code sent to kicked user's session                         |
-
----
-
-#### Database migrations
-
-```sql
-CREATE TABLE bans (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  username TEXT NOT NULL,
-  ip_address TEXT NOT NULL,
-  device_public_key TEXT,
-  banned_at TEXT NOT NULL,
-  reason TEXT,
-  banned_by_user_id TEXT NOT NULL
-);
-
-CREATE TABLE kick_log (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  username TEXT NOT NULL,
-  ip_address TEXT NOT NULL,
-  kicked_at TEXT NOT NULL,
-  kicked_by_user_id TEXT NOT NULL
-);
-
-ALTER TABLE users ADD COLUMN is_text_muted INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE users ADD COLUMN is_voice_muted INTEGER NOT NULL DEFAULT 0;
-```
-
----
-
-#### Affected files (expected)
-
-| File                                          | Change                                                                                                          |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `server/src/db.rs`                            | Migrations; `create_ban`, `remove_ban`, `get_bans`, `add_kick_log`, `get_kick_log`, `set_user_mute`             |
-| `server/src/handlers.rs`                      | Handle `KICK_USER`, `BAN_USER`, `UNBAN_USER`, `MUTE_USER`, `GET_KICK_LOG`; ban check in `handle_connect`        |
-| `server/src/models.rs`                        | New payload structs; `is_text_muted`, `is_voice_muted` fields in `User` + `WelcomePayload`/`GET_USERS` response |
-| `client/src/types/protocol.ts`                | New message types + payload interfaces                                                                          |
-| `client/src/App.tsx`                          | Handle `USER_KICKED`, `USER_BANNED`, `USER_MUTE_UPDATED`, `KICK_LOG`; kick/ban/mute dispatch functions          |
-| `client/src/components/UserListPanel.tsx`     | Right-click context menu (admin only); mute icons per user                                                      |
-| `client/src/components/UserProfileModal.tsx`  | Show mute-status icons                                                                                          |
-| `client/src/components/ServerConfigModal.tsx` | New "Moderation" tab (ban list + kick log)                                                                      |
+- [x] **"Moderation"** tab in `ServerConfigModal` (manage mode only)
+- [x] **Banned users section** — list of active bans with username, IP, banned at; "Revoke ban" button per row
+- [x] **Kick log section** — read-only list of historical kicks: username, IP, kicked at
+- [x] Loaded via `GET_BAN_LIST` / `GET_KICK_LOG` WebSocket messages
 
 ### 0.5.13 Server Join Password ✅
 
