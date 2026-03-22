@@ -24,6 +24,9 @@ pub struct User {
     /// Whether the admin has voice-muted this user.
     #[serde(default)]
     pub is_voice_muted: bool,
+    /// ed25519 device public key (hex). Never sent to clients.
+    #[serde(skip_serializing)]
+    pub device_public_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1048,6 +1048,7 @@ async fn handle_get_dm_history(
                 created_at: dm.created_at,
                 is_text_muted: false,
                 is_voice_muted: false,
+                device_public_key: None,
             });
         dm_payloads.push(DmReceivedPayload {
             message_id: dm.id,
@@ -1183,7 +1184,7 @@ async fn handle_ban_user(
         payload.user_id,
         &target.username,
         &ip,
-        None,
+        target.device_public_key.as_deref(),
         payload.reason,
         banner_user_id,
     )?;

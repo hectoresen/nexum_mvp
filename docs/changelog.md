@@ -73,6 +73,16 @@ All notable changes and completed tasks are documented here.
   - **Pulsing unread indicator**: A red pulsing dot next to users with unread DMs in the member list gives ambient notification without opening the popover.
   - Affected: `client/src/App.tsx`, `client/src/components/MainView.tsx`, `client/src/components/UserListPanel.tsx`
 
+- [x] **Moderation system — kick, ban, mute (0.5.12)** — Server admins can now manage disruptive users from the member list right-panel:
+  - **Kick**: `KICK_USER` message forcibly disconnects the target (they can reconnect immediately). `USER_KICKED` broadcast updates all clients. Every kick persisted in a `kick_log` SQLite table (`id`, `user_id`, `username`, `ip_address`, `kicked_at`, `kicked_by_user_id`). Kicked user sees "You were kicked from this server" and is navigated back to the server list.
+  - **Ban**: `BAN_USER` disconnects the target, inserts into `bans` table, broadcasts `USER_BANNED`. `UNBAN_USER` revokes the ban. Every `CONNECT` is checked against `bans` by `device_public_key`, IP, and `user_id` — any match returns a `BANNED` error code. Banned user sees "You have been banned from this server" on reconnect attempt. `bans` schema: `id TEXT PK`, `user_id TEXT`, `username TEXT`, `ip_address TEXT`, `device_public_key TEXT`, `banned_at TEXT`, `reason TEXT`, `banned_by_user_id TEXT`.
+  - **Bug fix (post-merge)**: `User` struct now includes `device_public_key` field; all 5 DB queries select it (column 10); `handle_ban_user` passes `target.device_public_key.as_deref()` to `create_ban` — previously always passed `None`, making device-key ban evasion trivially possible via IP change.
+  - **Mute**: two independent types — text mute (server rejects `SEND_MESSAGE` with `MUTED_TEXT`) and voice mute (flag stored + broadcast; audio enforcement deferred until UDP relay is implemented). `MUTE_USER` sets/clears `is_text_muted` / `is_voice_muted` on the `users` table. `USER_MUTE_UPDATED` broadcast. Mute icons (🚫💬 / 🚫🎙️) shown in member list. "Mute all" / "Unmute all" combo buttons in the moderation popover.
+  - **Moderation tab** in `ServerConfigModal` (manage/admin mode): banned users list with username, IP, banned-at, and "Revoke ban" button; read-only kick log list. Loaded via `GET_BAN_LIST` / `GET_KICK_LOG` WebSocket messages.
+  - ⚠️ Voice mute is cosmetic only until UDP relay is implemented.
+  - Affected server: `server/src/models.rs`, `server/src/db.rs`, `server/src/handlers.rs`
+  - Affected client: `client/src/components/UserListPanel.tsx`, `client/src/components/ServerConfigModal.tsx`, `client/src/types/protocol.ts`, `client/src/App.tsx`
+
 - [x] **Device-bound ed25519 cryptographic identity (0.5.24)** — Users now have a stable identity that persists across IP changes and reconnections without collecting any hardware data:
   - **Key generation (Tauri)**: New `get_device_public_key` command generates a 32-byte ed25519 keypair on first run using a CSPRNG, stores the private key as hex in `~/.nexum/device.key`, and returns the 64-char hex public key. Subsequent calls read and decode the existing key — key is never regenerated unless the file is deleted.
   - **Client integration**: `device_public_key` added to `ConnectPayload`; `App.tsx` invokes the Tauri command on mount and injects the key into every `CONNECT` payload.
