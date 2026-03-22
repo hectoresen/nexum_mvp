@@ -597,6 +597,7 @@ function App() {
           avatar_url: mp.avatar_url,
           avatar_path: mp.avatar_path,
           avatar_version: mp.avatar_version,
+          deleted_by_username: mp.deleted_by_username,
         }))
         historyMessages.set(message.payload.channel_id, enrichedHistory)
         return {

@@ -500,8 +500,26 @@ fn set_taskbar_badge(count: u32, app_handle: &tauri::AppHandle) {
 
         if count > 0 {
             // 16×16 solid red badge icon.
-            // 1bpp AND mask: all zeros → every pixel drawn from the color bitmap.
-            let mask_bytes = [0u8; 4 * 16]; // 4 bytes/row (DWORD-aligned) × 16 rows
+            // 1bpp AND mask: 0=visible (inside circle), 1=transparent (outside circle).
+            // Pre-computed 16×16 circle, radius ~7, center (7.5, 7.5).
+            let mask_bytes: [u8; 64] = [
+                0xFF, 0xFF, 0x00, 0x00,  // row  0: transparent
+                0xF8, 0x1F, 0x00, 0x00,  // row  1: pixels 5-10 visible
+                0xF0, 0x0F, 0x00, 0x00,  // row  2: pixels 4-11 visible
+                0xE0, 0x07, 0x00, 0x00,  // row  3: pixels 3-12 visible
+                0xC0, 0x03, 0x00, 0x00,  // row  4: pixels 2-13 visible
+                0x80, 0x01, 0x00, 0x00,  // row  5: pixels 1-14 visible
+                0x80, 0x01, 0x00, 0x00,  // row  6
+                0x80, 0x01, 0x00, 0x00,  // row  7
+                0x80, 0x01, 0x00, 0x00,  // row  8
+                0x80, 0x01, 0x00, 0x00,  // row  9
+                0x80, 0x01, 0x00, 0x00,  // row 10
+                0xC0, 0x03, 0x00, 0x00,  // row 11: pixels 2-13 visible
+                0xE0, 0x07, 0x00, 0x00,  // row 12: pixels 3-12 visible
+                0xF0, 0x0F, 0x00, 0x00,  // row 13: pixels 4-11 visible
+                0xF8, 0x1F, 0x00, 0x00,  // row 14: pixels 5-10 visible
+                0xFF, 0xFF, 0x00, 0x00,  // row 15: transparent
+            ];
             // 32bpp color bitmap: BGR layout; 0x00CC0000 = R=0xCC, G=0, B=0
             let pixels = [0x00CC0000u32; 16 * 16];
 

@@ -225,9 +225,14 @@ async fn handle_connect(
 
     send_message(tx, &welcome)?;
 
-    // Broadcast updated user list to all connected clients so they see the new user
+    // Broadcast updated user list (with online status) so all clients see the new joiner
+    let connected_ids = state.session_manager.get_connected_user_ids();
     if let Ok(all_users) = state.db.list_users() {
-        let users_msg = ServerMessage::ServerUsers(ServerUsersPayload { users: all_users });
+        let users_with_status: Vec<crate::models::UserOnlineStatus> = all_users
+            .into_iter()
+            .map(|u| crate::models::UserOnlineStatus { is_online: connected_ids.contains(&u.id), user: u })
+            .collect();
+        let users_msg = ServerMessage::ServerUsers(ServerUsersPayload { users: users_with_status });
         broadcast_message(&state.session_manager, &users_msg);
     }
 
@@ -332,12 +337,13 @@ async fn handle_join_channel(
     // Load message history (last 50 messages)
     let history = state.db.get_message_history(payload.channel_id, 50)?;
     let message_payloads: Vec<MessagePayload> = history.into_iter()
-        .map(|(message, username, avatar_url, avatar_path, avatar_version)| MessagePayload { 
+        .map(|(message, username, avatar_url, avatar_path, avatar_version, deleted_by_username)| MessagePayload { 
             message, 
             username,
             avatar_url,
             avatar_path,
             avatar_version,
+            deleted_by_username,
         })
         .collect();
 
@@ -427,6 +433,7 @@ async fn handle_send_message(
         avatar_url: user.avatar_url,
         avatar_path: user.avatar_path,
         avatar_version: user.avatar_version,
+        deleted_by_username: None,
     });
 
     broadcast_to_channel(&state.session_manager, payload.channel_id, &msg);
@@ -744,7 +751,8 @@ async fn handle_update_server_settings(
         info!("Server settings updated and saved");
     }
 
-    // Send updated settings back
+    // Broadcast updated settings to ALL clients so they see the new server name immediately.
+    // SERVER_SETTINGS payload contains no sensitive data (no passwords).
     let cfg = state.config.read().unwrap();
     let msg = ServerMessage::ServerSettings(ServerSettingsPayload {
         name: cfg.server.name.clone(),
@@ -756,7 +764,7 @@ async fn handle_update_server_settings(
         is_private: cfg.server.join_password.as_deref().map_or(false, |p| !p.is_empty()),
     });
     drop(cfg);
-    send_message(tx, &msg)?;
+    broadcast_message(&state.session_manager, &msg);
 
     Ok(())
 }
@@ -770,7 +778,11 @@ async fn handle_get_users(
     let _user_id = state.session_manager.get_session(session_id)
         .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
 
-    let users = state.db.list_users()?;
+    let connected_ids = state.session_manager.get_connected_user_ids();
+    let users = state.db.list_users()?
+        .into_iter()
+        .map(|u| crate::models::UserOnlineStatus { is_online: connected_ids.contains(&u.id), user: u })
+        .collect();
     let msg = ServerMessage::ServerUsers(ServerUsersPayload { users });
     send_message(tx, &msg)?;
 

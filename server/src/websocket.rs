@@ -143,6 +143,20 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>, client_ip: Strin
         // Cleanup on disconnect
         if let Some(sid) = session_id {
             state_clone.session_manager.remove_session(sid);
+            // Broadcast updated online-status list so all remaining clients update their member panel
+            let connected_ids = state_clone.session_manager.get_connected_user_ids();
+            if let Ok(all_users) = state_clone.db.list_users() {
+                use crate::models::{ServerMessage, ServerUsersPayload, UserOnlineStatus};
+                let users: Vec<UserOnlineStatus> = all_users
+                    .into_iter()
+                    .map(|u| UserOnlineStatus { is_online: connected_ids.contains(&u.id), user: u })
+                    .collect();
+                let msg = ServerMessage::ServerUsers(ServerUsersPayload { users });
+                if let Ok(json) = serde_json::to_string(&msg) {
+                    state_clone.session_manager.broadcast(axum::extract::ws::Message::Text(json));
+                }
+            }
+            info!("Client disconnected, session cleaned up");
         }
     });
 

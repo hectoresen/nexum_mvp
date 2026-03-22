@@ -677,12 +677,13 @@ impl Database {
         Ok(messages)
     }
 
-    pub fn get_message_history(&self, channel_id: Uuid, limit: usize) -> Result<Vec<(Message, String, Option<String>, Option<String>, i32)>> {
+    pub fn get_message_history(&self, channel_id: Uuid, limit: usize) -> Result<Vec<(Message, String, Option<String>, Option<String>, i32, Option<String>)>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT m.id, m.channel_id, m.user_id, m.content, m.created_at, m.deleted_by_user_id, m.deleted_at, m.edited_at, u.username, u.avatar_url, u.avatar_path, u.avatar_version
+            "SELECT m.id, m.channel_id, m.user_id, m.content, m.created_at, m.deleted_by_user_id, m.deleted_at, m.edited_at, u.username, u.avatar_url, u.avatar_path, u.avatar_version, du.username
              FROM messages m
              JOIN users u ON m.user_id = u.id
+             LEFT JOIN users du ON m.deleted_by_user_id = du.id
              WHERE m.channel_id = ?1 
              ORDER BY m.created_at ASC 
              LIMIT ?2"
@@ -707,7 +708,8 @@ impl Database {
             let avatar_url: Option<String> = row.get(9)?;
             let avatar_path: Option<String> = row.get(10)?;
             let avatar_version: i32 = row.get(11)?;
-            Ok((message, username, avatar_url, avatar_path, avatar_version))
+            let deleted_by_username: Option<String> = row.get(12)?;
+            Ok((message, username, avatar_url, avatar_path, avatar_version, deleted_by_username))
         })?
         .collect::<Result<Vec<_>, _>>()?;
 
