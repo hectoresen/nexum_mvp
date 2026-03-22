@@ -225,6 +225,82 @@ fn read_server_config() -> Result<ServerConfigSnapshot, String> {
     })
 }
 
+/// Update the user-visible fields of an existing server.toml without touching the admin password.
+/// Called from the pre-launch modal every time the user clicks Launch on an already-configured server.
+#[tauri::command]
+fn update_server_config(
+    name: String,
+    max_users: u32,
+    max_voice: u32,
+    max_message: u32,
+    join_password: String,
+) -> Result<(), String> {
+    let server_dir = crate::server_manager::ServerManager::get_server_data_dir()
+        .ok_or("Could not determine server data directory")?;
+    let config_path = server_dir.join("server.toml");
+    if !config_path.exists() {
+        return Err("Server is not configured yet.".to_string());
+    }
+
+    // Read existing toml to preserve admin_password and port settings
+    let content = std::fs::read_to_string(&config_path).map_err(|e| e.to_string())?;
+    let mut admin_password = String::new();
+    let mut host = String::from("0.0.0.0");
+    let mut ws_port = 8080u32;
+    let mut udp_port = 9000u32;
+    for line in content.lines() {
+        let t = line.trim_start();
+        if let Some(rest) = t.strip_prefix("admin_password = ") {
+            admin_password = rest.trim().trim_matches('"').to_string();
+        } else if let Some(rest) = t.strip_prefix("host = ") {
+            host = rest.trim().trim_matches('"').to_string();
+        } else if let Some(rest) = t.strip_prefix("ws_port = ") {
+            if let Ok(v) = rest.trim().parse::<u32>() { ws_port = v; }
+        } else if let Some(rest) = t.strip_prefix("udp_port = ") {
+            if let Ok(v) = rest.trim().parse::<u32>() { udp_port = v; }
+        }
+    }
+    if admin_password.is_empty() {
+        return Err("Could not read admin_password from server.toml".to_string());
+    }
+
+    let safe_name = name.replace('"', "\\\"");
+    let safe_pwd  = admin_password.replace('"', "\\\"");
+    let mut new_content = format!(
+        "[server]\nname = \"{safe_name}\"\nhost = \"{host}\"\nws_port = {ws_port}\nudp_port = {udp_port}\ndata_path = \"./data\"\nsession_timeout_secs = 60\nping_interval_secs = 30\nadmin_password = \"{safe_pwd}\"\n"
+    );
+    if !join_password.is_empty() {
+        let safe_jp = join_password.replace('"', "\\\"");
+        new_content.push_str(&format!("join_password = \"{safe_jp}\"\n"));
+    }
+    new_content.push_str(&format!(
+        "\n[limits]\nmax_users = {max_users}\nmax_users_per_voice_channel = {max_voice}\nmax_message_size = {max_message}\nrate_limit_messages_per_minute = 60\n\n[persistence]\nenabled = true\n"
+    ));
+    std::fs::write(&config_path, new_content).map_err(|e| e.to_string())
+}
+
+/// Full factory reset: stop the server, delete server.toml and the data directory.
+/// After calling this, the next server launch will treat it as a first-time setup.
+#[tauri::command]
+fn full_reset_server(state: State<AppState>) -> Result<(), String> {
+    let manager = state.server_manager.lock().unwrap();
+    // Stop the process; ignore the error if it wasn't running
+    let _ = manager.stop_server();
+    drop(manager); // release mutex before filesystem ops
+
+    if let Some(server_dir) = crate::server_manager::ServerManager::get_server_data_dir() {
+        let config_path = server_dir.join("server.toml");
+        if config_path.exists() {
+            std::fs::remove_file(&config_path).map_err(|e| e.to_string())?;
+        }
+        let data_dir = server_dir.join("data");
+        if data_dir.exists() {
+            std::fs::remove_dir_all(&data_dir).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
 /// Check if the server is accepting TCP connections on a given port.
 /// Used to confirm the server is ready after `start_local_server`.
 #[tauri::command]
@@ -499,6 +575,8 @@ fn main() {
             check_server_ready,
             update_server_admin_password,
             read_server_config,
+            update_server_config,
+            full_reset_server,
             get_device_public_key,
             update_unread_count,
         ])
