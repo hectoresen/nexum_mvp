@@ -19,6 +19,26 @@ import JoinPasswordModal from './components/JoinPasswordModal'
 
 const CLIENT_VERSION = '1.0.0'
 
+/** Plays a short synthetic ping sound using Web Audio API. No assets required. */
+function playDmNotificationSound() {
+  try {
+    const ctx = new AudioContext()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.type = 'sine'
+    osc.frequency.value = 880
+    gain.gain.setValueAtTime(0.3, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
+    osc.start()
+    osc.stop(ctx.currentTime + 0.3)
+    osc.addEventListener('ended', () => ctx.close())
+  } catch {
+    // AudioContext may be unavailable when window has no user-gesture
+  }
+}
+
 export interface AppState {
   connected: boolean
   connecting: boolean
@@ -53,6 +73,7 @@ interface ActiveConnection {
   openDmTabs: string[] // userIds with open DM tabs
   activeDmUserId: string | null // currently displayed DM conversation
   unreadDmUserIds: string[] // userIds with unread incoming DMs
+  unreadChannelIds: Set<string> // channelIds with unread messages
   banList: Ban[]
   kickLog: KickLogEntry[]
   kickReason: string | null // non-null when server kicked/banned this user
@@ -70,7 +91,7 @@ function App() {
   const [showAdminAuthModal, setShowAdminAuthModal] = useState(false)
   const [adminAuthError, setAdminAuthError] = useState<string | null>(null)
   const [showServerSettingsModal, setShowServerSettingsModal] = useState(false)
-  const [clientSettingsSection, setClientSettingsSection] = useState<'general' | 'voice-video' | null>(null)
+  const [clientSettingsSection, setClientSettingsSection] = useState<'general' | 'voice-video' | 'notifications' | null>(null)
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false)
   const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null)
   const [showUserSettingsModal, setShowUserSettingsModal] = useState(false)
@@ -188,6 +209,7 @@ function App() {
         openDmTabs: [],
         activeDmUserId: null,
         unreadDmUserIds: [],
+        unreadChannelIds: new Set<string>(),
         banList: [],
         kickLog: [],
         kickReason: null,
@@ -334,6 +356,7 @@ function App() {
         openDmTabs: [],
         activeDmUserId: null,
         unreadDmUserIds: [],
+        unreadChannelIds: new Set<string>(),
         banList: [],
         kickLog: [],
         kickReason: null,
@@ -531,9 +554,16 @@ function App() {
           avatar_version: message.payload.avatar_version,
         }
         newMessages.set(message.payload.message.channel_id, [...channelMessages, enrichedMessage])
+        // Track unread if the message arrived in a channel not currently being viewed
+        let newUnreadChannels = connection.unreadChannelIds
+        if (message.payload.message.channel_id !== connection.currentChannelId) {
+          newUnreadChannels = new Set(connection.unreadChannelIds)
+          newUnreadChannels.add(message.payload.message.channel_id)
+        }
         return {
           ...connection,
           messages: newMessages,
+          unreadChannelIds: newUnreadChannels,
         }
 
       case 'MESSAGE_HISTORY':
@@ -681,6 +711,12 @@ function App() {
         // Mark as unread if the user is not currently viewing this conversation
         const isViewing = connection.activeDmUserId === otherParty
         const newUnread = isViewing || connection.unreadDmUserIds.includes(otherParty) ? connection.unreadDmUserIds : [...connection.unreadDmUserIds, otherParty]
+        // Play notification sound for incoming DMs (not echoes of our own messages)
+        if (p.sender_id !== myId && !isViewing) {
+          if (localStorage.getItem('nexum_dm_sound_enabled') === 'true') {
+            playDmNotificationSound()
+          }
+        }
         return { ...connection, dmMessages: newDmMessages, openDmTabs: newOpenTabs, unreadDmUserIds: newUnread }
       }
 
@@ -788,11 +824,14 @@ function App() {
 
     setView(prev => {
       if (prev.type !== 'connected') return prev
+      const newUnreadChannels = new Set(prev.connection.unreadChannelIds)
+      newUnreadChannels.delete(channelId)
       return {
         type: 'connected',
         connection: {
           ...prev.connection,
           currentChannelId: channelId,
+          unreadChannelIds: newUnreadChannels,
         },
       }
     })
@@ -976,6 +1015,19 @@ function App() {
     view.connection.client.send({ type: 'GET_SERVER_SETTINGS' })
     setShowServerSettingsModal(true)
   }
+
+  // ── Sync unread count to tray tooltip ────────────────────────────────────
+  useEffect(() => {
+    const total =
+      view.type === 'connected'
+        ? view.connection.unreadChannelIds.size + view.connection.unreadDmUserIds.length
+        : 0
+    invoke('update_unread_count', { count: total }).catch(() => {})
+  }, [
+    view.type === 'connected' ? view.connection.unreadChannelIds.size : 0,
+    view.type === 'connected' ? view.connection.unreadDmUserIds.length : 0,
+    view.type,
+  ])
 
   // ── Moderation: disconnect if kicked/banned ──────────────────────────────
   useEffect(() => {
@@ -1489,6 +1541,7 @@ function App() {
         openDmTabs={conn.openDmTabs}
         activeDmUserId={conn.activeDmUserId}
         unreadDmUserIds={conn.unreadDmUserIds}
+        unreadChannelIds={conn.unreadChannelIds}
         onDisconnect={handleDisconnect}
         onCreateChannel={handleCreateChannel}
         onJoinChannel={handleJoinChannel}

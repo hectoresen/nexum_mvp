@@ -26,7 +26,7 @@ interface MainViewProps {
   onEditMessage?: (messageId: string, content: string) => void
   onAuthenticateAdmin?: () => void
   onOpenServerSettings?: () => void
-  onOpenClientSettings?: (section: 'general' | 'voice-video') => void
+  onOpenClientSettings?: (section: 'general' | 'voice-video' | 'notifications') => void
   onRenameChannel?: (channelId: string, newName: string) => void
   onDeleteChannel?: (channelId: string) => void
   onOpenUserSettings?: () => void
@@ -41,6 +41,7 @@ interface MainViewProps {
   onSwitchToDmView?: (userId: string) => void
   onSwitchToChannelView?: () => void
   unreadDmUserIds?: string[]
+  unreadChannelIds?: Set<string>
   onKickUser?: (userId: string) => void
   onBanUser?: (userId: string, reason?: string) => void
   onMuteUser?: (userId: string, muteText: boolean, muteVoice: boolean) => void
@@ -79,6 +80,7 @@ export default function MainView({
   onSwitchToDmView,
   onSwitchToChannelView,
   unreadDmUserIds = [],
+  unreadChannelIds,
   onKickUser,
   onBanUser,
   onMuteUser,
@@ -231,6 +233,7 @@ export default function MainView({
               onRenameCategory={onRenameCategory}
               onMoveChannelToCategory={onMoveChannelToCategory}
               onRequestCreateChannelInCategory={handleRequestCreateChannelInCategory}
+              unreadChannelIds={unreadChannelIds}
             />
           </div>
         </div>

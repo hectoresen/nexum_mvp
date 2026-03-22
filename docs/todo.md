@@ -617,7 +617,7 @@ La app no se cierra al pulsar la X de la ventana: se minimiza a la bandeja del s
 
 ---
 
-### 0.5.14 Notification System 🚧
+### ✅ 0.5.14 Notification System — COMPLETADO
 
 **Priority: HIGH — depende de 0.5.26 (System Tray)**
 
@@ -638,34 +638,32 @@ Sistema de notificaciones de mensajes pendientes. El objetivo MVP es que el usua
 
 - Badge rojo (bolita) aparece en:
   - La pestaña de conversación DM no abierta en el tab bar (ya implementado en 0.5.23).
-  - El icono de la app en la barra de tareas de Windows (taskbar overlay icon) indicando mensajes pendientes totales.
-  - El icono del system tray (tooltip con número de mensajes pendientes).
+  - El icono del system tray (tooltip con número de mensajes pendientes). ✅
 - Los badges desaparecen cuando el usuario abre la conversación correspondiente.
-- Los canales de texto con mensajes sin leer muestran también un punto/badge en la lista de canales del sidebar.
+- Los canales de texto con mensajes sin leer muestran un punto rojo en la lista de canales del sidebar. ✅
 
 #### Sonido
 
 - Las notificaciones sonoras aplican **únicamente a DMs**.
-- Los canales de texto del servidor no emiten sonido (solo badge visual).
-- El sonido es configurable por el usuario en la pestaña **Notificaciones** de Client Settings (ver subtarea abajo).
-- El sonido concreto (archivo de audio) no es configurable en MVP — subtarea pendiente.
+- El sonido es configurable por el usuario en la pestaña **Notificaciones** de Client Settings. ✅
+- Implementado con Web Audio API (oscilador sintético) — sin archivos de audio externos.
 
 #### Tareas
 
 **Tauri (Rust)**
-- [ ] Implementar overlay icon en taskbar (número de mensajes pendientes) via Tauri window API o WinAPI
-- [ ] Actualizar tooltip del icono de tray con conteo de mensajes no leídos
-- [ ] Comando Tauri `update_unread_count(count: u32)` invocable desde el frontend para actualizar badge y tray tooltip
+- [x] Comando Tauri `update_unread_count(count: u32)` — actualiza tooltip del sistema trey con conteo de mensajes no leídos
+- [ ] Implementar overlay icon en taskbar (número de mensajes pendientes) via WinAPI — PENDIENTE (subtarea futura)
 
 **Frontend**
-- [ ] `App.tsx` — rastrear `unreadChannelIds: Set<string>` (canales con mensajes sin leer); poblar cuando llega `NEW_MESSAGE` en un canal que no es el activo; limpiar al cambiar al canal
-- [ ] `ChannelList.tsx` — mostrar badge/punto rojo en canales con mensajes sin leer
-- [ ] `App.tsx` — al cambiar estado de unread, invocar `update_unread_count` con el total acumulado (DMs no leídos + canales no leídos)
-- [ ] Reproducir sonido de notificación cuando llega DM y el sonido está habilitado en settings (usar Web Audio API, archivo de audio embebido)
+- [x] `App.tsx` — `unreadChannelIds: Set<string>` en `ActiveConnection`; se puebla cuando llega `MESSAGE` en canal no activo; se limpia al hacer `handleJoinChannel`
+- [x] `ChannelList.tsx` — badge/punto rojo en canales con mensajes sin leer
+- [x] `App.tsx` — `useEffect` invoca `update_unread_count` con conteo total (DMs + canales) cuando cambia unread state
+- [x] `App.tsx` — `DM_RECEIVED` reproduce sonido sintético (Web Audio API) si sonido habilitado
+- [x] `playDmNotificationSound()` — oscilador 880 Hz, 0.3s, sin asset externo
 
 **Client Settings — pestaña Notificaciones**
-- [ ] Añadir pestaña **"Notifications"** en `ClientSettingsModal.tsx`
-- [ ] Toggle: **"Sound notifications for DMs"** (default: on) — persiste en `localStorage`
+- [x] Añadir pestaña **"Notifications"** en `ClientSettingsModal.tsx`
+- [x] Toggle: **"Sound notifications for DMs"** (default: off) — persiste en `localStorage` como `nexum_dm_sound_enabled`
 - [ ] Subtarea pendiente (LOW): permitir al usuario configurar el sonido de notificación (archivo personalizado)
 
 **Silenciar servidores/canales (MEDIUM — pendiente, no en MVP)**

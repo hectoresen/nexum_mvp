@@ -349,7 +349,7 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
 
     let menu = Menu::with_items(app, &[&header, &sep1, &check_updates, &sep2, &quit])?;
 
-    let mut builder = TrayIconBuilder::new()
+    let mut builder = TrayIconBuilder::with_id("main")
         .menu(&menu)
         .tooltip("Nexum")
         .on_menu_event(|app, event| match event.id.as_ref() {
@@ -385,6 +385,20 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
 
     builder.build(app)?;
     Ok(())
+}
+
+/// Update the tray tooltip to reflect the current total unread count.
+/// Called from the frontend whenever unreadChannelIds or unreadDmUserIds change.
+#[tauri::command]
+fn update_unread_count(count: u32, app_handle: tauri::AppHandle) {
+    if let Some(tray) = app_handle.tray_by_id("main") {
+        let tooltip = if count > 0 {
+            format!("Nexum ({count} unread)")
+        } else {
+            "Nexum".to_string()
+        };
+        let _ = tray.set_tooltip(Some(&tooltip));
+    }
 }
 
 fn main() {
@@ -431,6 +445,7 @@ fn main() {
             update_server_admin_password,
             read_server_config,
             get_device_public_key,
+            update_unread_count,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
