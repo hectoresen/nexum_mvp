@@ -6,6 +6,16 @@
 
 This phase integrates the CLI server with the client for a unified user experience.
 
+### ✅ Correcciones de bugs post-0.5.14 — COMPLETADO
+
+- [x] **DM se quedaba cargando / pestaña mostraba "…"** — Cuando el usuario A ya estaba conectado y el usuario B se conectaba después, A nunca recibía la lista actualizada, por lo que al abrir un DM con B la pantalla se quedaba cargando. Además la pestaña mostraba "…" en lugar del nombre. Doble arreglo: (1) el servidor ahora emite `ServerUsers` a todos los clientes tras dar la bienvenida a cada nuevo usuario; (2) `MainView` construye un usuario temporal con los datos del propio mensaje DM si el usuario no está aún en `serverUsers`.
+- [x] **Avatares rotos para usuarios remotos** — Los avatares se guardaban como URL absoluta (`http://localhost:8080/...`), inútil para clientes en otra máquina. Ahora se guarda solo la ruta relativa (`avatars/uuid.webp`) y cada cliente la resuelve con su propia dirección de servidor. Afectados: `AvatarModal`, `UserListPanel`, `DirectMessageView`, `ChatArea`, `App.tsx`. CSP de Tauri actualizada de `null` a una política explícita que permite `img-src http:` para IPs locales.
+- [x] **Lista de usuarios no se actualizaba al conectarse alguien nuevo** — `USER_JOINED` solo se emitía a miembros del canal, no a todos. Solucionado emitiendo `ServerUsers` desde `handle_connect` en el servidor tras enviar `WELCOME`.
+- [x] **Usuario silenciado podía seguir escribiendo** — El input de texto no tenía ninguna comprobación de `is_text_muted`. Ahora `ChatArea` muestra un aviso rojo en lugar del formulario de envío cuando el usuario está silenciado.
+- [x] **Admin no podía borrar mensajes de otros usuarios** — El botón de borrar solo aparecía en los propios mensajes. Ahora el owner puede borrar cualquier mensaje; editar sigue siendo solo para mensajes propios.
+
+---
+
 ### ✅ Identidad de dispositivo criptográfica ed25519 (0.5.24) — COMPLETADO
 
 **Problema:** Los usuarios se persisten en la base de datos del servidor con un `user_id` generado en el primer login, vinculado a la IP del cliente en ese momento. Si el usuario cambia de IP (IP dinámica, VPN, reinstalación del cliente), el servidor no puede relacionarlo con su `user_id` anterior y su username aparece como "ya en uso".

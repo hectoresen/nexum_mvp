@@ -10,6 +10,24 @@ All notable changes and completed tasks are documented here.
 
 ### 🐛 Bug Fixes
 
+- [x] **DM se quedaba cargando / pestaña mostraba "…" (post-0.5.14)** — Cuando un usuario se conectaba al servidor después de que otro ya estuviera conectado, el usuario ya conectado no lo veía en su lista de usuarios (`serverUsers`). Al intentar abrir un DM, la pantalla se quedaba cargando indefinidamente y la pestaña mostraba "…":
+  - **Servidor**: `handle_connect` ahora emite `ServerMessage::ServerUsers` a todos los clientes conectados justo después de enviar `WELCOME`. Así los usuarios ya conectados ven al recién llegado sin necesidad de `USER_JOINED`.
+  - **Cliente**: `MainView` construye un objeto `User` temporal a partir de los datos del propio mensaje DM (`sender_username`, `sender_avatar_*`) cuando el usuario no está en `serverUsers`. Las pestañas de DM aplican el mismo fallback para mostrar el nombre en lugar de "…".
+  - Afectados: `server/src/handlers.rs`, `client/src/components/MainView.tsx`
+
+- [x] **Avatares rotos para usuarios en otras máquinas (post-0.5.14)** — `AvatarModal` guardaba la URL completa con `localhost:8080`, inútil para clientes en otra máquina o red:
+  - `AvatarModal` ahora pasa la ruta relativa (`data.avatar_path`, ej: `avatars/uuid.webp`) en lugar de la URL absoluta.
+  - `handleUpdateAvatar` en `App.tsx` omite enviar `UPDATE_AVATAR` por WebSocket para rutas relativas — la subida HTTP ya actualizó `avatar_path` en la BD y emitió `USER_UPDATED` a todos los clientes.
+  - Todas las funciones de renderizado (`UserListPanel`, `DirectMessageView`, `ChatArea`, `App.tsx`) ahora priorizan `avatar_path + serverAddress` sobre `avatar_url`.
+  - CSP de `tauri.conf.json` cambiada de `null` a política explícita con `img-src 'self' data: https: http: blob:` para permitir imágenes desde servidores HTTP en red local.
+  - Afectados: `client/src/components/AvatarModal.tsx`, `client/src/components/UserListPanel.tsx`, `client/src/components/DirectMessageView.tsx`, `client/src/components/ChatArea.tsx`, `client/src/App.tsx`, `client/src-tauri/tauri.conf.json`
+
+- [x] **Usuario silenciado podía seguir escribiendo mensajes (post-0.5.14)** — `ChatArea` no comprobaba `is_text_muted`. Ahora si el usuario está silenciado, se muestra un aviso rojo en lugar del formulario de envío.
+  - Afectado: `client/src/components/ChatArea.tsx`
+
+- [x] **Admin no podía borrar mensajes de otros usuarios (post-0.5.14)** — El botón de borrar solo aparecía sobre mensajes propios. Ahora los usuarios con rol `owner` ven el botón de borrar en cualquier mensaje; el botón de editar sigue siendo solo para mensajes propios.
+  - Afectado: `client/src/components/ChatArea.tsx`
+
 - [x] **NSIS installer "Launch Nexum" checkbox not working (0.5.22)** — Checking "Launch Nexum" on the final page of the NSIS installer had no effect; the app never launched after clicking Finish:
   - Added explicit `nsis` section to `bundle.windows` in `tauri.conf.json` with `installMode: "currentUser"`. Installing per-user (in AppData) rather than system-wide prevents UAC elevation from blocking the post-install launch.
   - Also added `shortcutName: "Nexum"` for Start-menu consistency and `allowWebviewInstall: false` (WebView2 is always present on Win 10+).
