@@ -485,46 +485,70 @@ fn set_taskbar_badge(count: u32, app_handle: &tauri::AppHandle) {
     let handle = app_handle.clone();
     let _ = app_handle.run_on_main_thread(move || unsafe {
         use windows::core::BOOL;
-        use windows::Win32::Graphics::Gdi::{CreateBitmap, DeleteObject, HGDIOBJ};
+        use windows::Win32::Graphics::Gdi::
+        {
+            CreateBitmap, CreateDIBSection, DeleteObject, HDC,
+            BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, HGDIOBJ, RGBQUAD,
+        };
         use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER};
         use windows::Win32::UI::Shell::{ITaskbarList3, TaskbarList};
         use windows::Win32::UI::WindowsAndMessaging::{CreateIconIndirect, DestroyIcon, HICON, ICONINFO};
 
         let Some(window) = handle.get_webview_window("main") else { return };
         let Ok(raw_hwnd) = window.hwnd() else { return };
-        // Tauri v2 already returns windows::Win32::Foundation::HWND — use directly.
         let hwnd = raw_hwnd;
 
         let Ok(taskbar) = CoCreateInstance::<_, ITaskbarList3>(&TaskbarList, None, CLSCTX_INPROC_SERVER) else { return };
         let _ = taskbar.HrInit();
 
         if count > 0 {
-            // 16×16 solid red badge icon.
-            // 1bpp AND mask: 0=visible (inside circle), 1=transparent (outside circle).
-            // Pre-computed 16×16 circle, radius ~7, center (7.5, 7.5).
-            let mask_bytes: [u8; 64] = [
-                0xFF, 0xFF, 0x00, 0x00,  // row  0: transparent
-                0xF8, 0x1F, 0x00, 0x00,  // row  1: pixels 5-10 visible
-                0xF0, 0x0F, 0x00, 0x00,  // row  2: pixels 4-11 visible
-                0xE0, 0x07, 0x00, 0x00,  // row  3: pixels 3-12 visible
-                0xC0, 0x03, 0x00, 0x00,  // row  4: pixels 2-13 visible
-                0x80, 0x01, 0x00, 0x00,  // row  5: pixels 1-14 visible
-                0x80, 0x01, 0x00, 0x00,  // row  6
-                0x80, 0x01, 0x00, 0x00,  // row  7
-                0x80, 0x01, 0x00, 0x00,  // row  8
-                0x80, 0x01, 0x00, 0x00,  // row  9
-                0x80, 0x01, 0x00, 0x00,  // row 10
-                0xC0, 0x03, 0x00, 0x00,  // row 11: pixels 2-13 visible
-                0xE0, 0x07, 0x00, 0x00,  // row 12: pixels 3-12 visible
-                0xF0, 0x0F, 0x00, 0x00,  // row 13: pixels 4-11 visible
-                0xF8, 0x1F, 0x00, 0x00,  // row 14: pixels 5-10 visible
-                0xFF, 0xFF, 0x00, 0x00,  // row 15: transparent
-            ];
-            // 32bpp color bitmap: BGR layout; 0x00CC0000 = R=0xCC, G=0, B=0
-            let pixels = [0x00CC0000u32; 16 * 16];
+            // Small orange circle badge using 32bpp DIB with per-pixel alpha.
+            // CreateDIBSection gives us a top-down BGRA buffer. Pixels inside the
+            // circle get full opacity; outside pixels are fully transparent (alpha=0).
+            // This approach is reliable across all WebView2 versions — the 1bpp AND
+            // mask approach was inconsistently applied for 32bpp color bitmaps.
+            let bmi = BITMAPINFO {
+                bmiHeader: BITMAPINFOHEADER {
+                    biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                    biWidth: 16,
+                    biHeight: -16, // negative = top-down (row 0 in memory = top of image)
+                    biPlanes: 1,
+                    biBitCount: 32,
+                    biCompression: 0, // BI_RGB = 0
+                    biSizeImage: (16 * 16 * 4) as u32,
+                    biXPelsPerMeter: 0,
+                    biYPelsPerMeter: 0,
+                    biClrUsed: 0,
+                    biClrImportant: 0,
+                },
+                bmiColors: [RGBQUAD::default()],
+            };
+            let mut bits_ptr = std::ptr::null_mut::<std::ffi::c_void>();
+            let Ok(hbm_color) = CreateDIBSection(
+                Some(HDC::default()), &bmi, DIB_RGB_COLORS, &mut bits_ptr, None, 0
+            ) else { return };
 
+            // Draw a small orange circle (center=8,8 radius=5) in BGRA pixel format.
+            // u32 in little-endian memory = bytes [B, G, R, A].
+            // Orange #FF8C00 = R=255, G=140, B=0, A=255 → u32 = 0xFF_FF_8C_00
+            let orange: u32 = 0xFF_FF_8C_00;
+            let pixels = std::slice::from_raw_parts_mut(bits_ptr as *mut u32, 16 * 16);
+            for y in 0u32..16 {
+                for x in 0u32..16 {
+                    let dx = x as f32 - 8.0;
+                    let dy = y as f32 - 8.0;
+                    pixels[(y * 16 + x) as usize] =
+                        if dx * dx + dy * dy <= 25.0 { orange } else { 0 };
+                }
+            }
+
+            // AND mask: all zeros — Windows uses per-pixel alpha from the 32bpp DIB.
+            let mask_bytes = [0u8; 4 * 16];
             let hbm_mask = CreateBitmap(16, 16, 1, 1, Some(mask_bytes.as_ptr().cast()));
-            let hbm_color = CreateBitmap(16, 16, 1, 32, Some(pixels.as_ptr().cast()));
+            if hbm_mask.is_invalid() {
+                let _ = DeleteObject(HGDIOBJ(hbm_color.0));
+                return;
+            }
 
             let icon_info = ICONINFO {
                 fIcon: BOOL(1),

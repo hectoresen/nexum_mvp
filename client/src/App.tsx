@@ -1546,12 +1546,12 @@ function App() {
 
   // Construct avatar URL - prefer avatar_path (relative, uses our own serverAddress) over avatar_url
   const currentUserAvatar = (currentUser?.avatar_path
-    ? `http://${conn.server.address}/${currentUser.avatar_path}`
+    ? `http://${conn.server.address}/${currentUser.avatar_path}?v=${currentUser.avatar_version ?? 0}`
     : null
   ) ?? (currentUser?.avatar_url
     ? (currentUser.avatar_url.startsWith('http') || currentUser.avatar_url.startsWith('data:')
         ? currentUser.avatar_url
-        : `http://${conn.server.address}/${currentUser.avatar_url}`)
+        : `http://${conn.server.address}/${currentUser.avatar_url}?v=${currentUser.avatar_version ?? 0}`)
     : null)
 
   return (

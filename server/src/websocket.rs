@@ -44,11 +44,16 @@ pub async fn run_ws_server(
         session_manager,
     });
 
-    // Configure CORS to allow WebSocket connections from web browsers
+    // Configure CORS — allow all origins including Tauri WebView (tauri://localhost).
+    // allow_private_network(true) adds Access-Control-Allow-Private-Network: true which
+    // is required by Chrome's Private Network Access (PNA) policy when the app origin
+    // (tauri://localhost) makes fetch() requests to private-IP servers (192.168.x, 10.x).
+    // Without this, avatar uploads and image fetches from non-host clients fail silently.
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
-        .allow_headers(Any);
+        .allow_headers(Any)
+        .allow_private_network(true);
 
     // Create avatars directory if it doesn't exist
     tokio::fs::create_dir_all("data/avatars").await.ok();

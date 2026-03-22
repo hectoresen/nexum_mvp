@@ -140,11 +140,11 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
 
             // Construct avatar URL - prefer avatar_path (relative, uses viewer's server address) over avatar_url
             const avatarUrl = (message.avatar_path && serverAddress)
-              ? `http://${serverAddress}/${message.avatar_path}`
+              ? `http://${serverAddress}/${message.avatar_path}?v=${message.avatar_version ?? 0}`
               : (message.avatar_url && (message.avatar_url.startsWith('http') || message.avatar_url.startsWith('data:')))
                 ? message.avatar_url
                 : (message.avatar_url && serverAddress)
-                  ? `http://${serverAddress}/${message.avatar_url}`
+                  ? `http://${serverAddress}/${message.avatar_url}?v=${message.avatar_version ?? 0}`
                   : null
 
             // Check if message is deleted

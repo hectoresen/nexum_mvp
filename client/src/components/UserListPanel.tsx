@@ -59,10 +59,10 @@ export default function UserListPanel({ users, currentUserId, currentUserRole, s
   const members = users.filter(u => u.role === 'member')
 
   const getAvatarUrl = (user: User): string | null => {
-    if (user.avatar_path && serverAddress) return `http://${serverAddress}/${user.avatar_path}`
+    if (user.avatar_path && serverAddress) return `http://${serverAddress}/${user.avatar_path}?v=${user.avatar_version ?? 0}`
     if (user.avatar_url) {
       if (user.avatar_url.startsWith('http') || user.avatar_url.startsWith('data:')) return user.avatar_url
-      if (serverAddress) return `http://${serverAddress}/${user.avatar_url}`
+      if (serverAddress) return `http://${serverAddress}/${user.avatar_url}?v=${user.avatar_version ?? 0}`
     }
     return null
   }
