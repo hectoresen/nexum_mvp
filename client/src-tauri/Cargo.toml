@@ -1,6 +1,6 @@
 [package]
 name = "voice-client"
-version = "0.1.4"
+version = "0.1.5"
 description = "Nexum Client"
 authors = ["Nexum Team"]
 edition = "2021"

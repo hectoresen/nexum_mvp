@@ -4,9 +4,19 @@ All notable changes and completed tasks are documented here.
 
 ---
 
-## 🚧 v0.1.4 — In Progress
+## ✅ v0.1.5 — Released 2026-03-22
 
-**Branch:** `develop`
+**Type:** Bug Fix Release
+**Branch merged:** `feature/0.5.14-notifications → develop → main`
+**Status:** ✅ Released
+
+See [releases/v0.1.5/README.md](../releases/v0.1.5/README.md) for full release notes.
+
+---
+
+## ✅ v0.1.4 — Released 2026-02-28
+
+**Branch:** `develop → main`
 
 ### 🐛 Bug Fixes
 

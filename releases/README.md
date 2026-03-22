@@ -20,12 +20,24 @@ releases/
 
 ## 🚀 Latest Release
 
-**[v0.1.0 - MVP/Alpha](v0.1.0/)** (February 23, 2026)
+**[v0.1.5 — Bug Fix Release](v0.1.5/)** (March 22, 2026)
 
-- First public release with voice & text chat
-- Self-hosted architecture
-- Desktop client + standalone server
-- See [v0.1.0 Release Notes](v0.1.0/README.md) for details
+- Online presence now accurate for all users
+- Taskbar badge is now a circle (not a square)
+- Avatar upload/display fixed for non-host clients (Chrome PNA)
+- Admin message deletion, muted-user input guard, DM loading fixes
+- See [v0.1.5 Release Notes](v0.1.5/README.md) for details
+
+---
+
+### Previous Releases
+
+| Version | Date | Type |
+|---------|------|------|
+| [v0.1.4](v0.1.4/) | Feb 28, 2026 | Feature + Bug Fixes |
+| [v0.1.3](v0.1.3/) | Feb 27, 2026 | Feature Release |
+| [v0.1.2](v0.1.2/) | Feb 25, 2026 | Feature Release |
+| [v0.1.0](v0.1.0/) | Feb 23, 2026 | MVP / Alpha |
 
 ---
 
