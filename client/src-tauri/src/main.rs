@@ -4,7 +4,9 @@
 mod server_manager;
 
 use server_manager::{ServerManager, ServerInfo};
-use tauri::State;
+use tauri::{Manager, State};
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use std::sync::Mutex;
 
 /// Application state containing the server manager
@@ -330,10 +332,65 @@ fn disable_auto_start(app_handle: tauri::AppHandle) -> Result<(), String> {
     Err("Auto-start is only supported on Windows".into())
 }
 
+/// Build and register the system tray icon with its context menu.
+///
+/// Tray behaviour:
+/// - Left-click → show and focus the main window.
+/// - Right-click → context menu appears automatically (Tauri default).
+/// - "Nexum" header  → disabled label (informational only).
+/// - "Check for updates" → no-op placeholder for future auto-update feature.
+/// - "Quit Nexum" → forcefully exits the process.
+fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
+    let header = MenuItem::with_id(app, "header", "Nexum", false, None::<&str>)?;
+    let sep1 = PredefinedMenuItem::separator(app)?;
+    let check_updates = MenuItem::with_id(app, "check_updates", "Check for updates", true, None::<&str>)?;
+    let sep2 = PredefinedMenuItem::separator(app)?;
+    let quit = MenuItem::with_id(app, "quit", "Quit Nexum", true, None::<&str>)?;
+
+    let menu = Menu::with_items(app, &[&header, &sep1, &check_updates, &sep2, &quit])?;
+
+    let mut builder = TrayIconBuilder::new()
+        .menu(&menu)
+        .tooltip("Nexum")
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "quit" => {
+                app.exit(0);
+            }
+            "check_updates" => {
+                // Placeholder — auto-update not yet implemented.
+                tracing::debug!("Check for updates requested (not yet implemented)");
+            }
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            // Left-click on the tray icon → restore the window.
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                let app = tray.app_handle();
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+        });
+
+    // Use the bundled app icon for the tray; fall back gracefully if unavailable.
+    if let Some(icon) = app.default_window_icon() {
+        builder = builder.icon(icon.clone());
+    }
+
+    builder.build(app)?;
+    Ok(())
+}
+
 fn main() {
     // Initialize the server manager
     let server_manager = ServerManager::new();
-    
+
     let app_state = AppState {
         server_manager: Mutex::new(server_manager),
     };
@@ -342,6 +399,18 @@ fn main() {
         .manage(app_state)
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            setup_tray(app)?;
+            Ok(())
+        })
+        // Intercept window close: hide to tray instead of exiting.
+        // The only way to fully quit is via "Quit Nexum" in the tray menu.
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             detect_local_server,
             get_server_status,

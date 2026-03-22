@@ -586,19 +586,199 @@ Allow server owners to require a password for joining, making the server private
 
 ---
 
+### 0.5.26 System Tray ✅
+
+**Priority: HIGH — Prerequisite for notifications — COMPLETED**
+
+La app no se cierra al pulsar la X de la ventana: se minimiza a la bandeja del sistema (esquina inferior derecha de Windows). Para salir completamente el usuario usa el menú contextual del icono.
+
+#### Comportamiento
+
+- Cerrar la ventana (X) → ventana oculta, proceso sigue vivo, icono en system tray.
+- Clic en el icono de tray → restaura/muestra la ventana.
+- Clic derecho en el icono de tray → dropdown contextual:
+  - **Header**: "Nexum" (sólo texto, no accionable)
+  - **Check for updates** — por ahora no hace nada (placeholder para futura feature de auto-update)
+  - **Quit Nexum** — cierra el proceso completamente
+
+#### Tareas
+
+- [x] **Tauri `main.rs`** — `TrayIconBuilder` con el icono de la app; `on_tray_icon_event` gestiona `LeftClick` (mostrar ventana); `on_menu_event` gestiona `quit` y `check_updates`
+- [x] **Tauri `main.rs`** — `.on_window_event` intercepts `CloseRequested`: llama `api.prevent_close()` y `window.hide()`
+- [x] **Tauri `main.rs`** — menú con `MenuItem` deshabilitado "Nexum", separadores, "Check for updates" (no-op), "Quit Nexum"
+- [x] **`Cargo.toml`** — feature `tray-icon` añadida a la dependencia `tauri`
+
+#### Archivos afectados
+
+| Archivo | Cambio |
+|---|---|
+| `client/src-tauri/src/main.rs` | `setup_tray()` + `.setup()` + `.on_window_event()` en builder |
+| `client/src-tauri/Cargo.toml` | `tauri = { features = ["tray-icon"] }` |
+
+---
+
 ### 0.5.14 Notification System 🚧
 
-**Priority: LOW - User Convenience**
+**Priority: HIGH — depende de 0.5.26 (System Tray)**
 
-Notify users of activity while the app is in the background.
+Sistema de notificaciones de mensajes pendientes. El objetivo MVP es que el usuario sepa cuando tiene mensajes sin leer sin tener la ventana visible.
 
-#### Tasks
+#### Alcance MVP
 
-- [ ] **System tray icon** — app stays in tray when window is closed (instead of exiting)
-- [ ] **Desktop notification** — show OS notification when a message arrives in a channel the user has joined while the window is not focused
-- [ ] **Tray badge / unread count** — tray icon shows badge or tooltip with unread message count
-- [ ] **Do-not-disturb setting** — toggle in Client Settings to suppress all notifications
-- [ ] **Mention detection** — highlight messages that contain `@username` in a different color; trigger notification even if window is focused
+**Qué notifica:**
+- **DMs**: siempre emiten notification (badge + sonido opcional).
+- **Canales de texto del servidor**: emiten badge visual únicamente (sin sonido por ahora).
+- **Canales de solo-lectura / notificaciones del servidor**: solo badge visual.
+
+**Qué NO notifica (pendiente, tareas separadas):**
+- menciones `@username` → ver **0.5.29**
+- silenciar servidores / canales individuales → ver subtarea MEDIUM abajo
+
+#### Unread badges
+
+- Badge rojo (bolita) aparece en:
+  - La pestaña de conversación DM no abierta en el tab bar (ya implementado en 0.5.23).
+  - El icono de la app en la barra de tareas de Windows (taskbar overlay icon) indicando mensajes pendientes totales.
+  - El icono del system tray (tooltip con número de mensajes pendientes).
+- Los badges desaparecen cuando el usuario abre la conversación correspondiente.
+- Los canales de texto con mensajes sin leer muestran también un punto/badge en la lista de canales del sidebar.
+
+#### Sonido
+
+- Las notificaciones sonoras aplican **únicamente a DMs**.
+- Los canales de texto del servidor no emiten sonido (solo badge visual).
+- El sonido es configurable por el usuario en la pestaña **Notificaciones** de Client Settings (ver subtarea abajo).
+- El sonido concreto (archivo de audio) no es configurable en MVP — subtarea pendiente.
+
+#### Tareas
+
+**Tauri (Rust)**
+- [ ] Implementar overlay icon en taskbar (número de mensajes pendientes) via Tauri window API o WinAPI
+- [ ] Actualizar tooltip del icono de tray con conteo de mensajes no leídos
+- [ ] Comando Tauri `update_unread_count(count: u32)` invocable desde el frontend para actualizar badge y tray tooltip
+
+**Frontend**
+- [ ] `App.tsx` — rastrear `unreadChannelIds: Set<string>` (canales con mensajes sin leer); poblar cuando llega `NEW_MESSAGE` en un canal que no es el activo; limpiar al cambiar al canal
+- [ ] `ChannelList.tsx` — mostrar badge/punto rojo en canales con mensajes sin leer
+- [ ] `App.tsx` — al cambiar estado de unread, invocar `update_unread_count` con el total acumulado (DMs no leídos + canales no leídos)
+- [ ] Reproducir sonido de notificación cuando llega DM y el sonido está habilitado en settings (usar Web Audio API, archivo de audio embebido)
+
+**Client Settings — pestaña Notificaciones**
+- [ ] Añadir pestaña **"Notifications"** en `ClientSettingsModal.tsx`
+- [ ] Toggle: **"Sound notifications for DMs"** (default: on) — persiste en `localStorage`
+- [ ] Subtarea pendiente (LOW): permitir al usuario configurar el sonido de notificación (archivo personalizado)
+
+**Silenciar servidores/canales (MEDIUM — pendiente, no en MVP)**
+- [ ] El usuario podrá silenciar un servidor completo (sin badges, sin sonido para ese servidor)
+- [ ] El usuario podrá silenciar canales individuales dentro de un servidor
+- [ ] La configuración de mute se almacena en `localStorage` por `serverId/channelId`
+- [ ] UI: botón derecho / menú contextual en el nombre del servidor o canal en el sidebar
+
+#### Archivos afectados
+
+| Archivo | Cambio |
+|---|---|
+| `client/src-tauri/src/main.rs` | Comando `update_unread_count` + taskbar overlay |
+| `client/src/App.tsx` | `unreadChannelIds`, invocar `update_unread_count`, sonido DM |
+| `client/src/components/ChannelList.tsx` | Badge visual en canales con mensajes no leídos |
+| `client/src/components/ClientSettingsModal.tsx` | Nueva pestaña Notifications + toggle de sonido |
+
+---
+
+### 0.5.27 Server Notification Channel + Read-only Channels 🚧
+
+**Priority: HIGH — Prerequisite for server-side notifications**
+
+#### Canal de notificaciones del servidor
+
+El administrador puede designar un canal de texto existente como **canal de notificaciones del servidor**. En ese canal el servidor escribirá automáticamente mensajes de sistema (bienvenidas, salidas, etc.). Es un canal normal en el que los usuarios también pueden escribir mensajes.
+
+**Mensajes automáticos del servidor (MVP):**
+- `"👋 {username} se ha unido al servidor."`
+- `"👋 {username} ha abandonado el servidor."`
+
+**Configuración:**
+- En la modal de administración del servidor (tab **Moderation** o nuevo tab **Notifications**): selector/dropdown con los canales de texto existentes para elegir el canal de notificaciones; botón para deseleccionar (desactivar).
+- Botón **(i)** informativo: explica qué mensajes llegarán al canal y que si no hay canal configurado no llega ninguna notificación de servidor.
+- Si no hay canal configurado → no se envía ningún mensaje automático.
+- El canal configurado se persiste en `server.toml` o en la DB como metadato del servidor.
+
+**Tareas canal de notificaciones:**
+- [ ] **`server/src/config.rs`** — añadir campo `notification_channel_id: Option<String>` a `ServerConfig`
+- [ ] **`server/src/handlers.rs`** — en `handle_connect` y `handle_disconnect` (o equivalente): si `notification_channel_id` está configurado, enviar mensaje de sistema al canal vía `broadcast_to_channel`
+- [ ] **`server/src/models.rs`** — nuevo tipo de mensaje: `system: true` flag en `Message` para que el cliente lo renderice diferente (texto gris/cursiva, sin avatar)
+- [ ] **Protocolo** — `GET_SERVER_SETTINGS` devuelve `notification_channel_id`; nuevo mensaje `SET_NOTIFICATION_CHANNEL { channel_id: Option<String> }` (admin only)
+- [ ] **`ServerConfigModal.tsx`** — nuevo selector en tab de administración para elegir canal de notificaciones + botón (i) con tooltip explicativo
+- [ ] **`ChatArea.tsx`** — renderizar mensajes con `system: true` en estilo diferenciado (gris, cursiva, sin avatar, sin acciones)
+
+#### Canales de solo lectura
+
+El administrador puede marcar un canal de texto como **solo lectura**: los usuarios normales no pueden escribir, solo el administrador y el servidor (mensajes de sistema). Útil para canales de anuncios o para usar como canal de notificaciones exclusivo.
+
+**Tareas canales solo lectura:**
+- [ ] **`server/src/db.rs`** — añadir columna `is_read_only: bool` (default `false`) a la tabla `channels`
+- [ ] **`server/src/handlers.rs`** — en `handle_send_message`: rechazar con `ERROR` si el canal es `is_read_only` y el usuario no es owner/admin
+- [ ] **Protocolo** — `is_read_only` incluido en el payload de canal al cliente
+- [ ] **`client/src/types/protocol.ts`** — añadir `is_read_only?: boolean` a `Channel`
+- [ ] **`ChannelList.tsx`** — icono de candado 🔒 en canales solo lectura
+- [ ] **`ChatArea.tsx`** — ocultar / deshabilitar el input de mensaje cuando el canal es solo lectura; mostrar mensaje "Este canal es de solo lectura"
+- [ ] **Admin UI** — toggle `is_read_only` en el menú contextual / panel de edición de canal (owner only)
+
+#### Archivos afectados
+
+| Archivo | Cambio |
+|---|---|
+| `server/src/config.rs` | `notification_channel_id` |
+| `server/src/db.rs` | Columna `is_read_only` en channels |
+| `server/src/handlers.rs` | Mensajes de sistema en join/leave; rechazar send en read-only |
+| `server/src/models.rs` | `system` flag en Message; `is_read_only` en Channel |
+| `client/src/types/protocol.ts` | `is_read_only`, `system` |
+| `client/src/components/ChannelList.tsx` | Icono candado |
+| `client/src/components/ChatArea.tsx` | Renderizado mensajes sistema; input deshabilitado |
+| `client/src/components/ServerConfigModal.tsx` | Selector canal de notificaciones |
+
+---
+
+### 0.5.28 Message Reactions 🚧
+
+**Priority: LOW**
+
+Los usuarios pueden reaccionar a cualquier mensaje con emojis (como Discord / WhatsApp). Pueden añadir una reacción o eliminar una que ya pusieron.
+
+#### Comportamiento
+
+- Hover sobre un mensaje → botón emoji "+" aparece.
+- Click en "+" → emoji picker (selector de emojis básico).
+- El emoji elegido aparece bajo el mensaje con un contador (p.ej. `👍 3`).
+- Si el usuario ya puso ese mismo emoji, hacer click en la reacción la elimina.
+- Si el usuario no puso ese emoji, hacer click en la reacción existente la añade.
+- Las reacciones son visibles para todos los usuarios en el canal.
+
+#### Tareas
+
+- [ ] **DB** — nueva tabla `message_reactions`: `id`, `message_id`, `user_id`, `emoji`, `created_at`
+- [ ] **Protocolo** — `ADD_REACTION { message_id, emoji }` / `REMOVE_REACTION { message_id, emoji }`; broadcast `REACTION_UPDATED { message_id, reactions: [{emoji, count, user_ids}] }`
+- [ ] **`server/src/handlers.rs`** — handlers para `ADD_REACTION` / `REMOVE_REACTION`
+- [ ] **`server/src/db.rs`** — `add_reaction`, `remove_reaction`, `get_reactions_for_message`
+- [ ] **`client/src/types/protocol.ts`** — nuevas interfaces
+- [ ] **`ChatArea.tsx`** — renderizar reacciones bajo cada mensaje; emoji picker básico; lógica add/remove
+
+---
+
+### 0.5.29 Mention System 🚧
+
+**Priority: LOW**
+
+Permite mencionar usuarios con `@username` en mensajes de canal. MVP: solo detección y highlight visual en el cliente, sin notificación sonora ni push.
+
+#### Tareas
+
+- [ ] **`ChatArea.tsx`** — parsear texto del mensaje buscando `@username`; resaltar en color diferente si el username coincide con el usuario local
+- [ ] **Protocolo** — el servidor puede incluir `mentions: string[]` en el payload de mensaje para que el cliente no tenga que hacer parsing propio (opcional, puede hacerse solo en cliente en MVP)
+- [ ] **Visual** — mensajes que contienen una mención al usuario actual tienen fondo ligeramente resaltado en el chat
+- [ ] **Notificación** — integración con el sistema de notificaciones (0.5.14) cuando esté implementado
+
+---
 
 ### 0.5.15 Server Launch UX & Unified Server Config Modal 🚧
 
@@ -1109,4 +1289,4 @@ All features below are OUT OF SCOPE for initial release:
 
 ---
 
-_Last updated: 2026-03-07 (0.5.25 paginación añadida como crítico; 0.5.12 moderación detallada)_
+_Last updated: 2026-03-22 (0.5.26 System Tray añadido HIGH; 0.5.14 Notifications reescrito con spec completa; 0.5.27 Read-only channels + notification channel añadido HIGH; 0.5.28 Message reactions añadido LOW; 0.5.29 Mention system añadido LOW)_
