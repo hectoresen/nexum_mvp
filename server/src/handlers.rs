@@ -225,6 +225,12 @@ async fn handle_connect(
 
     send_message(tx, &welcome)?;
 
+    // Broadcast updated user list to all connected clients so they see the new user
+    if let Ok(all_users) = state.db.list_users() {
+        let users_msg = ServerMessage::ServerUsers(ServerUsersPayload { users: all_users });
+        broadcast_message(&state.session_manager, &users_msg);
+    }
+
     Ok(session_id)
 }
 

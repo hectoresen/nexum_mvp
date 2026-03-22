@@ -1242,6 +1242,11 @@ function App() {
   const handleUpdateAvatar = (avatarUrl: string | null) => {
     if (view.type !== 'connected') return
 
+    // Relative paths come from file uploads — the HTTP route already updated avatar_path
+    // in the DB and broadcast USER_UPDATED, which triggers GET_USERS for all clients.
+    // No need to send an extra UPDATE_AVATAR WebSocket message in that case.
+    if (avatarUrl !== null && !avatarUrl.startsWith('http') && !avatarUrl.startsWith('data:')) return
+
     view.connection.client.send({
       type: 'UPDATE_AVATAR',
       payload: {
@@ -1514,8 +1519,15 @@ function App() {
   // Get current user avatar from user list
   const currentUser = conn.serverUsers?.find(u => u.id === conn.userId)
 
-  // Construct avatar URL from avatar_path or use avatar_url
-  const currentUserAvatar = currentUser?.avatar_url || (currentUser?.avatar_path ? `http://${conn.server.address}/${currentUser.avatar_path}` : null)
+  // Construct avatar URL - prefer avatar_path (relative, uses our own serverAddress) over avatar_url
+  const currentUserAvatar = (currentUser?.avatar_path
+    ? `http://${conn.server.address}/${currentUser.avatar_path}`
+    : null
+  ) ?? (currentUser?.avatar_url
+    ? (currentUser.avatar_url.startsWith('http') || currentUser.avatar_url.startsWith('data:')
+        ? currentUser.avatar_url
+        : `http://${conn.server.address}/${currentUser.avatar_url}`)
+    : null)
 
   return (
     <>

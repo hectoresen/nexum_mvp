@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { AppState } from '../App'
-import { Channel, Category, User, DmMessage } from '../types/protocol'
+import { Channel, Category, User, UserRole, DmMessage } from '../types/protocol'
 import ChannelList from './ChannelList'
 import ChatArea from './ChatArea'
 import UserListPanel from './UserListPanel'
@@ -346,7 +346,8 @@ export default function MainView({
               const tabUser = serverUsers?.find(u => u.id === tabUserId)
               const isActive = activeDmUserId === tabUserId
               const hasUnread = unreadDmUserIds.includes(tabUserId)
-              const label = tabUser?.username ?? '…'
+              const dmsForTab = dmMessages.get(tabUserId) || []
+              const label = tabUser?.username ?? dmsForTab.find(dm => dm.sender_id === tabUserId)?.sender_username ?? '…'
               return (
                 <div key={tabUserId} className={`flex items-center gap-1 rounded flex-shrink-0 ${isActive ? 'bg-blue-600' : tw.bgHoverSubtle}`}>
                   <button
@@ -385,14 +386,25 @@ export default function MainView({
         {/* DM view or channel view */}
         {activeDmUserId ? (
           (() => {
-            const otherUser = serverUsers?.find(u => u.id === activeDmUserId)
+            const dms = dmMessages.get(activeDmUserId) || []
+            const fromDm = dms.find(dm => dm.sender_id === activeDmUserId)
+            const otherUser: User | null = serverUsers?.find(u => u.id === activeDmUserId) ?? (
+              fromDm ? {
+                id: activeDmUserId,
+                username: fromDm.sender_username,
+                role: 'member' as UserRole,
+                avatar_url: fromDm.sender_avatar_url,
+                avatar_path: fromDm.sender_avatar_path,
+                avatar_version: fromDm.sender_avatar_version,
+                created_at: '',
+              } : null
+            )
             if (!otherUser)
               return (
                 <div className="flex-1 flex items-center justify-center">
                   <p className={`${tw.textMuted} text-sm`}>Loading conversation…</p>
                 </div>
               )
-            const dms = dmMessages.get(activeDmUserId) || []
             return <DirectMessageView otherUser={otherUser} messages={dms} currentUserId={state.userId || ''} serverAddress={serverAddress} onSendMessage={content => onSendDm?.(activeDmUserId, content)} />
           })()
         ) : currentChannel ? (
