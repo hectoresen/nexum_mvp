@@ -4,11 +4,50 @@ All notable changes and completed tasks are documented here.
 
 ---
 
-## 🚧 v0.1.4 — In Progress
+## ✅ v0.1.5 — Released 2026-03-22
 
-**Branch:** `develop`
+**Type:** Bug Fix Release
+**Branch merged:** `feature/0.5.14-notifications → develop → main`
+**Status:** ✅ Released
+
+See [releases/v0.1.5/README.md](../releases/v0.1.5/README.md) for full release notes.
+
+---
+
+## ✅ v0.1.4 — Released 2026-02-28
+
+**Branch:** `develop → main`
 
 ### 🐛 Bug Fixes
+
+- [x] **Binario del servidor obsoleto causaba que todos los fixes del servidor no llegaran al instalador** — `npm run tauri build` no recompila el binario del servidor; el `voice-server.exe` en `src-tauri/resources/` era el ejecutable anterior a todas las correcciones de sesiones previas. Síntoma: el cliente instalado mostraba comportamiento sin parcheár (estado online incorrecto, borrado de mensajes sin permisos, etc.) pese a que el código fuente estaba corregido. Solución: `cargo build --release` en `server/` → copiar a `client/src-tauri/resources/voice-server.exe` → `npm run tauri build`. Automatizado con `build.ps1 -Release -Bundle`. **Documentado en `docs/architecture_spec.md` § Build Pipeline.**
+
+- [x] **Badge en barra de tareas era un cuadrado rojo en lugar de un círculo naranja** — `CreateBitmap` (DDB) de 32bpp ignora la máscara AND de 1bpp en Windows moderno (WebView2); la región exterior siempre se renderizaba opaca. Sustituido por `CreateDIBSection` (DIB, 32bpp BGRA) con alpha por pixel: píxeles del círculo con alpha=255 color `#FF8C00`, exterior alpha=0 transparente. Radio 5 px, centro (8,8) sobre bitmap 16×16.
+  - Afectado: `client/src-tauri/src/main.rs`
+
+- [x] **Avatar upload y visualización fallaba para clientes no-host (Chrome Private Network Access)** — El WebView2 de Tauri funciona bajo el origen `tauri://localhost`. Las peticiones HTTP `fetch()` a IPs de red privada (`192.168.x.x`, `10.x.x.x`) son bloqueadas por la política Chrome PNA si el servidor no incluye `Access-Control-Allow-Private-Network: true` en la respuesta al preflight CORS. Las conexiones WebSocket no tienen preflight y no se veían afectadas. Solución: `.allow_private_network(true)` en el `CorsLayer` de `tower-http`.
+  - Afectado: `server/src/websocket.rs`
+
+- [x] **Avatares no se actualizaban visualmente tras cambio (caché del navegador)** — El WebView cacheaba el recurso de avatar porque la URL era idéntica entre versiones. Solución: se añade `?v=${user.avatar_version ?? 0}` a todas las construcciones de URL de avatar para forzar recarga cuando la versión cambia.
+  - Afectados: `client/src/components/UserListPanel.tsx`, `client/src/components/ChatArea.tsx`, `client/src/App.tsx`
+
+- [x] **DM se quedaba cargando / pestaña mostraba "…" (post-0.5.14)** — Cuando un usuario se conectaba al servidor después de que otro ya estuviera conectado, el usuario ya conectado no lo veía en su lista de usuarios (`serverUsers`). Al intentar abrir un DM, la pantalla se quedaba cargando indefinidamente y la pestaña mostraba "…":
+  - **Servidor**: `handle_connect` ahora emite `ServerMessage::ServerUsers` a todos los clientes conectados justo después de enviar `WELCOME`. Así los usuarios ya conectados ven al recién llegado sin necesidad de `USER_JOINED`.
+  - **Cliente**: `MainView` construye un objeto `User` temporal a partir de los datos del propio mensaje DM (`sender_username`, `sender_avatar_*`) cuando el usuario no está en `serverUsers`. Las pestañas de DM aplican el mismo fallback para mostrar el nombre en lugar de "…".
+  - Afectados: `server/src/handlers.rs`, `client/src/components/MainView.tsx`
+
+- [x] **Avatares rotos para usuarios en otras máquinas (post-0.5.14)** — `AvatarModal` guardaba la URL completa con `localhost:8080`, inútil para clientes en otra máquina o red:
+  - `AvatarModal` ahora pasa la ruta relativa (`data.avatar_path`, ej: `avatars/uuid.webp`) en lugar de la URL absoluta.
+  - `handleUpdateAvatar` en `App.tsx` omite enviar `UPDATE_AVATAR` por WebSocket para rutas relativas — la subida HTTP ya actualizó `avatar_path` en la BD y emitió `USER_UPDATED` a todos los clientes.
+  - Todas las funciones de renderizado (`UserListPanel`, `DirectMessageView`, `ChatArea`, `App.tsx`) ahora priorizan `avatar_path + serverAddress` sobre `avatar_url`.
+  - CSP de `tauri.conf.json` cambiada de `null` a política explícita con `img-src 'self' data: https: http: blob:` para permitir imágenes desde servidores HTTP en red local.
+  - Afectados: `client/src/components/AvatarModal.tsx`, `client/src/components/UserListPanel.tsx`, `client/src/components/DirectMessageView.tsx`, `client/src/components/ChatArea.tsx`, `client/src/App.tsx`, `client/src-tauri/tauri.conf.json`
+
+- [x] **Usuario silenciado podía seguir escribiendo mensajes (post-0.5.14)** — `ChatArea` no comprobaba `is_text_muted`. Ahora si el usuario está silenciado, se muestra un aviso rojo en lugar del formulario de envío.
+  - Afectado: `client/src/components/ChatArea.tsx`
+
+- [x] **Admin no podía borrar mensajes de otros usuarios (post-0.5.14)** — El botón de borrar solo aparecía sobre mensajes propios. Ahora los usuarios con rol `owner` ven el botón de borrar en cualquier mensaje; el botón de editar sigue siendo solo para mensajes propios.
+  - Afectado: `client/src/components/ChatArea.tsx`
 
 - [x] **NSIS installer "Launch Nexum" checkbox not working (0.5.22)** — Checking "Launch Nexum" on the final page of the NSIS installer had no effect; the app never launched after clicking Finish:
   - Added explicit `nsis` section to `bundle.windows` in `tauri.conf.json` with `installMode: "currentUser"`. Installing per-user (in AppData) rather than system-wide prevents UAC elevation from blocking the post-install launch.
@@ -72,6 +111,29 @@ All notable changes and completed tasks are documented here.
   - **Always-show chat button**: The "Open DM" button in the member-list popover is always visible (not only when a tab exists). Button label adapts: "See new message" (unread), "View conversation" (tab open), "Open conversation" (history exists but tab closed). Clicking while the tab is closed re-opens it and fetches history via `GET_DM_HISTORY`.
   - **Pulsing unread indicator**: A red pulsing dot next to users with unread DMs in the member list gives ambient notification without opening the popover.
   - Affected: `client/src/App.tsx`, `client/src/components/MainView.tsx`, `client/src/components/UserListPanel.tsx`
+
+- [x] **System tray — minimize to tray on close (0.5.26)** — Closing the main window no longer exits the app; it hides to the Windows system tray:
+  - Left-clicking the tray icon restores/focuses the main window.
+  - Right-clicking opens a context menu: disabled "Nexum" header, "Check for updates" (placeholder — no-op), "Quit Nexum" (forcefully exits the process).
+  - The only way to fully quit is via "Quit Nexum" in the tray menu.
+  - Affected: `client/src-tauri/src/main.rs` (`setup_tray` function + `on_window_event` close intercept), `client/src-tauri/Cargo.toml` (`tray-icon` feature)
+
+- [x] **Notification system (0.5.14)** — Unread indicators for channels and DMs, tray tooltip counter, and configurable DM sound:
+  - **Unread channel badges**: red dot appears on any text channel that has received a message since the user last viewed it; disappears when the channel is selected. Tracked via `unreadChannelIds: Set<string>` in `ActiveConnection`. Badge hides on owner-button hover to avoid layout clash.
+  - **Tray tooltip counter**: `update_unread_count(count)` Tauri command updates the tray tooltip to `"Nexum (N unread)"` when total unread (channels + DMs) is non-zero, resets to `"Nexum"` when cleared. Invoked automatically via `useEffect` in App.tsx.
+  - **DM notification sound**: plays a synthetic 880 Hz ping (Web Audio API, no external asset) when an incoming DM arrives and the conversation is not in focus. Sound is opt-in and persists in `localStorage` as `nexum_dm_sound_enabled`.
+  - **Notifications tab in Client Settings**: new "Notifications" tab in `ClientSettingsModal` with a toggle for DM sound.
+  - Affected: `client/src-tauri/src/main.rs` (`update_unread_count` command, `.id("main")` on `TrayIconBuilder`), `client/src/App.tsx` (`unreadChannelIds`, `playDmNotificationSound`, `handleJoinChannel`, `MESSAGE` + `DM_RECEIVED` handlers, `useEffect` tray sync), `client/src/components/ChannelList.tsx` (`unreadChannelIds` prop + red dot), `client/src/components/MainView.tsx` (prop threading), `client/src/components/ClientSettingsModal.tsx` (Notifications tab)
+
+- [x] **Moderation system — kick, ban, mute (0.5.12)** — Server admins can now manage disruptive users from the member list right-panel:
+  - **Kick**: `KICK_USER` message forcibly disconnects the target (they can reconnect immediately). `USER_KICKED` broadcast updates all clients. Every kick persisted in a `kick_log` SQLite table (`id`, `user_id`, `username`, `ip_address`, `kicked_at`, `kicked_by_user_id`). Kicked user sees "You were kicked from this server" and is navigated back to the server list.
+  - **Ban**: `BAN_USER` disconnects the target, inserts into `bans` table, broadcasts `USER_BANNED`. `UNBAN_USER` revokes the ban. Every `CONNECT` is checked against `bans` by `device_public_key`, IP, and `user_id` — any match returns a `BANNED` error code. Banned user sees "You have been banned from this server" on reconnect attempt. `bans` schema: `id TEXT PK`, `user_id TEXT`, `username TEXT`, `ip_address TEXT`, `device_public_key TEXT`, `banned_at TEXT`, `reason TEXT`, `banned_by_user_id TEXT`.
+  - **Bug fix (post-merge)**: `User` struct now includes `device_public_key` field; all 5 DB queries select it (column 10); `handle_ban_user` passes `target.device_public_key.as_deref()` to `create_ban` — previously always passed `None`, making device-key ban evasion trivially possible via IP change.
+  - **Mute**: two independent types — text mute (server rejects `SEND_MESSAGE` with `MUTED_TEXT`) and voice mute (flag stored + broadcast; audio enforcement deferred until UDP relay is implemented). `MUTE_USER` sets/clears `is_text_muted` / `is_voice_muted` on the `users` table. `USER_MUTE_UPDATED` broadcast. Mute icons (🚫💬 / 🚫🎙️) shown in member list. "Mute all" / "Unmute all" combo buttons in the moderation popover.
+  - **Moderation tab** in `ServerConfigModal` (manage/admin mode): banned users list with username, IP, banned-at, and "Revoke ban" button; read-only kick log list. Loaded via `GET_BAN_LIST` / `GET_KICK_LOG` WebSocket messages.
+  - ⚠️ Voice mute is cosmetic only until UDP relay is implemented.
+  - Affected server: `server/src/models.rs`, `server/src/db.rs`, `server/src/handlers.rs`
+  - Affected client: `client/src/components/UserListPanel.tsx`, `client/src/components/ServerConfigModal.tsx`, `client/src/types/protocol.ts`, `client/src/App.tsx`
 
 - [x] **Device-bound ed25519 cryptographic identity (0.5.24)** — Users now have a stable identity that persists across IP changes and reconnections without collecting any hardware data:
   - **Key generation (Tauri)**: New `get_device_public_key` command generates a 32-byte ed25519 keypair on first run using a CSPRNG, stores the private key as hex in `~/.nexum/device.key`, and returns the 64-char hex public key. Subsequent calls read and decode the existing key — key is never regenerated unless the file is deleted.

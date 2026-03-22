@@ -18,6 +18,46 @@ pub struct User {
     pub avatar_path: Option<String>,
     pub avatar_version: i32,
     pub created_at: DateTime<Utc>,
+    /// Whether the admin has text-muted this user.
+    #[serde(default)]
+    pub is_text_muted: bool,
+    /// Whether the admin has voice-muted this user.
+    #[serde(default)]
+    pub is_voice_muted: bool,
+    /// ed25519 device public key (hex). Never sent to clients.
+    #[serde(skip_serializing)]
+    pub device_public_key: Option<String>,
+}
+
+/// User augmented with real-time online status for SERVER_USERS broadcasts.
+/// Not stored in the database — `is_online` is computed from active sessions.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserOnlineStatus {
+    #[serde(flatten)]
+    pub user: User,
+    pub is_online: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Ban {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub username: String,
+    pub ip_address: String,
+    pub device_public_key: Option<String>,
+    pub banned_at: DateTime<Utc>,
+    pub reason: Option<String>,
+    pub banned_by_user_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KickLogEntry {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub username: String,
+    pub ip_address: String,
+    pub kicked_at: DateTime<Utc>,
+    pub kicked_by_user_id: Uuid,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -196,6 +236,24 @@ pub enum ClientMessage {
 
     #[serde(rename = "GET_DM_HISTORY")]
     GetDmHistory(GetDmHistoryPayload),
+
+    #[serde(rename = "KICK_USER")]
+    KickUser(KickUserPayload),
+
+    #[serde(rename = "BAN_USER")]
+    BanUser(BanUserPayload),
+
+    #[serde(rename = "UNBAN_USER")]
+    UnbanUser(UnbanUserPayload),
+
+    #[serde(rename = "MUTE_USER")]
+    MuteUser(MuteUserPayload),
+
+    #[serde(rename = "GET_BAN_LIST")]
+    GetBanList,
+
+    #[serde(rename = "GET_KICK_LOG")]
+    GetKickLog,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -382,6 +440,21 @@ pub enum ServerMessage {
 
     #[serde(rename = "DM_HISTORY")]
     DmHistory(DmHistoryPayload),
+
+    #[serde(rename = "USER_KICKED")]
+    UserKicked(UserKickedPayload),
+
+    #[serde(rename = "USER_BANNED")]
+    UserBanned(UserBannedPayload),
+
+    #[serde(rename = "USER_MUTE_UPDATED")]
+    UserMuteUpdated(UserMuteUpdatedPayload),
+
+    #[serde(rename = "BAN_LIST")]
+    BanList(BanListPayload),
+
+    #[serde(rename = "KICK_LOG")]
+    KickLog(KickLogPayload),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -415,6 +488,9 @@ pub enum ErrorCode {
     RateLimited,
     MessageTooLarge,
     PasswordRequired,
+    Banned,
+    Kicked,
+    MutedText,
     Internal,
 }
 
@@ -448,6 +524,9 @@ pub struct MessagePayload {
     pub avatar_url: Option<String>,
     pub avatar_path: Option<String>,
     pub avatar_version: i32,
+    /// Username of the user who deleted the message (populated from history JOIN).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deleted_by_username: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -511,7 +590,7 @@ pub struct ServerSettingsPayload {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerUsersPayload {
-    pub users: Vec<User>,
+    pub users: Vec<UserOnlineStatus>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -605,4 +684,61 @@ pub struct DmReceivedPayload {
 pub struct DmHistoryPayload {
     pub other_user_id: Uuid,
     pub messages: Vec<DmReceivedPayload>,
+}
+
+// ============================================================================
+// Moderation Payloads
+// ============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KickUserPayload {
+    pub user_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BanUserPayload {
+    pub user_id: Uuid,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UnbanUserPayload {
+    pub ban_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MuteUserPayload {
+    pub user_id: Uuid,
+    pub mute_text: bool,
+    pub mute_voice: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserKickedPayload {
+    pub user_id: Uuid,
+    pub username: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserBannedPayload {
+    pub user_id: Uuid,
+    pub username: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserMuteUpdatedPayload {
+    pub user_id: Uuid,
+    pub is_text_muted: bool,
+    pub is_voice_muted: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BanListPayload {
+    pub bans: Vec<Ban>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KickLogPayload {
+    pub entries: Vec<KickLogEntry>,
 }

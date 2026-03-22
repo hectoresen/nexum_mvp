@@ -44,11 +44,16 @@ pub async fn run_ws_server(
         session_manager,
     });
 
-    // Configure CORS to allow WebSocket connections from web browsers
+    // Configure CORS — allow all origins including Tauri WebView (tauri://localhost).
+    // allow_private_network(true) adds Access-Control-Allow-Private-Network: true which
+    // is required by Chrome's Private Network Access (PNA) policy when the app origin
+    // (tauri://localhost) makes fetch() requests to private-IP servers (192.168.x, 10.x).
+    // Without this, avatar uploads and image fetches from non-host clients fail silently.
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
-        .allow_headers(Any);
+        .allow_headers(Any)
+        .allow_private_network(true);
 
     // Create avatars directory if it doesn't exist
     tokio::fs::create_dir_all("data/avatars").await.ok();
@@ -143,6 +148,20 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>, client_ip: Strin
         // Cleanup on disconnect
         if let Some(sid) = session_id {
             state_clone.session_manager.remove_session(sid);
+            // Broadcast updated online-status list so all remaining clients update their member panel
+            let connected_ids = state_clone.session_manager.get_connected_user_ids();
+            if let Ok(all_users) = state_clone.db.list_users() {
+                use crate::models::{ServerMessage, ServerUsersPayload, UserOnlineStatus};
+                let users: Vec<UserOnlineStatus> = all_users
+                    .into_iter()
+                    .map(|u| UserOnlineStatus { is_online: connected_ids.contains(&u.id), user: u })
+                    .collect();
+                let msg = ServerMessage::ServerUsers(ServerUsersPayload { users });
+                if let Ok(json) = serde_json::to_string(&msg) {
+                    state_clone.session_manager.broadcast(axum::extract::ws::Message::Text(json));
+                }
+            }
+            info!("Client disconnected, session cleaned up");
         }
     });
 

@@ -103,6 +103,50 @@ The data path is configurable via the `--data-path` CLI argument or the `CONFIG_
 
 > ⚠️ The client never reads or writes these files. They belong exclusively to the server process.
 
+## Build Pipeline
+
+The server binary has **two deployment modes** that share the exact same executable:
+
+| Mode | Description | Released as |
+|------|-------------|-------------|
+| **Standalone CLI** | Run directly from a terminal or service manager | `Nexum-Server_x.x.x_x64.exe` in GitHub Releases |
+| **Embedded in client** | Bundled inside the Tauri installer; launched automatically when the user clicks "Start Server" | Inside `Nexum_x.x.x_x64_en-US.msi` / `-setup.exe` |
+
+### Correct build order
+
+`npm run tauri build` alone does **not** rebuild the server binary. The embedded `voice-server.exe` is a pre-compiled resource that must be manually rebuilt and copied before bundling the client:
+
+```
+# 1. Rebuild the server binary
+cd server
+cargo build --release
+
+# 2. Copy into the Tauri resources folder
+cp target/release/nexum-server.exe ../client/src-tauri/resources/voice-server.exe
+
+# 3. Build + bundle the client installer
+cd ../client
+npm run tauri build
+```
+
+`build.ps1 -Release -Bundle` automates all three steps. **Never run only step 3** after server-side changes or the installer will ship stale server behaviour.
+
+> ⚠️ A symptom of a stale server binary is that bug fixes committed in `server/src/` are not reflected at runtime even after reinstalling the client. Always check the file size of `client/src-tauri/resources/voice-server.exe` — it should match the freshly compiled binary.
+
+### Chrome Private Network Access (PNA)
+
+The Tauri WebView runs under the `tauri://localhost` origin. When the client's `fetch()` calls target a **private IP** (e.g. `192.168.x.x`, `10.x.x.x`), Chromium enforces the [Private Network Access](https://wicg.github.io/private-network-access/) spec and requires the server to include:
+
+```
+Access-Control-Allow-Private-Network: true
+```
+
+in CORS preflight responses. **WebSocket upgrade requests bypass PNA** (no preflight), which is why the main WS connection works while HTTP endpoints (avatar upload, avatar fetch) were silently blocked for non-host clients. The fix is `.allow_private_network(true)` on the `tower-http` `CorsLayer` in `server/src/websocket.rs`.
+
+### Windows taskbar overlay icon
+
+`CreateBitmap` (DDB) with a separate 1bpp AND mask is ignored on modern Windows when the source bitmap is 32bpp — the AND mask is not applied and the result is always a rectangle. The correct approach is `CreateDIBSection` (DIB, 32bpp) with per-pixel BGRA alpha: circle pixels at full opacity, outside pixels at alpha=0. This is what `client/src-tauri/src/main.rs` now uses for the unread-count badge.
+
 ---
 
 # 4. Data Ownership

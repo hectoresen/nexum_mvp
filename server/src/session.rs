@@ -99,6 +99,14 @@ impl SessionManager {
         false
     }
 
+    /// Find the session_id for an active user (for kick/ban: send error then drop).
+    pub fn get_session_id_for_user(&self, user_id: Uuid) -> Option<Uuid> {
+        let sessions = self.sessions.read().unwrap();
+        sessions.values()
+            .find(|s| s.user_id == user_id)
+            .map(|s| s.session_id)
+    }
+
     pub fn broadcast(&self, message: Message) {
         let sessions = self.sessions.read().unwrap();
         for session in sessions.values() {
@@ -109,6 +117,11 @@ impl SessionManager {
     pub fn count_active_sessions(&self) -> usize {
         let sessions = self.sessions.read().unwrap();
         sessions.len()
+    }
+
+    pub fn get_connected_user_ids(&self) -> std::collections::HashSet<Uuid> {
+        let sessions = self.sessions.read().unwrap();
+        sessions.values().map(|s| s.user_id).collect()
     }
 
     // ========================================================================

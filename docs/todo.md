@@ -6,6 +6,91 @@
 
 This phase integrates the CLI server with the client for a unified user experience.
 
+### 🔴 Bugs de alta prioridad — PENDIENTE
+
+- [ ] **[BUG] Avatar upload falla con "Failed to fetch" para clientes no-host** — Cuando un usuario conectado a un servidor ajeno (no el host) intenta cambiar su imagen de perfil, la petición de subida HTTP falla con "Failed to fetch" y el avatar nunca se actualiza. El problema afecta únicamente a conexiones remotas; el host local no lo sufre. Relacionado con Chrome PNA / CORS — aunque se añadió `allow_private_network(true)` en el `CorsLayer`, el error persiste, indicando que hay otro punto de bloqueo (posiblemente el endpoint de upload-avatar no está cubierto por la misma política CORS, o hay un problema adicional de CSP en el cliente). Investigar qué petición concreta falla (preflight OPTIONS, la propia POST, o la respuesta) y verificar que `tauri.conf.json` CSP permite `connect-src` a IPs privadas.
+  - Archivos candidatos: `server/src/websocket.rs` (rutas CORS), `client/src/components/AvatarModal.tsx`, `client/src-tauri/tauri.conf.json`
+
+- [ ] **[BUG] Imágenes de perfil de otros usuarios aparecen rotas para clientes no-host** — Al conectarse a un servidor remoto, los avatares de usuarios que han subido una imagen aparecen como imagen rota (broken image). El host del servidor los ve correctamente. La URL construida con `avatar_path + serverAddress` es formalmente correcta, pero la petición HTTP es bloqueada (probablemente mismo origen PNA/CSP que el bug anterior). Verificar que la política CSP `img-src` en `tauri.conf.json` incluye el schema `http:` para IPs de red privada, y que el servidor sirve el endpoint `/avatars/` con las cabeceras CORS correctas incluyendo `Access-Control-Allow-Private-Network: true`.
+  - Archivos candidatos: `server/src/websocket.rs` (rutas de avatares), `client/src-tauri/tauri.conf.json` (CSP img-src), `client/src/components/UserListPanel.tsx`, `client/src/components/ChatArea.tsx`
+
+- [ ] **[BUG] Usuario kickeado no recibe ningún mensaje de notificación** — Cuando un admin kickea a un usuario, la sesión del usuario kickeado se cierra sin mostrar ningún aviso. El comportamiento esperado es que aparezca un modal o mensaje en pantalla indicando "Has sido expulsado del servidor" (o similar) antes de redirigir al usuario a la lista de servidores. El servidor ya emite `USER_KICKED` como broadcast; hay que verificar que el cliente maneja ese mensaje para el propio usuario kickeado y muestra la notificación adecuada.
+  - Archivos candidatos: `client/src/App.tsx` (handler de `USER_KICKED`), `client/src/components/MainView.tsx` o modal dedicado
+
+---
+
+### 🟡 Mejoras de moderación — PENDIENTE
+
+- [ ] **[FEATURE] Mensaje de motivo al kickear a un usuario** — Al kickear a un usuario, el admin debería poder introducir opcionalmente un motivo (texto libre). El usuario kickeado verá ese motivo en la pantalla de notificación de expulsión ("Has sido expulsado: [motivo]"). Si no se introduce motivo, se muestra el mensaje genérico. Requiere:
+  - Servidor: añadir campo `reason: Option<String>` al payload de `KICK_USER` y propagarlo en el mensaje `USER_KICKED` enviado al usuario expulsado.
+  - Cliente admin: añadir un input de texto opcional en el popover de kick antes de confirmar la acción.
+  - Cliente usuario kickeado: mostrar el motivo en el modal/aviso de expulsión.
+  - Archivos candidatos: `server/src/handlers.rs`, `server/src/models.rs`, `client/src/components/UserListPanel.tsx`, `client/src/App.tsx`
+
+---
+
+### 🟢 Sistema de reacciones a mensajes — PENDIENTE (baja prioridad)
+
+- [ ] **[FEATURE] Reacciones con emoticonos en canales de servidor y DMs**
+
+  **Descripción general:** Los usuarios podrán añadir reacciones emoji a cualquier mensaje, tanto en canales de texto de servidor como en conversaciones de DM. Las reacciones son visibles en tiempo real para todos los miembros del servidor.
+
+  **Paleta de emoticonos:**
+  - Usar una librería gratuita de emoji estándar (p.ej. `emoji-picker-react` o `@emoji-mart/react` + `@emoji-mart/data`) que exponga la paleta completa y en color: caras, gestos, manos, animales, banderas, objetos, etc. — la misma que ofrece WhatsApp/Discord. Sin versiones monocromáticas.
+
+  **Reglas de negocio:**
+  - Un usuario puede añadir un máximo de **10 reacciones distintas por mensaje**.
+  - Un usuario puede añadir y quitar sus propias reacciones libremente.
+  - Un usuario **no puede quitar** reacciones de otros usuarios.
+  - Si una reacción ya existe en un mensaje (puesta por otro usuario), cualquier usuario puede hacer clic sobre ella para "sumarla": el contador sube en 1. Si el mismo usuario vuelve a hacer clic, se resta (toggle: add/remove).
+  - Al pasar el ratón sobre una reacción se muestra un tooltip con los nombres de los usuarios que la han añadido.
+  - Un usuario **muteado de texto no puede añadir reacciones**.
+  - Si el mensaje es eliminado, se eliminan todas sus reacciones.
+  - Si un usuario reacciona, es kickeado y luego vuelve al servidor, conserva sus reacciones previas y puede seguir retirándolas o añadiendo nuevas.
+
+  **UX / interacción:**
+  - Al pasar el ratón sobre un mensaje aparece un botón "+" (junto a los botones de editar/borrar ya existentes). Una de las opciones al hacer clic será "Añadir reacción", lo que desplegará la paleta de emoticonos.
+  - Las reacciones existentes se muestran en una fila debajo del texto del mensaje: `[emoji][contador]`. Hacer clic en una reacción existente actúa como toggle (añadir/quitar la propia reacción).
+
+  **Tiempo real:**
+  - Cuando un usuario añade o quita una reacción, el servidor emite un broadcast a todos los clientes conectados al servidor (o a ambos participantes del DM) con el estado actualizado de las reacciones del mensaje.
+
+  **Alcance:**
+  - Canales de texto de servidor ✅
+  - DMs ✅ (mismo límite de 10 reacciones por mensaje)
+
+  **Implementación estimada — áreas afectadas:**
+  - Servidor: nueva tabla SQLite `message_reactions` (`id`, `message_id`, `user_id`, `emoji`, `created_at`); handlers `ADD_REACTION` y `REMOVE_REACTION`; broadcast `REACTION_UPDATED` con el listado completo de reacciones del mensaje; respetar límite de 10 por usuario por mensaje; bloquear si `is_text_muted`; cascade delete al borrar mensaje.
+  - Servidor DM: misma lógica aplicada a `direct_messages`; nueva tabla `dm_reactions` o columna de discriminador.
+  - Cliente: integrar picker de emoji (p.ej. `emoji-mart`); componente `MessageReactions` reutilizable (lista de píldoras emoji+contador + tooltip de autores); botón "+" en hover de mensaje; handler de `REACTION_UPDATED` en `App.tsx`; actualizar `protocol.ts` con los nuevos tipos de mensaje.
+  - Archivos principales: `server/src/db.rs`, `server/src/handlers.rs`, `server/src/models.rs`, `client/src/components/ChatArea.tsx`, `client/src/components/DirectMessageView.tsx`, `client/src/App.tsx`, `client/src/types/protocol.ts`
+
+---
+
+### ✅ Correcciones de bugs ronda 3 QA — COMPLETADO
+
+Diagnosticados y corregidos tras constatar que los arreglos de rondas anteriores no surtían efecto en el instalador.
+
+- [x] **Binario del servidor obsoleto en el instalador** — `npm run tauri build` NO recompila el servidor. El `voice-server.exe` en `client/src-tauri/resources/` era el binario anterior a todas las correcciones. Síntoma: cualquier fix en `server/src/` se ignora al ejecutar el cliente instalado. Solución: `cargo build --release` en `server/` → copiar a `resources/` → volver a empaquetar con `npm run tauri build`. Automatizado con `build.ps1 -Release -Bundle`.
+- [x] **Estado online siempre mostraba 0 conectados** — El servidor no emitía el estado correcto de usuarios conectados en el broadcast de bienvenida y en la actualización periódica. Arreglado en `server/src/handlers.rs` y `server/src/session.rs`, pero el fix solo llegó al cliente tras reconstruir el binario.
+- [x] **Badge de notificaciones en barra de tareas era un cuadrado rojo** — `CreateBitmap` (DDB) de 32bpp ignora la máscara AND de 1bpp en Windows moderno; el resultado siempre es rectangular. Solución: `CreateDIBSection` (DIB, 32bpp) con alpha por pixel — círculo naranja (`#FF8C00`) radio 5px con alpha=255, exterior con alpha=0. Afectado: `client/src-tauri/src/main.rs`.
+- [x] **Avatar upload y visualización fallaba para usuarios no-host** — Chrome Private Network Access (PNA) bloquea peticiones `fetch()` desde `tauri://localhost` a IPs privadas (`192.168.x.x`) si el servidor no responde con `Access-Control-Allow-Private-Network: true`. Los WebSocket no tienen este problema (sin preflight). Solución: `.allow_private_network(true)` en el `CorsLayer` de `tower-http` en `server/src/websocket.rs`.
+- [x] **Avatar no se actualizaba visualmente tras subir una imagen** — El navegador cacheaba la URL del avatar sin `?v=N`. Solución: se añade `?v=${avatar_version}` a todas las URLs de avatar en `UserListPanel.tsx`, `ChatArea.tsx` y `App.tsx` para forzar la recarga cuando la versión cambia.
+- [x] **Admin no podía borrar mensajes** (heredado de rondas anteriores — corregido al reconstruir el binario)
+- [x] **Dot de presencia del owner aparecía gris** (heredado — corregido al reconstruir el binario)
+
+---
+
+### ✅ Correcciones de bugs post-0.5.14 — COMPLETADO
+
+- [x] **DM se quedaba cargando / pestaña mostraba "…"** — Cuando el usuario A ya estaba conectado y el usuario B se conectaba después, A nunca recibía la lista actualizada, por lo que al abrir un DM con B la pantalla se quedaba cargando. Además la pestaña mostraba "…" en lugar del nombre. Doble arreglo: (1) el servidor ahora emite `ServerUsers` a todos los clientes tras dar la bienvenida a cada nuevo usuario; (2) `MainView` construye un usuario temporal con los datos del propio mensaje DM si el usuario no está aún en `serverUsers`.
+- [x] **Avatares rotos para usuarios remotos** — Los avatares se guardaban como URL absoluta (`http://localhost:8080/...`), inútil para clientes en otra máquina. Ahora se guarda solo la ruta relativa (`avatars/uuid.webp`) y cada cliente la resuelve con su propia dirección de servidor. Afectados: `AvatarModal`, `UserListPanel`, `DirectMessageView`, `ChatArea`, `App.tsx`. CSP de Tauri actualizada de `null` a una política explícita que permite `img-src http:` para IPs locales.
+- [x] **Lista de usuarios no se actualizaba al conectarse alguien nuevo** — `USER_JOINED` solo se emitía a miembros del canal, no a todos. Solucionado emitiendo `ServerUsers` desde `handle_connect` en el servidor tras enviar `WELCOME`.
+- [x] **Usuario silenciado podía seguir escribiendo** — El input de texto no tenía ninguna comprobación de `is_text_muted`. Ahora `ChatArea` muestra un aviso rojo en lugar del formulario de envío cuando el usuario está silenciado.
+- [x] **Admin no podía borrar mensajes de otros usuarios** — El botón de borrar solo aparecía en los propios mensajes. Ahora el owner puede borrar cualquier mensaje; editar sigue siendo solo para mensajes propios.
+
+---
+
 ### ✅ Identidad de dispositivo criptográfica ed25519 (0.5.24) — COMPLETADO
 
 **Problema:** Los usuarios se persisten en la base de datos del servidor con un `user_id` generado en el primer login, vinculado a la IP del cliente en ese momento. Si el usuario cambia de IP (IP dinámica, VPN, reinstalación del cliente), el servidor no puede relacionarlo con su `user_id` anterior y su username aparece como "ya en uso".
@@ -20,11 +105,13 @@ El cliente genera un par de claves ed25519 en el primer arranque y persiste la c
 - ⚠️ **Cambio de ordenador** — se pierde la identidad (aceptado, trabajo futuro)
 
 **Flujos:**
+
 - Primera conexión: genera keypair → envía `device_public_key` en CONNECT → servidor crea user ligando la clave pública
 - Reconexión (IP cambiada): envía `device_public_key` → servidor encuentra el user por clave pública → resume sin error "username taken"
 - Clientes viejos sin `device_public_key`: flujo actual inalterado (compatible)
 
 **Tareas:**
+
 - [x] Tauri: comando `get_device_public_key` — genera/persiste keypair ed25519 en `~/.nexum/device.key`, retorna clave pública hex
 - [x] Cliente TS: `protocol.ts` — añadir `device_public_key?: string` a `ConnectPayload`
 - [x] Cliente TS: `App.tsx` — obtener device key via `invoke` y enviarla en todos los `CONNECT`
@@ -33,6 +120,7 @@ El cliente genera un par de claves ed25519 en el primer arranque y persiste la c
 - [x] Servidor: `handlers.rs` — si llega `device_public_key` sin `resume_session_id`: buscar user por device key → si existe, resume; si no, crear nuevo user con esa clave
 
 ---
+
 ### 0.5.22 / 0.5.23 — Installer Fix + Private Messaging ✅
 
 - [x] **NSIS installer launch checkbox (0.5.22)** — Fixed "Launch Nexum" checkbox not working after NSIS install. Added `nsis.installMode: "currentUser"` to `tauri.conf.json`.
@@ -365,22 +453,92 @@ Once the local server was running, the "Configure Server" button in the dropdown
 - [ ] Implement end-to-end encryption for private messages
 - [ ] Add encryption indicator in private chat UI
 
-### 0.5.12 Moderation System 🚧
+### 0.5.25 Message History Pagination 🔴 CRÍTICO
 
-**Priority: MEDIUM - Safety & Administration**
+**Priority: HIGH — Scalability**
 
-Enable server owners to manage disruptive users.
+Actualmente `GET_MESSAGE_HISTORY` carga **todos** los mensajes de un canal en memoria de una sola vez. En servidores con uso prolongado esto provocará tiempos de carga altos, consumo de RAM elevado y una UX degradada.
 
-#### Tasks
+**Comportamiento esperado (igual que Discord):**
 
-- [ ] **Kick user** — owner can remove a user from the server (disconnects them; they can rejoin)
-- [ ] **Ban user** — owner can permanently ban by user ID + IP address; banned users cannot reconnect
-- [ ] **Voice mute** — owner mutes a specific user's microphone (they hear others but nobody hears them)
-- [ ] **Text mute** — owner restricts a user from sending messages in text channels
-- [ ] **Ban list** — admin panel tab showing all bans with username, IP, date; ability to unban
-- [ ] **Protocol changes** — `KICK_USER`, `BAN_USER`, `UNBAN_USER`, `MUTE_USER`, `UNMUTE_USER` client messages + server broadcasts
-- [ ] **Persistence** — bans stored in SQLite `bans` table (`user_id`, `ip_address`, `banned_at`, `reason`)
-- [ ] **Connection check** — server checks ban list on every new connection attempt
+- Al abrir un canal se cargan los **N mensajes más recientes** (p.ej. 50).
+- Al hacer scroll hacia **arriba** se cargan bloques anteriores bajo demanda (infinite scroll hacia el pasado).
+- Al hacer scroll hacia **abajo** se muestran siempre los mensajes más nuevos.
+
+#### Tareas
+
+- [ ] **Protocolo** — añadir `before_id?: string` y `limit?: number` a `GET_MESSAGE_HISTORY` payload; el servidor devuelve mensajes anteriores al `message_id` dado, ordenados DESC, limitados a `limit` (default 50)
+- [ ] **Servidor `db.rs`** — modificar `get_message_history(channel_id, before_id, limit)` para usar cursor-based pagination (`WHERE id < before_id ORDER BY created_at DESC LIMIT ?`)
+- [ ] **Servidor `handlers.rs`** — pasar `before_id` y `limit` al método de DB; incluir `has_more: bool` en la respuesta para que el cliente sepa si hay más páginas
+- [ ] **Cliente `App.tsx`** — al abrir un canal, solicitar los últimos 50 sin `before_id`; detectar scroll al top → solicitar siguiente página con `before_id = id del mensaje más antiguo cargado`
+- [ ] **Cliente `ChatArea.tsx`** — prepend de mensajes al inicio sin perder la posición de scroll; mostrar spinner de carga en la parte superior mientras se carga la página anterior; quitar spinner cuando `has_more: false`
+- [ ] **Tests manuales** — verificar que el scroll no salta, que los mensajes se insertan en orden y que no se duplican
+
+#### Archivos afectados
+
+| Archivo                              | Cambio                                                                                                  |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `server/src/db.rs`                   | `get_message_history` acepta `before_id: Option<Uuid>` + `limit: i64`                                   |
+| `server/src/handlers.rs`             | Pasar parámetros de paginación; añadir `has_more` a la respuesta                                        |
+| `server/src/models.rs`               | Añadir `before_id?`, `limit?` a `GetMessageHistoryPayload`; `has_more: bool` en `MessageHistoryPayload` |
+| `client/src/types/protocol.ts`       | Actualizar interfaces                                                                                   |
+| `client/src/App.tsx`                 | Lógica de carga incremental                                                                             |
+| `client/src/components/ChatArea.tsx` | Infinite scroll hacia arriba + spinner                                                                  |
+
+---
+
+### 0.5.12 Moderation System ✅
+
+**Priority: HIGH - v0.1.5 — COMPLETED (merged to develop)**
+
+Enable server admins to manage disruptive users via kick, ban and per-user mutes.
+
+---
+
+#### Kick
+
+- [x] Admin can kick a user — forcibly disconnects them; they can reconnect immediately with no restrictions
+- [x] `KICK_USER` client message → server closes the target's WebSocket with a `KICKED` error code
+- [x] `USER_KICKED` broadcast so all other clients update their member list
+- [x] Kicked user's client: show "You were kicked from this server" and navigate back to server list
+- [x] **Kick log** — each kick is persisted in a `kick_log` SQLite table: `id`, `user_id`, `username`, `ip_address`, `kicked_at`, `kicked_by_user_id`
+
+---
+
+#### Ban
+
+- [x] Admin can ban a user — permanently blocks reconnection from that device
+- [x] Ban is enforced by **device_public_key + IP address + user_id** (NOT username)
+- [x] `BAN_USER` client message → server disconnects target, inserts into `bans` table, broadcasts `USER_BANNED`
+- [x] `UNBAN_USER` client message → server removes row from `bans` (revoke)
+- [x] On every `CONNECT`: server checks `bans` table against incoming `device_public_key`, origin IP **and** `user_id`; any match → reject with `BANNED` error code
+- [x] Banned user's client: show "You have been banned from this server" on connect attempt
+- [x] `bans` table schema: `id TEXT PK`, `user_id TEXT`, `username TEXT`, `ip_address TEXT`, `device_public_key TEXT`, `banned_at TEXT`, `reason TEXT`, `banned_by_user_id TEXT`
+- [x] **Bug fix (post-merge)**: `User` struct now includes `device_public_key` field; all DB queries select it; `handle_ban_user` passes `target.device_public_key.as_deref()` to `create_ban` — previously always passed `None`, making device-key ban evasion possible via IP change
+
+---
+
+#### Mute (text and/or voice)
+
+- [x] Two independent mute types: **text mute** (cannot send messages) and **voice mute** (flag set, UI shown)
+- [x] Mutes applied via popover in right-panel member list (owner-only controls)
+- [x] `MUTE_USER` client message: `{ user_id, mute_text: bool, mute_voice: bool }` — sets or clears flags
+- [x] Server persists mute state in `users` table: `is_text_muted`, `is_voice_muted`
+- [x] `USER_MUTE_UPDATED` server broadcast: all clients update local user state
+- [x] Text mute enforced: server rejects `SEND_MESSAGE` with `MUTED_TEXT` error code
+- [x] Mute icons in member list (right sidebar): 🚫💬 / 🚫🎙️ icons
+- [x] "Mute all" / "Unmute all" combo buttons in moderation popover
+
+> ⚠️ **Known limitation — voice mute enforcement**: Voice mute flag is stored and broadcast correctly but has no actual audio enforcement. UDP voice forwarding is not yet implemented (stub in `udp.rs`). When UDP relay is added in a future phase, `is_voice_muted` must be checked before forwarding packets from a muted user.
+
+---
+
+#### Moderation tab in Server Settings
+
+- [x] **"Moderation"** tab in `ServerConfigModal` (manage mode only)
+- [x] **Banned users section** — list of active bans with username, IP, banned at; "Revoke ban" button per row
+- [x] **Kick log section** — read-only list of historical kicks: username, IP, kicked at
+- [x] Loaded via `GET_BAN_LIST` / `GET_KICK_LOG` WebSocket messages
 
 ### 0.5.13 Server Join Password ✅
 
@@ -513,19 +671,197 @@ Allow server owners to require a password for joining, making the server private
 
 ---
 
-### 0.5.14 Notification System 🚧
+### 0.5.26 System Tray ✅
 
-**Priority: LOW - User Convenience**
+**Priority: HIGH — Prerequisite for notifications — COMPLETED**
 
-Notify users of activity while the app is in the background.
+La app no se cierra al pulsar la X de la ventana: se minimiza a la bandeja del sistema (esquina inferior derecha de Windows). Para salir completamente el usuario usa el menú contextual del icono.
 
-#### Tasks
+#### Comportamiento
 
-- [ ] **System tray icon** — app stays in tray when window is closed (instead of exiting)
-- [ ] **Desktop notification** — show OS notification when a message arrives in a channel the user has joined while the window is not focused
-- [ ] **Tray badge / unread count** — tray icon shows badge or tooltip with unread message count
-- [ ] **Do-not-disturb setting** — toggle in Client Settings to suppress all notifications
-- [ ] **Mention detection** — highlight messages that contain `@username` in a different color; trigger notification even if window is focused
+- Cerrar la ventana (X) → ventana oculta, proceso sigue vivo, icono en system tray.
+- Clic en el icono de tray → restaura/muestra la ventana.
+- Clic derecho en el icono de tray → dropdown contextual:
+  - **Header**: "Nexum" (sólo texto, no accionable)
+  - **Check for updates** — por ahora no hace nada (placeholder para futura feature de auto-update)
+  - **Quit Nexum** — cierra el proceso completamente
+
+#### Tareas
+
+- [x] **Tauri `main.rs`** — `TrayIconBuilder` con el icono de la app; `on_tray_icon_event` gestiona `LeftClick` (mostrar ventana); `on_menu_event` gestiona `quit` y `check_updates`
+- [x] **Tauri `main.rs`** — `.on_window_event` intercepts `CloseRequested`: llama `api.prevent_close()` y `window.hide()`
+- [x] **Tauri `main.rs`** — menú con `MenuItem` deshabilitado "Nexum", separadores, "Check for updates" (no-op), "Quit Nexum"
+- [x] **`Cargo.toml`** — feature `tray-icon` añadida a la dependencia `tauri`
+
+#### Archivos afectados
+
+| Archivo | Cambio |
+|---|---|
+| `client/src-tauri/src/main.rs` | `setup_tray()` + `.setup()` + `.on_window_event()` en builder |
+| `client/src-tauri/Cargo.toml` | `tauri = { features = ["tray-icon"] }` |
+
+---
+
+### ✅ 0.5.14 Notification System — COMPLETADO
+
+**Priority: HIGH — depende de 0.5.26 (System Tray)**
+
+Sistema de notificaciones de mensajes pendientes. El objetivo MVP es que el usuario sepa cuando tiene mensajes sin leer sin tener la ventana visible.
+
+#### Alcance MVP
+
+**Qué notifica:**
+- **DMs**: siempre emiten notification (badge + sonido opcional).
+- **Canales de texto del servidor**: emiten badge visual únicamente (sin sonido por ahora).
+- **Canales de solo-lectura / notificaciones del servidor**: solo badge visual.
+
+**Qué NO notifica (pendiente, tareas separadas):**
+- menciones `@username` → ver **0.5.29**
+- silenciar servidores / canales individuales → ver subtarea MEDIUM abajo
+
+#### Unread badges
+
+- Badge rojo (bolita) aparece en:
+  - La pestaña de conversación DM no abierta en el tab bar (ya implementado en 0.5.23).
+  - El icono del system tray (tooltip con número de mensajes pendientes). ✅
+- Los badges desaparecen cuando el usuario abre la conversación correspondiente.
+- Los canales de texto con mensajes sin leer muestran un punto rojo en la lista de canales del sidebar. ✅
+
+#### Sonido
+
+- Las notificaciones sonoras aplican **únicamente a DMs**.
+- El sonido es configurable por el usuario en la pestaña **Notificaciones** de Client Settings. ✅
+- Implementado con Web Audio API (oscilador sintético) — sin archivos de audio externos.
+
+#### Tareas
+
+**Tauri (Rust)**
+- [x] Comando Tauri `update_unread_count(count: u32)` — actualiza tooltip del sistema trey con conteo de mensajes no leídos
+- [ ] Implementar overlay icon en taskbar (número de mensajes pendientes) via WinAPI — PENDIENTE (subtarea futura)
+
+**Frontend**
+- [x] `App.tsx` — `unreadChannelIds: Set<string>` en `ActiveConnection`; se puebla cuando llega `MESSAGE` en canal no activo; se limpia al hacer `handleJoinChannel`
+- [x] `ChannelList.tsx` — badge/punto rojo en canales con mensajes sin leer
+- [x] `App.tsx` — `useEffect` invoca `update_unread_count` con conteo total (DMs + canales) cuando cambia unread state
+- [x] `App.tsx` — `DM_RECEIVED` reproduce sonido sintético (Web Audio API) si sonido habilitado
+- [x] `playDmNotificationSound()` — oscilador 880 Hz, 0.3s, sin asset externo
+
+**Client Settings — pestaña Notificaciones**
+- [x] Añadir pestaña **"Notifications"** en `ClientSettingsModal.tsx`
+- [x] Toggle: **"Sound notifications for DMs"** (default: off) — persiste en `localStorage` como `nexum_dm_sound_enabled`
+- [ ] Subtarea pendiente (LOW): permitir al usuario configurar el sonido de notificación (archivo personalizado)
+
+**Silenciar servidores/canales (MEDIUM — pendiente, no en MVP)**
+- [ ] El usuario podrá silenciar un servidor completo (sin badges, sin sonido para ese servidor)
+- [ ] El usuario podrá silenciar canales individuales dentro de un servidor
+- [ ] La configuración de mute se almacena en `localStorage` por `serverId/channelId`
+- [ ] UI: botón derecho / menú contextual en el nombre del servidor o canal en el sidebar
+
+#### Archivos afectados
+
+| Archivo | Cambio |
+|---|---|
+| `client/src-tauri/src/main.rs` | Comando `update_unread_count` + taskbar overlay |
+| `client/src/App.tsx` | `unreadChannelIds`, invocar `update_unread_count`, sonido DM |
+| `client/src/components/ChannelList.tsx` | Badge visual en canales con mensajes no leídos |
+| `client/src/components/ClientSettingsModal.tsx` | Nueva pestaña Notifications + toggle de sonido |
+
+---
+
+### 0.5.27 Server Notification Channel + Read-only Channels 🚧
+
+**Priority: HIGH — Prerequisite for server-side notifications**
+
+#### Canal de notificaciones del servidor
+
+El administrador puede designar un canal de texto existente como **canal de notificaciones del servidor**. En ese canal el servidor escribirá automáticamente mensajes de sistema (bienvenidas, salidas, etc.). Es un canal normal en el que los usuarios también pueden escribir mensajes.
+
+**Mensajes automáticos del servidor (MVP):**
+- `"👋 {username} se ha unido al servidor."`
+- `"👋 {username} ha abandonado el servidor."`
+
+**Configuración:**
+- En la modal de administración del servidor (tab **Moderation** o nuevo tab **Notifications**): selector/dropdown con los canales de texto existentes para elegir el canal de notificaciones; botón para deseleccionar (desactivar).
+- Botón **(i)** informativo: explica qué mensajes llegarán al canal y que si no hay canal configurado no llega ninguna notificación de servidor.
+- Si no hay canal configurado → no se envía ningún mensaje automático.
+- El canal configurado se persiste en `server.toml` o en la DB como metadato del servidor.
+
+**Tareas canal de notificaciones:**
+- [ ] **`server/src/config.rs`** — añadir campo `notification_channel_id: Option<String>` a `ServerConfig`
+- [ ] **`server/src/handlers.rs`** — en `handle_connect` y `handle_disconnect` (o equivalente): si `notification_channel_id` está configurado, enviar mensaje de sistema al canal vía `broadcast_to_channel`
+- [ ] **`server/src/models.rs`** — nuevo tipo de mensaje: `system: true` flag en `Message` para que el cliente lo renderice diferente (texto gris/cursiva, sin avatar)
+- [ ] **Protocolo** — `GET_SERVER_SETTINGS` devuelve `notification_channel_id`; nuevo mensaje `SET_NOTIFICATION_CHANNEL { channel_id: Option<String> }` (admin only)
+- [ ] **`ServerConfigModal.tsx`** — nuevo selector en tab de administración para elegir canal de notificaciones + botón (i) con tooltip explicativo
+- [ ] **`ChatArea.tsx`** — renderizar mensajes con `system: true` en estilo diferenciado (gris, cursiva, sin avatar, sin acciones)
+
+#### Canales de solo lectura
+
+El administrador puede marcar un canal de texto como **solo lectura**: los usuarios normales no pueden escribir, solo el administrador y el servidor (mensajes de sistema). Útil para canales de anuncios o para usar como canal de notificaciones exclusivo.
+
+**Tareas canales solo lectura:**
+- [ ] **`server/src/db.rs`** — añadir columna `is_read_only: bool` (default `false`) a la tabla `channels`
+- [ ] **`server/src/handlers.rs`** — en `handle_send_message`: rechazar con `ERROR` si el canal es `is_read_only` y el usuario no es owner/admin
+- [ ] **Protocolo** — `is_read_only` incluido en el payload de canal al cliente
+- [ ] **`client/src/types/protocol.ts`** — añadir `is_read_only?: boolean` a `Channel`
+- [ ] **`ChannelList.tsx`** — icono de candado 🔒 en canales solo lectura
+- [ ] **`ChatArea.tsx`** — ocultar / deshabilitar el input de mensaje cuando el canal es solo lectura; mostrar mensaje "Este canal es de solo lectura"
+- [ ] **Admin UI** — toggle `is_read_only` en el menú contextual / panel de edición de canal (owner only)
+
+#### Archivos afectados
+
+| Archivo | Cambio |
+|---|---|
+| `server/src/config.rs` | `notification_channel_id` |
+| `server/src/db.rs` | Columna `is_read_only` en channels |
+| `server/src/handlers.rs` | Mensajes de sistema en join/leave; rechazar send en read-only |
+| `server/src/models.rs` | `system` flag en Message; `is_read_only` en Channel |
+| `client/src/types/protocol.ts` | `is_read_only`, `system` |
+| `client/src/components/ChannelList.tsx` | Icono candado |
+| `client/src/components/ChatArea.tsx` | Renderizado mensajes sistema; input deshabilitado |
+| `client/src/components/ServerConfigModal.tsx` | Selector canal de notificaciones |
+
+---
+
+### 0.5.28 Message Reactions 🚧
+
+**Priority: LOW**
+
+Los usuarios pueden reaccionar a cualquier mensaje con emojis (como Discord / WhatsApp). Pueden añadir una reacción o eliminar una que ya pusieron.
+
+#### Comportamiento
+
+- Hover sobre un mensaje → botón emoji "+" aparece.
+- Click en "+" → emoji picker (selector de emojis básico).
+- El emoji elegido aparece bajo el mensaje con un contador (p.ej. `👍 3`).
+- Si el usuario ya puso ese mismo emoji, hacer click en la reacción la elimina.
+- Si el usuario no puso ese emoji, hacer click en la reacción existente la añade.
+- Las reacciones son visibles para todos los usuarios en el canal.
+
+#### Tareas
+
+- [ ] **DB** — nueva tabla `message_reactions`: `id`, `message_id`, `user_id`, `emoji`, `created_at`
+- [ ] **Protocolo** — `ADD_REACTION { message_id, emoji }` / `REMOVE_REACTION { message_id, emoji }`; broadcast `REACTION_UPDATED { message_id, reactions: [{emoji, count, user_ids}] }`
+- [ ] **`server/src/handlers.rs`** — handlers para `ADD_REACTION` / `REMOVE_REACTION`
+- [ ] **`server/src/db.rs`** — `add_reaction`, `remove_reaction`, `get_reactions_for_message`
+- [ ] **`client/src/types/protocol.ts`** — nuevas interfaces
+- [ ] **`ChatArea.tsx`** — renderizar reacciones bajo cada mensaje; emoji picker básico; lógica add/remove
+
+---
+
+### 0.5.29 Mention System 🚧
+
+**Priority: LOW**
+
+Permite mencionar usuarios con `@username` en mensajes de canal. MVP: solo detección y highlight visual en el cliente, sin notificación sonora ni push.
+
+#### Tareas
+
+- [ ] **`ChatArea.tsx`** — parsear texto del mensaje buscando `@username`; resaltar en color diferente si el username coincide con el usuario local
+- [ ] **Protocolo** — el servidor puede incluir `mentions: string[]` en el payload de mensaje para que el cliente no tenga que hacer parsing propio (opcional, puede hacerse solo en cliente en MVP)
+- [ ] **Visual** — mensajes que contienen una mención al usuario actual tienen fondo ligeramente resaltado en el chat
+- [ ] **Notificación** — integración con el sistema de notificaciones (0.5.14) cuando esté implementado
+
+---
 
 ### 0.5.15 Server Launch UX & Unified Server Config Modal 🚧
 
@@ -988,7 +1324,6 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 All features below are OUT OF SCOPE for initial release:
 
 - [ ] TLS support (use reverse proxy)
-- [ ] Message history pagination
 - [ ] Message search
 - [ ] User profile pictures
 - [ ] Custom emojis/reactions
@@ -1032,9 +1367,9 @@ All features below are OUT OF SCOPE for initial release:
 
 - No rate limiting enforcement (structure exists)
 - No call history tracking (table exists, unused)
-- Message pagination (loads all messages)
+- Message pagination → trasladado a **0.5.25** como ítem crítico
 - No user list per channel UI
 
 ---
 
-_Last updated: 2026-02-21 (Phase 0.5 Extension — admin features + UX polish completed)_
+_Last updated: 2026-03-22 (0.5.26 System Tray añadido HIGH; 0.5.14 Notifications reescrito con spec completa; 0.5.27 Read-only channels + notification channel añadido HIGH; 0.5.28 Message reactions añadido LOW; 0.5.29 Mention system añadido LOW)_

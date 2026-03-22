@@ -13,6 +13,9 @@ export interface User {
   avatar_path?: string;
   avatar_version?: number;
   created_at: string;
+  is_text_muted?: boolean;
+  is_voice_muted?: boolean;
+  is_online?: boolean;
 }
 
 export interface Channel {
@@ -74,6 +77,12 @@ export type ClientMessage =
   | { type: 'MOVE_CHANNEL_TO_CATEGORY'; payload: MoveChannelToCategoryPayload }
   | { type: 'SEND_DM'; payload: SendDmPayload }
   | { type: 'GET_DM_HISTORY'; payload: GetDmHistoryPayload }
+  | { type: 'KICK_USER'; payload: KickUserPayload }
+  | { type: 'BAN_USER'; payload: BanUserPayload }
+  | { type: 'UNBAN_USER'; payload: UnbanUserPayload }
+  | { type: 'MUTE_USER'; payload: MuteUserPayload }
+  | { type: 'GET_BAN_LIST' }
+  | { type: 'GET_KICK_LOG' }
   | { type: 'PING' };
 
 export interface ConnectPayload {
@@ -175,6 +184,11 @@ export type ServerMessage =
   | { type: 'CHANNEL_MOVED'; payload: ChannelMovedPayload }
   | { type: 'DM_RECEIVED'; payload: DmReceivedPayload }
   | { type: 'DM_HISTORY'; payload: DmHistoryPayload }
+  | { type: 'USER_KICKED'; payload: UserKickedPayload }
+  | { type: 'USER_BANNED'; payload: UserBannedPayload }
+  | { type: 'USER_MUTE_UPDATED'; payload: UserMuteUpdatedPayload }
+  | { type: 'BAN_LIST'; payload: BanListPayload }
+  | { type: 'KICK_LOG'; payload: KickLogPayload }
   | { type: 'PONG' };
 
 export interface WelcomePayload {
@@ -204,6 +218,9 @@ export type ErrorCode =
   | 'RATE_LIMITED'
   | 'MESSAGE_TOO_LARGE'
   | 'PASSWORD_REQUIRED'
+  | 'BANNED'
+  | 'KICKED'
+  | 'MUTED_TEXT'
   | 'INTERNAL';
 
 export interface ChannelCreatedPayload {
@@ -230,6 +247,7 @@ export interface MessagePayload {
   avatar_url?: string;
   avatar_path?: string;
   avatar_version: number;
+  deleted_by_username?: string;
 }
 
 export interface MessageHistoryPayload {
@@ -384,4 +402,71 @@ export interface DmReceivedPayload {
 export interface DmHistoryPayload {
   other_user_id: string;
   messages: DmReceivedPayload[];
+}
+
+// ============================================================================
+// Moderation Types
+// ============================================================================
+
+export interface KickUserPayload {
+  user_id: string;
+}
+
+export interface BanUserPayload {
+  user_id: string;
+  reason?: string;
+}
+
+export interface UnbanUserPayload {
+  ban_id: string;
+}
+
+export interface MuteUserPayload {
+  user_id: string;
+  mute_text: boolean;
+  mute_voice: boolean;
+}
+
+export interface UserKickedPayload {
+  user_id: string;
+  username: string;
+}
+
+export interface UserBannedPayload {
+  user_id: string;
+  username: string;
+}
+
+export interface UserMuteUpdatedPayload {
+  user_id: string;
+  is_text_muted: boolean;
+  is_voice_muted: boolean;
+}
+
+export interface Ban {
+  id: string;
+  user_id: string;
+  username: string;
+  ip_address: string;
+  device_public_key?: string;
+  banned_at: string;
+  reason?: string;
+  banned_by_user_id: string;
+}
+
+export interface KickLogEntry {
+  id: string;
+  user_id: string;
+  username: string;
+  ip_address: string;
+  kicked_at: string;
+  kicked_by_user_id: string;
+}
+
+export interface BanListPayload {
+  bans: Ban[];
+}
+
+export interface KickLogPayload {
+  entries: KickLogEntry[];
 }

@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 use chrono::Utc;
 
-use crate::models::{User, UserRole, Channel, ChannelType, Message, Category, DirectMessage};
+use crate::models::{User, UserRole, Channel, ChannelType, Message, Category, DirectMessage, Ban, KickLogEntry};
 
 #[derive(Clone)]
 pub struct Database {
@@ -102,6 +102,26 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_dm_sender ON direct_messages(sender_id);
             CREATE INDEX IF NOT EXISTS idx_dm_recipient ON direct_messages(recipient_id);
             CREATE INDEX IF NOT EXISTS idx_dm_created ON direct_messages(created_at);
+
+            CREATE TABLE IF NOT EXISTS bans (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                username TEXT NOT NULL,
+                ip_address TEXT NOT NULL,
+                device_public_key TEXT,
+                banned_at TEXT NOT NULL,
+                reason TEXT,
+                banned_by_user_id TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS kick_log (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                username TEXT NOT NULL,
+                ip_address TEXT NOT NULL,
+                kicked_at TEXT NOT NULL,
+                kicked_by_user_id TEXT NOT NULL
+            );
             "#
         )?;
 
@@ -146,6 +166,12 @@ impl Database {
             conn.execute("ALTER TABLE users ADD COLUMN device_public_key TEXT", [])?;
             conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_device_key ON users(device_public_key) WHERE device_public_key IS NOT NULL", [])?;
         }
+        if !user_columns.contains(&"is_text_muted".to_string()) {
+            conn.execute("ALTER TABLE users ADD COLUMN is_text_muted INTEGER NOT NULL DEFAULT 0", [])?;
+        }
+        if !user_columns.contains(&"is_voice_muted".to_string()) {
+            conn.execute("ALTER TABLE users ADD COLUMN is_voice_muted INTEGER NOT NULL DEFAULT 0", [])?;
+        }
 
         Ok(())
     }
@@ -164,11 +190,14 @@ impl Database {
             avatar_path: None,
             avatar_version: 0,
             created_at: Utc::now(),
+            is_text_muted: false,
+            is_voice_muted: false,
+            device_public_key: None,
         };
 
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT INTO users (id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            "INSERT INTO users (id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at, is_text_muted, is_voice_muted) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, 0)",
             params![
                 user.id.to_string(),
                 &user.username,
@@ -187,7 +216,7 @@ impl Database {
     pub fn get_user(&self, user_id: Uuid) -> Result<Option<User>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at FROM users WHERE id = ?1"
+            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at, is_text_muted, is_voice_muted, device_public_key FROM users WHERE id = ?1"
         )?;
 
         let user = stmt.query_row(params![user_id.to_string()], |row| {
@@ -200,6 +229,9 @@ impl Database {
                 avatar_path: row.get(5)?,
                 avatar_version: row.get(6)?,
                 created_at: row.get::<_, String>(7)?.parse().unwrap(),
+                is_text_muted: row.get::<_, i32>(8)? != 0,
+                is_voice_muted: row.get::<_, i32>(9)? != 0,
+                device_public_key: row.get(10)?,
             })
         }).optional()?;
 
@@ -209,7 +241,7 @@ impl Database {
     pub fn get_user_by_username(&self, username: &str) -> Result<Option<User>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at FROM users WHERE username = ?1"
+            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at, is_text_muted, is_voice_muted, device_public_key FROM users WHERE username = ?1"
         )?;
 
         let user = stmt.query_row(params![username], |row| {
@@ -222,6 +254,9 @@ impl Database {
                 avatar_path: row.get(5)?,
                 avatar_version: row.get(6)?,
                 created_at: row.get::<_, String>(7)?.parse().unwrap(),
+                is_text_muted: row.get::<_, i32>(8)? != 0,
+                is_voice_muted: row.get::<_, i32>(9)? != 0,
+                device_public_key: row.get(10)?,
             })
         }).optional()?;
 
@@ -232,7 +267,7 @@ impl Database {
     pub fn get_user_by_device_key(&self, device_key: &str) -> Result<Option<User>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at FROM users WHERE device_public_key = ?1"
+            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at, is_text_muted, is_voice_muted, device_public_key FROM users WHERE device_public_key = ?1"
         )?;
         let user = stmt.query_row(params![device_key], |row| {
             Ok(User {
@@ -244,6 +279,9 @@ impl Database {
                 avatar_path: row.get(5)?,
                 avatar_version: row.get(6)?,
                 created_at: row.get::<_, String>(7)?.parse().unwrap(),
+                is_text_muted: row.get::<_, i32>(8)? != 0,
+                is_voice_muted: row.get::<_, i32>(9)? != 0,
+                device_public_key: row.get(10)?,
             })
         }).optional()?;
         Ok(user)
@@ -320,7 +358,7 @@ impl Database {
     pub fn list_users(&self) -> Result<Vec<User>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at FROM users ORDER BY created_at"
+            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at, is_text_muted, is_voice_muted, device_public_key FROM users ORDER BY created_at"
         )?;
         let users = stmt.query_map([], |row| {
             Ok(User {
@@ -332,6 +370,9 @@ impl Database {
                 avatar_path: row.get(5)?,
                 avatar_version: row.get(6)?,
                 created_at: row.get::<_, String>(7)?.parse().unwrap(),
+                is_text_muted: row.get::<_, i32>(8)? != 0,
+                is_voice_muted: row.get::<_, i32>(9)? != 0,
+                device_public_key: row.get(10)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -341,7 +382,7 @@ impl Database {
     pub fn get_user_by_ip(&self, ip_address: &str) -> Result<Option<User>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at FROM users WHERE ip_address = ?1"
+            "SELECT id, username, role, ip_address, avatar_url, avatar_path, avatar_version, created_at, is_text_muted, is_voice_muted, device_public_key FROM users WHERE ip_address = ?1"
         )?;
 
         let user = stmt.query_row(params![ip_address], |row| {
@@ -354,6 +395,9 @@ impl Database {
                 avatar_path: row.get(5)?,
                 avatar_version: row.get(6)?,
                 created_at: row.get::<_, String>(7)?.parse().unwrap(),
+                is_text_muted: row.get::<_, i32>(8)? != 0,
+                is_voice_muted: row.get::<_, i32>(9)? != 0,
+                device_public_key: row.get(10)?,
             })
         }).optional()?;
 
@@ -633,12 +677,13 @@ impl Database {
         Ok(messages)
     }
 
-    pub fn get_message_history(&self, channel_id: Uuid, limit: usize) -> Result<Vec<(Message, String, Option<String>, Option<String>, i32)>> {
+    pub fn get_message_history(&self, channel_id: Uuid, limit: usize) -> Result<Vec<(Message, String, Option<String>, Option<String>, i32, Option<String>)>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT m.id, m.channel_id, m.user_id, m.content, m.created_at, m.deleted_by_user_id, m.deleted_at, m.edited_at, u.username, u.avatar_url, u.avatar_path, u.avatar_version
+            "SELECT m.id, m.channel_id, m.user_id, m.content, m.created_at, m.deleted_by_user_id, m.deleted_at, m.edited_at, u.username, u.avatar_url, u.avatar_path, u.avatar_version, du.username
              FROM messages m
              JOIN users u ON m.user_id = u.id
+             LEFT JOIN users du ON m.deleted_by_user_id = du.id
              WHERE m.channel_id = ?1 
              ORDER BY m.created_at ASC 
              LIMIT ?2"
@@ -663,7 +708,8 @@ impl Database {
             let avatar_url: Option<String> = row.get(9)?;
             let avatar_path: Option<String> = row.get(10)?;
             let avatar_version: i32 = row.get(11)?;
-            Ok((message, username, avatar_url, avatar_path, avatar_version))
+            let deleted_by_username: Option<String> = row.get(12)?;
+            Ok((message, username, avatar_url, avatar_path, avatar_version, deleted_by_username))
         })?
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -789,5 +835,217 @@ impl Database {
         .collect::<Result<Vec<_>, _>>()?;
 
         Ok(rows)
+    }
+
+    // ========================================================================
+    // Moderation Operations
+    // ========================================================================
+
+    /// Check if a connecting user is banned (by device_key, IP, or user_id).
+    pub fn is_banned(
+        &self,
+        device_key: Option<&str>,
+        ip: &str,
+        user_id: Uuid,
+    ) -> Result<Option<Ban>> {
+        let conn = self.conn.lock().unwrap();
+        // Check by user_id first (most specific)
+        let by_user: Option<Ban> = {
+            let mut stmt = conn.prepare(
+                "SELECT id, user_id, username, ip_address, device_public_key, banned_at, reason, banned_by_user_id \
+                 FROM bans WHERE user_id = ?1 LIMIT 1",
+            )?;
+            stmt.query_row(params![user_id.to_string()], |row| {
+                Ok(Ban {
+                    id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                    user_id: Uuid::parse_str(&row.get::<_, String>(1)?).unwrap(),
+                    username: row.get(2)?,
+                    ip_address: row.get(3)?,
+                    device_public_key: row.get(4)?,
+                    banned_at: row.get::<_, String>(5)?.parse().unwrap(),
+                    reason: row.get(6)?,
+                    banned_by_user_id: Uuid::parse_str(&row.get::<_, String>(7)?).unwrap(),
+                })
+            }).optional()?
+        };
+        if by_user.is_some() {
+            return Ok(by_user);
+        }
+        // Check by IP
+        let by_ip: Option<Ban> = {
+            let mut stmt = conn.prepare(
+                "SELECT id, user_id, username, ip_address, device_public_key, banned_at, reason, banned_by_user_id \
+                 FROM bans WHERE ip_address = ?1 LIMIT 1",
+            )?;
+            stmt.query_row(params![ip], |row| {
+                Ok(Ban {
+                    id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                    user_id: Uuid::parse_str(&row.get::<_, String>(1)?).unwrap(),
+                    username: row.get(2)?,
+                    ip_address: row.get(3)?,
+                    device_public_key: row.get(4)?,
+                    banned_at: row.get::<_, String>(5)?.parse().unwrap(),
+                    reason: row.get(6)?,
+                    banned_by_user_id: Uuid::parse_str(&row.get::<_, String>(7)?).unwrap(),
+                })
+            }).optional()?
+        };
+        if by_ip.is_some() {
+            return Ok(by_ip);
+        }
+        // Check by device key
+        if let Some(key) = device_key {
+            let mut stmt = conn.prepare(
+                "SELECT id, user_id, username, ip_address, device_public_key, banned_at, reason, banned_by_user_id \
+                 FROM bans WHERE device_public_key = ?1 LIMIT 1",
+            )?;
+            return Ok(stmt.query_row(params![key], |row| {
+                Ok(Ban {
+                    id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                    user_id: Uuid::parse_str(&row.get::<_, String>(1)?).unwrap(),
+                    username: row.get(2)?,
+                    ip_address: row.get(3)?,
+                    device_public_key: row.get(4)?,
+                    banned_at: row.get::<_, String>(5)?.parse().unwrap(),
+                    reason: row.get(6)?,
+                    banned_by_user_id: Uuid::parse_str(&row.get::<_, String>(7)?).unwrap(),
+                })
+            }).optional()?);
+        }
+        Ok(None)
+    }
+
+    pub fn create_ban(
+        &self,
+        user_id: Uuid,
+        username: &str,
+        ip_address: &str,
+        device_public_key: Option<&str>,
+        reason: Option<String>,
+        banned_by_user_id: Uuid,
+    ) -> Result<Ban> {
+        let ban = Ban {
+            id: Uuid::new_v4(),
+            user_id,
+            username: username.to_string(),
+            ip_address: ip_address.to_string(),
+            device_public_key: device_public_key.map(|s| s.to_string()),
+            banned_at: Utc::now(),
+            reason,
+            banned_by_user_id,
+        };
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO bans (id, user_id, username, ip_address, device_public_key, banned_at, reason, banned_by_user_id) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                ban.id.to_string(),
+                ban.user_id.to_string(),
+                &ban.username,
+                &ban.ip_address,
+                &ban.device_public_key,
+                ban.banned_at.to_rfc3339(),
+                &ban.reason,
+                ban.banned_by_user_id.to_string(),
+            ],
+        )?;
+        Ok(ban)
+    }
+
+    pub fn remove_ban(&self, ban_id: Uuid) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM bans WHERE id = ?1", params![ban_id.to_string()])?;
+        Ok(())
+    }
+
+    pub fn list_bans(&self) -> Result<Vec<Ban>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, user_id, username, ip_address, device_public_key, banned_at, reason, banned_by_user_id \
+             FROM bans ORDER BY banned_at DESC",
+        )?;
+        let bans = stmt.query_map([], |row| {
+            Ok(Ban {
+                id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                user_id: Uuid::parse_str(&row.get::<_, String>(1)?).unwrap(),
+                username: row.get(2)?,
+                ip_address: row.get(3)?,
+                device_public_key: row.get(4)?,
+                banned_at: row.get::<_, String>(5)?.parse().unwrap(),
+                reason: row.get(6)?,
+                banned_by_user_id: Uuid::parse_str(&row.get::<_, String>(7)?).unwrap(),
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+        Ok(bans)
+    }
+
+    pub fn add_kick_log(
+        &self,
+        user_id: Uuid,
+        username: &str,
+        ip_address: &str,
+        kicked_by_user_id: Uuid,
+    ) -> Result<KickLogEntry> {
+        let entry = KickLogEntry {
+            id: Uuid::new_v4(),
+            user_id,
+            username: username.to_string(),
+            ip_address: ip_address.to_string(),
+            kicked_at: Utc::now(),
+            kicked_by_user_id,
+        };
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO kick_log (id, user_id, username, ip_address, kicked_at, kicked_by_user_id) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                entry.id.to_string(),
+                entry.user_id.to_string(),
+                &entry.username,
+                &entry.ip_address,
+                entry.kicked_at.to_rfc3339(),
+                entry.kicked_by_user_id.to_string(),
+            ],
+        )?;
+        Ok(entry)
+    }
+
+    pub fn list_kick_log(&self) -> Result<Vec<KickLogEntry>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, user_id, username, ip_address, kicked_at, kicked_by_user_id \
+             FROM kick_log ORDER BY kicked_at DESC LIMIT 200",
+        )?;
+        let entries = stmt.query_map([], |row| {
+            Ok(KickLogEntry {
+                id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                user_id: Uuid::parse_str(&row.get::<_, String>(1)?).unwrap(),
+                username: row.get(2)?,
+                ip_address: row.get(3)?,
+                kicked_at: row.get::<_, String>(4)?.parse().unwrap(),
+                kicked_by_user_id: Uuid::parse_str(&row.get::<_, String>(5)?).unwrap(),
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+        Ok(entries)
+    }
+
+    pub fn set_user_mute(
+        &self,
+        user_id: Uuid,
+        is_text_muted: bool,
+        is_voice_muted: bool,
+    ) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE users SET is_text_muted = ?1, is_voice_muted = ?2 WHERE id = ?3",
+            params![
+                is_text_muted as i32,
+                is_voice_muted as i32,
+                user_id.to_string(),
+            ],
+        )?;
+        Ok(())
     }
 }

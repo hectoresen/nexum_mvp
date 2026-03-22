@@ -169,9 +169,8 @@ export default function AvatarModal({ currentAvatar, serverAddress, sessionId, u
 
         const data = await response.json()
         // The avatar path will be something like "avatars/{userId}.webp"
-        // Construct the full URL
-        const fullAvatarUrl = `http://${serverAddress}/${data.avatar_path}`
-        onSave(fullAvatarUrl)
+        // Pass the relative path so each client resolves it via their own serverAddress
+        onSave(data.avatar_path)
         onClose()
       } catch (err: any) {
         setError(err.message || 'Failed to upload avatar')

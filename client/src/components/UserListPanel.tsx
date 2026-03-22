@@ -6,15 +6,19 @@ import { useAppTheme } from '../hooks/useAppTheme'
 interface UserListPanelProps {
   users: User[] | null
   currentUserId: string | null
+  currentUserRole?: 'owner' | 'member' | null
   serverAddress?: string
   openDmTabs?: string[] // userIds with open DM tabs
   unreadDmUserIds?: string[] // userIds with unread incoming DMs
   onUserClick?: (user: User) => void // View profile
   onSendDm?: (user: User, message: string) => void // Send first DM & open conversation
   onOpenExistingDm?: (user: User) => void // Open an already-open DM tab
+  onKick?: (userId: string) => void
+  onBan?: (userId: string, reason?: string) => void
+  onMute?: (userId: string, muteText: boolean, muteVoice: boolean) => void
 }
 
-export default function UserListPanel({ users, currentUserId, serverAddress, openDmTabs = [], unreadDmUserIds = [], onUserClick, onSendDm, onOpenExistingDm }: UserListPanelProps) {
+export default function UserListPanel({ users, currentUserId, currentUserRole, serverAddress, openDmTabs = [], unreadDmUserIds = [], onUserClick, onSendDm, onOpenExistingDm, onKick, onBan, onMute }: UserListPanelProps) {
   const { tw } = useAppTheme()
   const [activePopoverId, setActivePopoverId] = useState<string | null>(null)
   const [dmInput, setDmInput] = useState('')
@@ -55,8 +59,11 @@ export default function UserListPanel({ users, currentUserId, serverAddress, ope
   const members = users.filter(u => u.role === 'member')
 
   const getAvatarUrl = (user: User): string | null => {
-    if (user.avatar_url) return user.avatar_url
-    if (user.avatar_path && serverAddress) return `http://${serverAddress}/${user.avatar_path}`
+    if (user.avatar_path && serverAddress) return `http://${serverAddress}/${user.avatar_path}?v=${user.avatar_version ?? 0}`
+    if (user.avatar_url) {
+      if (user.avatar_url.startsWith('http') || user.avatar_url.startsWith('data:')) return user.avatar_url
+      if (serverAddress) return `http://${serverAddress}/${user.avatar_url}?v=${user.avatar_version ?? 0}`
+    }
     return null
   }
 
@@ -71,10 +78,14 @@ export default function UserListPanel({ users, currentUserId, serverAddress, ope
       const anchor = anchorRefs.current.get(user.id)
       if (anchor) {
         const rect = anchor.getBoundingClientRect()
-        setPopoverPos({
-          top: rect.top,
-          right: window.innerWidth - rect.left + 8, // 8px gap to the left of the panel
-        })
+        // Anchor from top unless the row is in the lower half — then anchor from bottom
+        // so the popover opens upward and stays on screen
+        const useBottomAnchor = rect.top > window.innerHeight * 0.5
+        setPopoverPos(
+          useBottomAnchor
+            ? { top: -(window.innerHeight - rect.bottom), right: window.innerWidth - rect.left + 8 }
+            : { top: rect.top, right: window.innerWidth - rect.left + 8 }
+        )
       }
       setActivePopoverId(user.id)
       setDmInput('')
@@ -106,8 +117,11 @@ export default function UserListPanel({ users, currentUserId, serverAddress, ope
           className={`px-3 py-2 ${tw.bgHoverSubtle} transition-colors cursor-pointer flex items-center gap-2 ${isCurrentUser ? tw.bgHover : ''} ${isPopoverOpen ? tw.bgHover : ''}`}
           title={`${user.username}${isCurrentUser ? ' (you)' : ''}`}
           onClick={() => handleUserClick(user)}>
-          <div className={`w-8 h-8 rounded-full ${tw.bgInput} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
-            {avatarUrl ? <img src={avatarUrl} alt={user.username} className="w-full h-full object-cover" /> : <span className={`text-xs font-medium ${tw.textPrimary}`}>{user.username[0]?.toUpperCase()}</span>}
+          <div className="relative flex-shrink-0">
+            <div className={`w-8 h-8 rounded-full ${tw.bgInput} flex items-center justify-center overflow-hidden`}>
+              {avatarUrl ? <img src={avatarUrl} alt={user.username} className="w-full h-full object-cover" /> : <span className={`text-xs font-medium ${tw.textPrimary}`}>{user.username[0]?.toUpperCase()}</span>}
+            </div>
+            <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 ${tw.bgHeader} ${user.is_online ? 'bg-green-500' : 'bg-gray-500'}`} />
           </div>
           <div className="flex-1 min-w-0">
             <p className={`text-sm truncate ${isCurrentUser ? `${tw.textPrimary} font-medium` : tw.textSecondary}`}>
@@ -115,6 +129,9 @@ export default function UserListPanel({ users, currentUserId, serverAddress, ope
               {isCurrentUser && <span className={`${tw.textMuted} ml-1`}>(you)</span>}
             </p>
           </div>
+          {/* Mute status icons */}
+          {user.is_text_muted && <span title="Text muted" className="text-xs">🚫💬</span>}
+          {user.is_voice_muted && <span title="Voice muted" className="text-xs">🚫🎙️</span>}
           {/* Unread message badge — red dot */}
           {hasUnread && !isCurrentUser && <span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0 animate-pulse" title="Unread message" />}
           {/* Open DM tab indicator — blue dot */}
@@ -138,7 +155,7 @@ export default function UserListPanel({ users, currentUserId, serverAddress, ope
     <div className={`w-56 ${tw.bgHeader} border-l ${tw.borderDefault} flex flex-col`}>
       <div className={`h-12 px-4 border-b ${tw.borderDefault} flex flex-col justify-center`}>
         <h3 className={`${tw.textPrimary} font-semibold text-sm`}>Server Members</h3>
-        <p className={`text-xs ${tw.textMuted} mt-1`}>{users.length} total</p>
+        <p className={`text-xs ${tw.textMuted} mt-1`}>{users.filter(u => u.is_online).length} online · {users.length} total</p>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -195,13 +212,22 @@ export default function UserListPanel({ users, currentUserId, serverAddress, ope
       {activeUser &&
         popoverPos &&
         createPortal(
-          <div ref={popoverRef} style={{ position: 'fixed', top: popoverPos.top, right: popoverPos.right, zIndex: 9999 }} className={`w-52 ${tw.bgCard} rounded-lg shadow-xl border ${tw.borderDefault} p-3`}>
+          <div
+            ref={popoverRef}
+            style={
+              popoverPos.top < 0
+                ? { position: 'fixed', bottom: -popoverPos.top, right: popoverPos.right, zIndex: 9999 }
+                : { position: 'fixed', top: popoverPos.top, right: popoverPos.right, zIndex: 9999 }
+            }
+            className={`w-56 ${tw.bgCard} rounded-lg shadow-xl border ${tw.borderDefault} p-3`}>
+            {/* Header */}
             <p className={`text-xs font-semibold ${tw.textPrimary} mb-2 flex items-center gap-2`}>
               {activeUser.username}
+              {activeUser.role === 'owner' && <span className="text-amber-400 text-xs">★ admin</span>}
               {hasUnreadForActive && <span className="text-red-400 text-xs">● unread</span>}
             </p>
 
-            {/* Open / view conversation — always visible for any other user */}
+            {/* Open / view conversation */}
             <button
               onClick={() => {
                 onOpenExistingDm?.(activeUser)
@@ -250,6 +276,100 @@ export default function UserListPanel({ users, currentUserId, serverAddress, ope
               className={`w-full mt-2 px-2 py-1 text-xs ${tw.textMuted} hover:${tw.textSecondary} transition-colors text-left`}>
               View profile
             </button>
+
+            {/* ── Moderation section — visible to owners only, disabled when target is admin ── */}
+            {currentUserRole === 'owner' && activeUser.id !== currentUserId && (() => {
+              const isTargetAdmin = activeUser.role === 'owner'
+              const bothMuted = !!activeUser.is_text_muted && !!activeUser.is_voice_muted
+              const btnBase = 'w-full px-2 py-1.5 text-xs rounded transition-colors text-left flex items-center gap-2'
+              const disabledCls = 'opacity-40 cursor-not-allowed'
+              return (
+                <div className={`mt-2 pt-2 border-t ${tw.borderDefault} flex flex-col gap-0.5`}>
+                  {isTargetAdmin && (
+                    <p className={`text-xs ${tw.textTertiary} px-2 pb-1`}>
+                      No se puede moderar a un administrador
+                    </p>
+                  )}
+
+                  {/* Kick */}
+                  <button
+                    disabled={isTargetAdmin}
+                    onClick={() => { if (!isTargetAdmin) { onKick?.(activeUser.id); closePopover() } }}
+                    title={isTargetAdmin ? 'No se puede kickear a un admin' : 'Expulsar temporalmente (puede reconectarse)'}
+                    className={`${btnBase} text-orange-400 hover:bg-orange-500/20 ${isTargetAdmin ? disabledCls : ''}`}>
+                    <span>👢</span> Kick
+                  </button>
+
+                  {/* Ban */}
+                  <button
+                    disabled={isTargetAdmin}
+                    onClick={() => { if (!isTargetAdmin) { onBan?.(activeUser.id); closePopover() } }}
+                    title={isTargetAdmin ? 'No se puede banear a un admin' : 'Banear permanentemente'}
+                    className={`${btnBase} text-red-400 hover:bg-red-500/20 ${isTargetAdmin ? disabledCls : ''}`}>
+                    <span>🔨</span> Ban
+                  </button>
+
+                  <div className={`my-0.5 border-t ${tw.borderDefault} opacity-40`} />
+
+                  {/* Mute text */}
+                  {!activeUser.is_text_muted ? (
+                    <button
+                      disabled={isTargetAdmin}
+                      onClick={() => { if (!isTargetAdmin) { onMute?.(activeUser.id, true, !!activeUser.is_voice_muted); closePopover() } }}
+                      title={isTargetAdmin ? 'No se puede mutear a un admin' : 'Silenciar en canales de texto'}
+                      className={`${btnBase} ${tw.textSecondary} hover:bg-yellow-500/10 ${isTargetAdmin ? disabledCls : ''}`}>
+                      <span>🚫💬</span> Mutear texto
+                    </button>
+                  ) : (
+                    <button
+                      disabled={isTargetAdmin}
+                      onClick={() => { if (!isTargetAdmin) { onMute?.(activeUser.id, false, !!activeUser.is_voice_muted); closePopover() } }}
+                      title={isTargetAdmin ? 'No se puede desmutear a un admin' : 'Activar mensajes de texto'}
+                      className={`${btnBase} text-yellow-400 hover:bg-yellow-500/10 ${isTargetAdmin ? disabledCls : ''}`}>
+                      <span>💬</span> Desmutear texto
+                    </button>
+                  )}
+
+                  {/* Mute voice */}
+                  {!activeUser.is_voice_muted ? (
+                    <button
+                      disabled={isTargetAdmin}
+                      onClick={() => { if (!isTargetAdmin) { onMute?.(activeUser.id, !!activeUser.is_text_muted, true); closePopover() } }}
+                      title={isTargetAdmin ? 'No se puede mutear a un admin' : 'Silenciar en canales de voz'}
+                      className={`${btnBase} ${tw.textSecondary} hover:bg-yellow-500/10 ${isTargetAdmin ? disabledCls : ''}`}>
+                      <span>🚫🎙️</span> Mutear voz
+                    </button>
+                  ) : (
+                    <button
+                      disabled={isTargetAdmin}
+                      onClick={() => { if (!isTargetAdmin) { onMute?.(activeUser.id, !!activeUser.is_text_muted, false); closePopover() } }}
+                      title={isTargetAdmin ? 'No se puede desmutear a un admin' : 'Activar voz'}
+                      className={`${btnBase} text-yellow-400 hover:bg-yellow-500/10 ${isTargetAdmin ? disabledCls : ''}`}>
+                      <span>🎙️</span> Desmutear voz
+                    </button>
+                  )}
+
+                  {/* Mute total / Unmute all */}
+                  {!bothMuted ? (
+                    <button
+                      disabled={isTargetAdmin}
+                      onClick={() => { if (!isTargetAdmin) { onMute?.(activeUser.id, true, true); closePopover() } }}
+                      title={isTargetAdmin ? 'No se puede mutear a un admin' : 'Silenciar texto y voz a la vez'}
+                      className={`${btnBase} ${tw.textSecondary} hover:bg-yellow-500/10 ${isTargetAdmin ? disabledCls : ''}`}>
+                      <span>🔇</span> Mutear total
+                    </button>
+                  ) : (
+                    <button
+                      disabled={isTargetAdmin}
+                      onClick={() => { if (!isTargetAdmin) { onMute?.(activeUser.id, false, false); closePopover() } }}
+                      title={isTargetAdmin ? 'No se puede desmutear a un admin' : 'Quitar todo el silencio'}
+                      className={`${btnBase} text-yellow-400 hover:bg-yellow-500/10 ${isTargetAdmin ? disabledCls : ''}`}>
+                      <span>🔊</span> Desmutear todo
+                    </button>
+                  )}
+                </div>
+              )
+            })()}
           </div>,
           document.body,
         )}

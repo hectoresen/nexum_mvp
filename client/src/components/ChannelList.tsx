@@ -15,6 +15,7 @@ interface ChannelListProps {
   onRenameCategory?: (categoryId: string, newName: string) => void
   onMoveChannelToCategory?: (channelId: string, categoryId: string | null) => void
   onRequestCreateChannelInCategory?: (categoryId: string) => void
+  unreadChannelIds?: Set<string>
 }
 
 const STORAGE_KEY = 'nexum_collapsed_categories'
@@ -65,6 +66,7 @@ export default function ChannelList({
   onRenameCategory,
   onMoveChannelToCategory,
   onRequestCreateChannelInCategory,
+  unreadChannelIds,
 }: ChannelListProps) {
   const { tw } = useAppTheme()
   const isOwner = role === 'owner'
@@ -193,6 +195,9 @@ export default function ChannelList({
             <span className="flex-1 truncate" onClick={() => onSelectChannel(ch.id)}>
               {ch.name}
             </span>
+            {!isActive && unreadChannelIds?.has(ch.id) && (
+              <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0 group-hover:hidden" />
+            )}
             {isOwner && (
               <span className="hidden group-hover:flex items-center gap-1 flex-shrink-0">
                 <button
