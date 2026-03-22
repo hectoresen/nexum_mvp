@@ -84,6 +84,7 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
   // Get current user role
   const currentUser = serverUsers?.find(u => u.id === _currentUserId)
   const currentUserRole = currentUser?.role
+  const isTextMuted = currentUser?.is_text_muted === true
 
   return (
     <div className="flex flex-col h-full">
@@ -137,8 +138,14 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
             const displayName = message.username || `User ${message.user_id.substring(0, 8)}`
             const avatarInitial = message.username ? message.username[0]?.toUpperCase() : message.user_id[0]?.toUpperCase()
 
-            // Construct avatar URL if avatar_path is available
-            const avatarUrl = message.avatar_url || (message.avatar_path && serverAddress ? `http://${serverAddress}/${message.avatar_path}` : null)
+            // Construct avatar URL - prefer avatar_path (relative, uses viewer's server address) over avatar_url
+            const avatarUrl = (message.avatar_path && serverAddress)
+              ? `http://${serverAddress}/${message.avatar_path}?v=${message.avatar_version ?? 0}`
+              : (message.avatar_url && (message.avatar_url.startsWith('http') || message.avatar_url.startsWith('data:')))
+                ? message.avatar_url
+                : (message.avatar_url && serverAddress)
+                  ? `http://${serverAddress}/${message.avatar_url}?v=${message.avatar_version ?? 0}`
+                  : null
 
             // Check if message is deleted
             const isDeleted = !!message.deleted_by_user_id
@@ -193,10 +200,10 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
                   )}
                 </div>
 
-                {/* Action buttons - show on hover if user owns the message and it's not deleted and not editing */}
-                {!isDeleted && !editingMessageId && hoveredMessageId === message.id && message.user_id === _currentUserId && (
+                {/* Action buttons - show on hover if user owns the message (or is owner for delete), not deleted, not editing */}
+                {!isDeleted && !editingMessageId && hoveredMessageId === message.id && (message.user_id === _currentUserId || currentUserRole === 'owner') && (
                   <div className="absolute right-0 top-0 flex gap-1">
-                    {onEditMessage && (
+                    {onEditMessage && message.user_id === _currentUserId && (
                       <button onClick={() => handleEditMessage(message)} className="p-1.5 hover:bg-gray-500 bg-gray-600 rounded transition-colors" title="Edit message">
                         <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -227,7 +234,15 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
       {/* Message input */}
       {channel.channel_type === 'text' && (
         <div className={`p-4 border-t ${tw.borderDefault}`}>
-          <form onSubmit={handleSubmit}>
+          {isTextMuted ? (
+            <div className={`flex items-center gap-2 px-4 py-3 ${tw.bgInput} border ${tw.borderDefault} rounded-md`}>
+              <svg className="w-4 h-4 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              </svg>
+              <span className="text-sm text-red-400">You have been muted and cannot send messages.</span>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit}>
             <div className="flex gap-2 items-center">
               {/* Plus button for attachments */}
               <div className="relative group">
@@ -280,6 +295,7 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
               </div>
             </div>
           </form>
+          )}
         </div>
       )}
 

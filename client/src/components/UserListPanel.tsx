@@ -59,8 +59,11 @@ export default function UserListPanel({ users, currentUserId, currentUserRole, s
   const members = users.filter(u => u.role === 'member')
 
   const getAvatarUrl = (user: User): string | null => {
-    if (user.avatar_url) return user.avatar_url
-    if (user.avatar_path && serverAddress) return `http://${serverAddress}/${user.avatar_path}`
+    if (user.avatar_path && serverAddress) return `http://${serverAddress}/${user.avatar_path}?v=${user.avatar_version ?? 0}`
+    if (user.avatar_url) {
+      if (user.avatar_url.startsWith('http') || user.avatar_url.startsWith('data:')) return user.avatar_url
+      if (serverAddress) return `http://${serverAddress}/${user.avatar_url}?v=${user.avatar_version ?? 0}`
+    }
     return null
   }
 
@@ -114,8 +117,11 @@ export default function UserListPanel({ users, currentUserId, currentUserRole, s
           className={`px-3 py-2 ${tw.bgHoverSubtle} transition-colors cursor-pointer flex items-center gap-2 ${isCurrentUser ? tw.bgHover : ''} ${isPopoverOpen ? tw.bgHover : ''}`}
           title={`${user.username}${isCurrentUser ? ' (you)' : ''}`}
           onClick={() => handleUserClick(user)}>
-          <div className={`w-8 h-8 rounded-full ${tw.bgInput} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
-            {avatarUrl ? <img src={avatarUrl} alt={user.username} className="w-full h-full object-cover" /> : <span className={`text-xs font-medium ${tw.textPrimary}`}>{user.username[0]?.toUpperCase()}</span>}
+          <div className="relative flex-shrink-0">
+            <div className={`w-8 h-8 rounded-full ${tw.bgInput} flex items-center justify-center overflow-hidden`}>
+              {avatarUrl ? <img src={avatarUrl} alt={user.username} className="w-full h-full object-cover" /> : <span className={`text-xs font-medium ${tw.textPrimary}`}>{user.username[0]?.toUpperCase()}</span>}
+            </div>
+            <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 ${tw.bgHeader} ${user.is_online ? 'bg-green-500' : 'bg-gray-500'}`} />
           </div>
           <div className="flex-1 min-w-0">
             <p className={`text-sm truncate ${isCurrentUser ? `${tw.textPrimary} font-medium` : tw.textSecondary}`}>
@@ -149,7 +155,7 @@ export default function UserListPanel({ users, currentUserId, currentUserRole, s
     <div className={`w-56 ${tw.bgHeader} border-l ${tw.borderDefault} flex flex-col`}>
       <div className={`h-12 px-4 border-b ${tw.borderDefault} flex flex-col justify-center`}>
         <h3 className={`${tw.textPrimary} font-semibold text-sm`}>Server Members</h3>
-        <p className={`text-xs ${tw.textMuted} mt-1`}>{users.length} total</p>
+        <p className={`text-xs ${tw.textMuted} mt-1`}>{users.filter(u => u.is_online).length} online · {users.length} total</p>
       </div>
 
       <div className="flex-1 overflow-y-auto">

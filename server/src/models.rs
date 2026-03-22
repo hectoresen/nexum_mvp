@@ -29,6 +29,15 @@ pub struct User {
     pub device_public_key: Option<String>,
 }
 
+/// User augmented with real-time online status for SERVER_USERS broadcasts.
+/// Not stored in the database — `is_online` is computed from active sessions.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserOnlineStatus {
+    #[serde(flatten)]
+    pub user: User,
+    pub is_online: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Ban {
     pub id: Uuid,
@@ -515,6 +524,9 @@ pub struct MessagePayload {
     pub avatar_url: Option<String>,
     pub avatar_path: Option<String>,
     pub avatar_version: i32,
+    /// Username of the user who deleted the message (populated from history JOIN).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deleted_by_username: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -578,7 +590,7 @@ pub struct ServerSettingsPayload {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerUsersPayload {
-    pub users: Vec<User>,
+    pub users: Vec<UserOnlineStatus>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

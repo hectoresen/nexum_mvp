@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useAppTheme } from '../hooks/useAppTheme'
 
-type SettingsSection = 'general' | 'voice-video'
+type SettingsSection = 'general' | 'voice-video' | 'notifications'
 
 interface ClientSettingsModalProps {
   onClose: () => void
@@ -17,6 +17,9 @@ export default function ClientSettingsModal({ onClose, initialSection = 'general
   const [language, setLanguage] = useState('en')
   const [audioInputDevice, setAudioInputDevice] = useState('default')
   const [audioOutputDevice, setAudioOutputDevice] = useState('default')
+  const [dmSoundEnabled, setDmSoundEnabled] = useState(
+    () => localStorage.getItem('nexum_dm_sound_enabled') === 'true'
+  )
 
   // Load real auto-start state from OS registry on mount
   useEffect(() => {
@@ -75,6 +78,11 @@ export default function ClientSettingsModal({ onClose, initialSection = 'general
             className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${currentSection === 'voice-video' ? `${tw.textPrimary} border-blue-500` : `${tw.textTertiary} border-transparent hover:${tw.textSecondary}`}`}>
             Voice & Video
           </button>
+          <button
+            onClick={() => setCurrentSection('notifications')}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${currentSection === 'notifications' ? `${tw.textPrimary} border-blue-500` : `${tw.textTertiary} border-transparent hover:${tw.textSecondary}`}`}>
+            Notifications
+          </button>
         </div>
 
         <div className="space-y-6">
@@ -129,6 +137,36 @@ export default function ClientSettingsModal({ onClose, initialSection = 'general
                         Auto (Coming Soon)
                       </option>
                     </select>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Notifications Section */}
+          {currentSection === 'notifications' && (
+            <>
+              <div>
+                <h3 className={`text-lg font-semibold ${tw.textPrimary} mb-3 border-b ${tw.borderDefault} pb-2`}>Direct Messages</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className={`block text-sm font-medium ${tw.textSecondary}`}>Sound notifications for DMs</label>
+                      <p className={`text-xs ${tw.textMuted} mt-1`}>Play a sound when a new direct message arrives</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={dmSoundEnabled}
+                        onChange={e => {
+                          const val = e.target.checked
+                          setDmSoundEnabled(val)
+                          localStorage.setItem('nexum_dm_sound_enabled', val ? 'true' : 'false')
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-500"></div>
+                    </label>
                   </div>
                 </div>
               </div>

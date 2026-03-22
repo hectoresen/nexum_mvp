@@ -65,8 +65,11 @@ export default function DirectMessageView({ otherUser, messages, currentUserId, 
   }
 
   const getAvatarUrl = (avatarUrl: string | undefined, avatarPath: string | undefined): string | null => {
-    if (avatarUrl) return avatarUrl
     if (avatarPath && serverAddress) return `http://${serverAddress}/${avatarPath}`
+    if (avatarUrl) {
+      if (avatarUrl.startsWith('http') || avatarUrl.startsWith('data:')) return avatarUrl
+      if (serverAddress) return `http://${serverAddress}/${avatarUrl}`
+    }
     return null
   }
 

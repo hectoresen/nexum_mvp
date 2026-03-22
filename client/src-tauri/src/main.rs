@@ -225,6 +225,82 @@ fn read_server_config() -> Result<ServerConfigSnapshot, String> {
     })
 }
 
+/// Update the user-visible fields of an existing server.toml without touching the admin password.
+/// Called from the pre-launch modal every time the user clicks Launch on an already-configured server.
+#[tauri::command]
+fn update_server_config(
+    name: String,
+    max_users: u32,
+    max_voice: u32,
+    max_message: u32,
+    join_password: String,
+) -> Result<(), String> {
+    let server_dir = crate::server_manager::ServerManager::get_server_data_dir()
+        .ok_or("Could not determine server data directory")?;
+    let config_path = server_dir.join("server.toml");
+    if !config_path.exists() {
+        return Err("Server is not configured yet.".to_string());
+    }
+
+    // Read existing toml to preserve admin_password and port settings
+    let content = std::fs::read_to_string(&config_path).map_err(|e| e.to_string())?;
+    let mut admin_password = String::new();
+    let mut host = String::from("0.0.0.0");
+    let mut ws_port = 8080u32;
+    let mut udp_port = 9000u32;
+    for line in content.lines() {
+        let t = line.trim_start();
+        if let Some(rest) = t.strip_prefix("admin_password = ") {
+            admin_password = rest.trim().trim_matches('"').to_string();
+        } else if let Some(rest) = t.strip_prefix("host = ") {
+            host = rest.trim().trim_matches('"').to_string();
+        } else if let Some(rest) = t.strip_prefix("ws_port = ") {
+            if let Ok(v) = rest.trim().parse::<u32>() { ws_port = v; }
+        } else if let Some(rest) = t.strip_prefix("udp_port = ") {
+            if let Ok(v) = rest.trim().parse::<u32>() { udp_port = v; }
+        }
+    }
+    if admin_password.is_empty() {
+        return Err("Could not read admin_password from server.toml".to_string());
+    }
+
+    let safe_name = name.replace('"', "\\\"");
+    let safe_pwd  = admin_password.replace('"', "\\\"");
+    let mut new_content = format!(
+        "[server]\nname = \"{safe_name}\"\nhost = \"{host}\"\nws_port = {ws_port}\nudp_port = {udp_port}\ndata_path = \"./data\"\nsession_timeout_secs = 60\nping_interval_secs = 30\nadmin_password = \"{safe_pwd}\"\n"
+    );
+    if !join_password.is_empty() {
+        let safe_jp = join_password.replace('"', "\\\"");
+        new_content.push_str(&format!("join_password = \"{safe_jp}\"\n"));
+    }
+    new_content.push_str(&format!(
+        "\n[limits]\nmax_users = {max_users}\nmax_users_per_voice_channel = {max_voice}\nmax_message_size = {max_message}\nrate_limit_messages_per_minute = 60\n\n[persistence]\nenabled = true\n"
+    ));
+    std::fs::write(&config_path, new_content).map_err(|e| e.to_string())
+}
+
+/// Full factory reset: stop the server, delete server.toml and the data directory.
+/// After calling this, the next server launch will treat it as a first-time setup.
+#[tauri::command]
+fn full_reset_server(state: State<AppState>) -> Result<(), String> {
+    let manager = state.server_manager.lock().unwrap();
+    // Stop the process; ignore the error if it wasn't running
+    let _ = manager.stop_server();
+    drop(manager); // release mutex before filesystem ops
+
+    if let Some(server_dir) = crate::server_manager::ServerManager::get_server_data_dir() {
+        let config_path = server_dir.join("server.toml");
+        if config_path.exists() {
+            std::fs::remove_file(&config_path).map_err(|e| e.to_string())?;
+        }
+        let data_dir = server_dir.join("data");
+        if data_dir.exists() {
+            std::fs::remove_dir_all(&data_dir).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
 /// Check if the server is accepting TCP connections on a given port.
 /// Used to confirm the server is ready after `start_local_server`.
 #[tauri::command]
@@ -349,7 +425,7 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
 
     let menu = Menu::with_items(app, &[&header, &sep1, &check_updates, &sep2, &quit])?;
 
-    let mut builder = TrayIconBuilder::new()
+    let mut builder = TrayIconBuilder::with_id("main")
         .menu(&menu)
         .tooltip("Nexum")
         .on_menu_event(|app, event| match event.id.as_ref() {
@@ -385,6 +461,117 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
 
     builder.build(app)?;
     Ok(())
+}
+
+/// Update the tray tooltip to reflect the current total unread count.
+/// Called from the frontend whenever unreadChannelIds or unreadDmUserIds change.
+#[tauri::command]
+fn update_unread_count(count: u32, app_handle: tauri::AppHandle) {
+    if let Some(tray) = app_handle.tray_by_id("main") {
+        let tooltip = if count > 0 {
+            format!("Nexum ({count} unread)")
+        } else {
+            "Nexum".to_string()
+        };
+        let _ = tray.set_tooltip(Some(&tooltip));
+    }
+    #[cfg(windows)]
+    set_taskbar_badge(count, &app_handle);
+}
+
+/// Show/clear the Windows taskbar button overlay icon (red dot = unread messages).
+#[cfg(windows)]
+fn set_taskbar_badge(count: u32, app_handle: &tauri::AppHandle) {
+    let handle = app_handle.clone();
+    let _ = app_handle.run_on_main_thread(move || unsafe {
+        use windows::core::BOOL;
+        use windows::Win32::Graphics::Gdi::
+        {
+            CreateBitmap, CreateDIBSection, DeleteObject, HDC,
+            BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, HGDIOBJ, RGBQUAD,
+        };
+        use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER};
+        use windows::Win32::UI::Shell::{ITaskbarList3, TaskbarList};
+        use windows::Win32::UI::WindowsAndMessaging::{CreateIconIndirect, DestroyIcon, HICON, ICONINFO};
+
+        let Some(window) = handle.get_webview_window("main") else { return };
+        let Ok(raw_hwnd) = window.hwnd() else { return };
+        let hwnd = raw_hwnd;
+
+        let Ok(taskbar) = CoCreateInstance::<_, ITaskbarList3>(&TaskbarList, None, CLSCTX_INPROC_SERVER) else { return };
+        let _ = taskbar.HrInit();
+
+        if count > 0 {
+            // Small orange circle badge using 32bpp DIB with per-pixel alpha.
+            // CreateDIBSection gives us a top-down BGRA buffer. Pixels inside the
+            // circle get full opacity; outside pixels are fully transparent (alpha=0).
+            // This approach is reliable across all WebView2 versions — the 1bpp AND
+            // mask approach was inconsistently applied for 32bpp color bitmaps.
+            let bmi = BITMAPINFO {
+                bmiHeader: BITMAPINFOHEADER {
+                    biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                    biWidth: 16,
+                    biHeight: -16, // negative = top-down (row 0 in memory = top of image)
+                    biPlanes: 1,
+                    biBitCount: 32,
+                    biCompression: 0, // BI_RGB = 0
+                    biSizeImage: (16 * 16 * 4) as u32,
+                    biXPelsPerMeter: 0,
+                    biYPelsPerMeter: 0,
+                    biClrUsed: 0,
+                    biClrImportant: 0,
+                },
+                bmiColors: [RGBQUAD::default()],
+            };
+            let mut bits_ptr = std::ptr::null_mut::<std::ffi::c_void>();
+            let Ok(hbm_color) = CreateDIBSection(
+                Some(HDC::default()), &bmi, DIB_RGB_COLORS, &mut bits_ptr, None, 0
+            ) else { return };
+
+            // Draw a small orange circle (center=8,8 radius=5) in BGRA pixel format.
+            // u32 in little-endian memory = bytes [B, G, R, A].
+            // Orange #FF8C00 = R=255, G=140, B=0, A=255 → u32 = 0xFF_FF_8C_00
+            let orange: u32 = 0xFF_FF_8C_00;
+            let pixels = std::slice::from_raw_parts_mut(bits_ptr as *mut u32, 16 * 16);
+            for y in 0u32..16 {
+                for x in 0u32..16 {
+                    let dx = x as f32 - 8.0;
+                    let dy = y as f32 - 8.0;
+                    pixels[(y * 16 + x) as usize] =
+                        if dx * dx + dy * dy <= 25.0 { orange } else { 0 };
+                }
+            }
+
+            // AND mask: all zeros — Windows uses per-pixel alpha from the 32bpp DIB.
+            let mask_bytes = [0u8; 4 * 16];
+            let hbm_mask = CreateBitmap(16, 16, 1, 1, Some(mask_bytes.as_ptr().cast()));
+            if hbm_mask.is_invalid() {
+                let _ = DeleteObject(HGDIOBJ(hbm_color.0));
+                return;
+            }
+
+            let icon_info = ICONINFO {
+                fIcon: BOOL(1),
+                xHotspot: 0,
+                yHotspot: 0,
+                hbmMask: hbm_mask,
+                hbmColor: hbm_color,
+            };
+
+            if let Ok(hicon) = CreateIconIndirect(&icon_info) {
+                let desc = windows::core::HSTRING::from("unread messages");
+                let _ = taskbar.SetOverlayIcon(hwnd, hicon, &desc);
+                let _ = DestroyIcon(hicon);
+            }
+
+            let _ = DeleteObject(HGDIOBJ(hbm_mask.0));
+            let _ = DeleteObject(HGDIOBJ(hbm_color.0));
+        } else {
+            // Clear the overlay by passing a null HICON.
+            let empty_desc = windows::core::HSTRING::new();
+            let _ = taskbar.SetOverlayIcon(hwnd, HICON::default(), &empty_desc);
+        }
+    });
 }
 
 fn main() {
@@ -430,7 +617,10 @@ fn main() {
             check_server_ready,
             update_server_admin_password,
             read_server_config,
+            update_server_config,
+            full_reset_server,
             get_device_public_key,
+            update_unread_count,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

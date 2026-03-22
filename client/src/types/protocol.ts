@@ -15,6 +15,7 @@ export interface User {
   created_at: string;
   is_text_muted?: boolean;
   is_voice_muted?: boolean;
+  is_online?: boolean;
 }
 
 export interface Channel {
@@ -246,6 +247,7 @@ export interface MessagePayload {
   avatar_url?: string;
   avatar_path?: string;
   avatar_version: number;
+  deleted_by_username?: string;
 }
 
 export interface MessageHistoryPayload {

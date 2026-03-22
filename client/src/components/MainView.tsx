@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { AppState } from '../App'
-import { Channel, Category, User, DmMessage } from '../types/protocol'
+import { Channel, Category, User, UserRole, DmMessage } from '../types/protocol'
 import ChannelList from './ChannelList'
 import ChatArea from './ChatArea'
 import UserListPanel from './UserListPanel'
@@ -26,7 +26,7 @@ interface MainViewProps {
   onEditMessage?: (messageId: string, content: string) => void
   onAuthenticateAdmin?: () => void
   onOpenServerSettings?: () => void
-  onOpenClientSettings?: (section: 'general' | 'voice-video') => void
+  onOpenClientSettings?: (section: 'general' | 'voice-video' | 'notifications') => void
   onRenameChannel?: (channelId: string, newName: string) => void
   onDeleteChannel?: (channelId: string) => void
   onOpenUserSettings?: () => void
@@ -41,6 +41,7 @@ interface MainViewProps {
   onSwitchToDmView?: (userId: string) => void
   onSwitchToChannelView?: () => void
   unreadDmUserIds?: string[]
+  unreadChannelIds?: Set<string>
   onKickUser?: (userId: string) => void
   onBanUser?: (userId: string, reason?: string) => void
   onMuteUser?: (userId: string, muteText: boolean, muteVoice: boolean) => void
@@ -79,6 +80,7 @@ export default function MainView({
   onSwitchToDmView,
   onSwitchToChannelView,
   unreadDmUserIds = [],
+  unreadChannelIds,
   onKickUser,
   onBanUser,
   onMuteUser,
@@ -231,6 +233,7 @@ export default function MainView({
               onRenameCategory={onRenameCategory}
               onMoveChannelToCategory={onMoveChannelToCategory}
               onRequestCreateChannelInCategory={handleRequestCreateChannelInCategory}
+              unreadChannelIds={unreadChannelIds}
             />
           </div>
         </div>
@@ -343,7 +346,8 @@ export default function MainView({
               const tabUser = serverUsers?.find(u => u.id === tabUserId)
               const isActive = activeDmUserId === tabUserId
               const hasUnread = unreadDmUserIds.includes(tabUserId)
-              const label = tabUser?.username ?? '…'
+              const dmsForTab = dmMessages.get(tabUserId) || []
+              const label = tabUser?.username ?? dmsForTab.find(dm => dm.sender_id === tabUserId)?.sender_username ?? '…'
               return (
                 <div key={tabUserId} className={`flex items-center gap-1 rounded flex-shrink-0 ${isActive ? 'bg-blue-600' : tw.bgHoverSubtle}`}>
                   <button
@@ -382,14 +386,25 @@ export default function MainView({
         {/* DM view or channel view */}
         {activeDmUserId ? (
           (() => {
-            const otherUser = serverUsers?.find(u => u.id === activeDmUserId)
+            const dms = dmMessages.get(activeDmUserId) || []
+            const fromDm = dms.find(dm => dm.sender_id === activeDmUserId)
+            const otherUser: User | null = serverUsers?.find(u => u.id === activeDmUserId) ?? (
+              fromDm ? {
+                id: activeDmUserId,
+                username: fromDm.sender_username,
+                role: 'member' as UserRole,
+                avatar_url: fromDm.sender_avatar_url,
+                avatar_path: fromDm.sender_avatar_path,
+                avatar_version: fromDm.sender_avatar_version,
+                created_at: '',
+              } : null
+            )
             if (!otherUser)
               return (
                 <div className="flex-1 flex items-center justify-center">
                   <p className={`${tw.textMuted} text-sm`}>Loading conversation…</p>
                 </div>
               )
-            const dms = dmMessages.get(activeDmUserId) || []
             return <DirectMessageView otherUser={otherUser} messages={dms} currentUserId={state.userId || ''} serverAddress={serverAddress} onSendMessage={content => onSendDm?.(activeDmUserId, content)} />
           })()
         ) : currentChannel ? (

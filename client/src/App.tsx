@@ -19,6 +19,26 @@ import JoinPasswordModal from './components/JoinPasswordModal'
 
 const CLIENT_VERSION = '1.0.0'
 
+/** Plays a short synthetic ping sound using Web Audio API. No assets required. */
+function playDmNotificationSound() {
+  try {
+    const ctx = new AudioContext()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.type = 'sine'
+    osc.frequency.value = 880
+    gain.gain.setValueAtTime(0.3, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
+    osc.start()
+    osc.stop(ctx.currentTime + 0.3)
+    osc.addEventListener('ended', () => ctx.close())
+  } catch {
+    // AudioContext may be unavailable when window has no user-gesture
+  }
+}
+
 export interface AppState {
   connected: boolean
   connecting: boolean
@@ -53,6 +73,7 @@ interface ActiveConnection {
   openDmTabs: string[] // userIds with open DM tabs
   activeDmUserId: string | null // currently displayed DM conversation
   unreadDmUserIds: string[] // userIds with unread incoming DMs
+  unreadChannelIds: Set<string> // channelIds with unread messages
   banList: Ban[]
   kickLog: KickLogEntry[]
   kickReason: string | null // non-null when server kicked/banned this user
@@ -70,7 +91,7 @@ function App() {
   const [showAdminAuthModal, setShowAdminAuthModal] = useState(false)
   const [adminAuthError, setAdminAuthError] = useState<string | null>(null)
   const [showServerSettingsModal, setShowServerSettingsModal] = useState(false)
-  const [clientSettingsSection, setClientSettingsSection] = useState<'general' | 'voice-video' | null>(null)
+  const [clientSettingsSection, setClientSettingsSection] = useState<'general' | 'voice-video' | 'notifications' | null>(null)
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false)
   const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null)
   const [showUserSettingsModal, setShowUserSettingsModal] = useState(false)
@@ -188,6 +209,7 @@ function App() {
         openDmTabs: [],
         activeDmUserId: null,
         unreadDmUserIds: [],
+        unreadChannelIds: new Set<string>(),
         banList: [],
         kickLog: [],
         kickReason: null,
@@ -196,6 +218,17 @@ function App() {
       // Set up handlers
       let hasReceivedWelcome = false
       wsClient.onMessage((message: ServerMessage) => {
+        // Handle kick/ban while connected (server closes the session)
+        if (message.type === 'ERROR' && hasReceivedWelcome &&
+            (message.payload.code === 'KICKED' || message.payload.code === 'BANNED')) {
+          wsClient.shouldReconnect = false
+          wsClient.disconnect()
+          setView({ type: 'server-list' })
+          setConnectionError(message.payload.message)
+          setIsConnecting(false)
+          setServers(ServerManager.loadServers())
+          return
+        }
         // Handle pre-auth errors (e.g., invalid user ID when resuming, username taken)
         if (message.type === 'ERROR' && !hasReceivedWelcome) {
           // Disable auto-reconnect to prevent repeated failed attempts
@@ -334,6 +367,7 @@ function App() {
         openDmTabs: [],
         activeDmUserId: null,
         unreadDmUserIds: [],
+        unreadChannelIds: new Set<string>(),
         banList: [],
         kickLog: [],
         kickReason: null,
@@ -342,6 +376,17 @@ function App() {
       // Set up message handler
       let hasReceivedWelcome = false
       wsClient.onMessage((message: ServerMessage) => {
+        // Handle kick/ban while connected (server closes the session)
+        if (message.type === 'ERROR' && hasReceivedWelcome &&
+            (message.payload.code === 'KICKED' || message.payload.code === 'BANNED')) {
+          wsClient.shouldReconnect = false
+          wsClient.disconnect()
+          setView({ type: 'server-list' })
+          setConnectionError(message.payload.message)
+          setIsConnecting(false)
+          setServers(ServerManager.loadServers())
+          return
+        }
         // Private server: ask for join password
         if (message.type === 'ERROR' && message.payload.code === 'PASSWORD_REQUIRED') {
           wsClient.shouldReconnect = false
@@ -531,9 +576,16 @@ function App() {
           avatar_version: message.payload.avatar_version,
         }
         newMessages.set(message.payload.message.channel_id, [...channelMessages, enrichedMessage])
+        // Track unread if the message arrived in a channel not currently being viewed
+        let newUnreadChannels = connection.unreadChannelIds
+        if (message.payload.message.channel_id !== connection.currentChannelId) {
+          newUnreadChannels = new Set(connection.unreadChannelIds)
+          newUnreadChannels.add(message.payload.message.channel_id)
+        }
         return {
           ...connection,
           messages: newMessages,
+          unreadChannelIds: newUnreadChannels,
         }
 
       case 'MESSAGE_HISTORY':
@@ -545,6 +597,7 @@ function App() {
           avatar_url: mp.avatar_url,
           avatar_path: mp.avatar_path,
           avatar_version: mp.avatar_version,
+          deleted_by_username: mp.deleted_by_username,
         }))
         historyMessages.set(message.payload.channel_id, enrichedHistory)
         return {
@@ -681,6 +734,12 @@ function App() {
         // Mark as unread if the user is not currently viewing this conversation
         const isViewing = connection.activeDmUserId === otherParty
         const newUnread = isViewing || connection.unreadDmUserIds.includes(otherParty) ? connection.unreadDmUserIds : [...connection.unreadDmUserIds, otherParty]
+        // Play notification sound for incoming DMs (not echoes of our own messages)
+        if (p.sender_id !== myId && !isViewing) {
+          if (localStorage.getItem('nexum_dm_sound_enabled') === 'true') {
+            playDmNotificationSound()
+          }
+        }
         return { ...connection, dmMessages: newDmMessages, openDmTabs: newOpenTabs, unreadDmUserIds: newUnread }
       }
 
@@ -788,11 +847,14 @@ function App() {
 
     setView(prev => {
       if (prev.type !== 'connected') return prev
+      const newUnreadChannels = new Set(prev.connection.unreadChannelIds)
+      newUnreadChannels.delete(channelId)
       return {
         type: 'connected',
         connection: {
           ...prev.connection,
           currentChannelId: channelId,
+          unreadChannelIds: newUnreadChannels,
         },
       }
     })
@@ -976,6 +1038,19 @@ function App() {
     view.connection.client.send({ type: 'GET_SERVER_SETTINGS' })
     setShowServerSettingsModal(true)
   }
+
+  // ── Sync unread count to tray tooltip ────────────────────────────────────
+  useEffect(() => {
+    const total =
+      view.type === 'connected'
+        ? view.connection.unreadChannelIds.size + view.connection.unreadDmUserIds.length
+        : 0
+    invoke('update_unread_count', { count: total }).catch(() => {})
+  }, [
+    view.type === 'connected' ? view.connection.unreadChannelIds.size : 0,
+    view.type === 'connected' ? view.connection.unreadDmUserIds.length : 0,
+    view.type,
+  ])
 
   // ── Moderation: disconnect if kicked/banned ──────────────────────────────
   useEffect(() => {
@@ -1189,6 +1264,13 @@ function App() {
 
   const handleUpdateAvatar = (avatarUrl: string | null) => {
     if (view.type !== 'connected') return
+
+    // Relative paths come from file uploads — the HTTP route already updated avatar_path
+    // in the DB. Just request a fresh user list to update everyone's avatar display.
+    if (avatarUrl !== null && !avatarUrl.startsWith('http') && !avatarUrl.startsWith('data:')) {
+      view.connection.client.send({ type: 'GET_USERS' })
+      return
+    }
 
     view.connection.client.send({
       type: 'UPDATE_AVATAR',
@@ -1462,8 +1544,15 @@ function App() {
   // Get current user avatar from user list
   const currentUser = conn.serverUsers?.find(u => u.id === conn.userId)
 
-  // Construct avatar URL from avatar_path or use avatar_url
-  const currentUserAvatar = currentUser?.avatar_url || (currentUser?.avatar_path ? `http://${conn.server.address}/${currentUser.avatar_path}` : null)
+  // Construct avatar URL - prefer avatar_path (relative, uses our own serverAddress) over avatar_url
+  const currentUserAvatar = (currentUser?.avatar_path
+    ? `http://${conn.server.address}/${currentUser.avatar_path}?v=${currentUser.avatar_version ?? 0}`
+    : null
+  ) ?? (currentUser?.avatar_url
+    ? (currentUser.avatar_url.startsWith('http') || currentUser.avatar_url.startsWith('data:')
+        ? currentUser.avatar_url
+        : `http://${conn.server.address}/${currentUser.avatar_url}?v=${currentUser.avatar_version ?? 0}`)
+    : null)
 
   return (
     <>
@@ -1489,6 +1578,7 @@ function App() {
         openDmTabs={conn.openDmTabs}
         activeDmUserId={conn.activeDmUserId}
         unreadDmUserIds={conn.unreadDmUserIds}
+        unreadChannelIds={conn.unreadChannelIds}
         onDisconnect={handleDisconnect}
         onCreateChannel={handleCreateChannel}
         onJoinChannel={handleJoinChannel}

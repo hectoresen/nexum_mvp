@@ -119,6 +119,11 @@ impl SessionManager {
         sessions.len()
     }
 
+    pub fn get_connected_user_ids(&self) -> std::collections::HashSet<Uuid> {
+        let sessions = self.sessions.read().unwrap();
+        sessions.values().map(|s| s.user_id).collect()
+    }
+
     // ========================================================================
     // Channel Management
     // ========================================================================
