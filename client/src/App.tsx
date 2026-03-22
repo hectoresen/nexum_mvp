@@ -218,6 +218,17 @@ function App() {
       // Set up handlers
       let hasReceivedWelcome = false
       wsClient.onMessage((message: ServerMessage) => {
+        // Handle kick/ban while connected (server closes the session)
+        if (message.type === 'ERROR' && hasReceivedWelcome &&
+            (message.payload.code === 'KICKED' || message.payload.code === 'BANNED')) {
+          wsClient.shouldReconnect = false
+          wsClient.disconnect()
+          setView({ type: 'server-list' })
+          setConnectionError(message.payload.message)
+          setIsConnecting(false)
+          setServers(ServerManager.loadServers())
+          return
+        }
         // Handle pre-auth errors (e.g., invalid user ID when resuming, username taken)
         if (message.type === 'ERROR' && !hasReceivedWelcome) {
           // Disable auto-reconnect to prevent repeated failed attempts
@@ -365,6 +376,17 @@ function App() {
       // Set up message handler
       let hasReceivedWelcome = false
       wsClient.onMessage((message: ServerMessage) => {
+        // Handle kick/ban while connected (server closes the session)
+        if (message.type === 'ERROR' && hasReceivedWelcome &&
+            (message.payload.code === 'KICKED' || message.payload.code === 'BANNED')) {
+          wsClient.shouldReconnect = false
+          wsClient.disconnect()
+          setView({ type: 'server-list' })
+          setConnectionError(message.payload.message)
+          setIsConnecting(false)
+          setServers(ServerManager.loadServers())
+          return
+        }
         // Private server: ask for join password
         if (message.type === 'ERROR' && message.payload.code === 'PASSWORD_REQUIRED') {
           wsClient.shouldReconnect = false
@@ -1243,9 +1265,11 @@ function App() {
     if (view.type !== 'connected') return
 
     // Relative paths come from file uploads — the HTTP route already updated avatar_path
-    // in the DB and broadcast USER_UPDATED, which triggers GET_USERS for all clients.
-    // No need to send an extra UPDATE_AVATAR WebSocket message in that case.
-    if (avatarUrl !== null && !avatarUrl.startsWith('http') && !avatarUrl.startsWith('data:')) return
+    // in the DB. Just request a fresh user list to update everyone's avatar display.
+    if (avatarUrl !== null && !avatarUrl.startsWith('http') && !avatarUrl.startsWith('data:')) {
+      view.connection.client.send({ type: 'GET_USERS' })
+      return
+    }
 
     view.connection.client.send({
       type: 'UPDATE_AVATAR',

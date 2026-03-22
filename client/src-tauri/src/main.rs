@@ -399,6 +399,61 @@ fn update_unread_count(count: u32, app_handle: tauri::AppHandle) {
         };
         let _ = tray.set_tooltip(Some(&tooltip));
     }
+    #[cfg(windows)]
+    set_taskbar_badge(count, &app_handle);
+}
+
+/// Show/clear the Windows taskbar button overlay icon (red dot = unread messages).
+#[cfg(windows)]
+fn set_taskbar_badge(count: u32, app_handle: &tauri::AppHandle) {
+    let handle = app_handle.clone();
+    let _ = app_handle.run_on_main_thread(move || unsafe {
+        use windows::core::BOOL;
+        use windows::Win32::Graphics::Gdi::{CreateBitmap, DeleteObject, HGDIOBJ};
+        use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER};
+        use windows::Win32::UI::Shell::{ITaskbarList3, TaskbarList};
+        use windows::Win32::UI::WindowsAndMessaging::{CreateIconIndirect, DestroyIcon, HICON, ICONINFO};
+
+        let Some(window) = handle.get_webview_window("main") else { return };
+        let Ok(raw_hwnd) = window.hwnd() else { return };
+        // Tauri v2 already returns windows::Win32::Foundation::HWND — use directly.
+        let hwnd = raw_hwnd;
+
+        let Ok(taskbar) = CoCreateInstance::<_, ITaskbarList3>(&TaskbarList, None, CLSCTX_INPROC_SERVER) else { return };
+        let _ = taskbar.HrInit();
+
+        if count > 0 {
+            // 16×16 solid red badge icon.
+            // 1bpp AND mask: all zeros → every pixel drawn from the color bitmap.
+            let mask_bytes = [0u8; 4 * 16]; // 4 bytes/row (DWORD-aligned) × 16 rows
+            // 32bpp color bitmap: BGR layout; 0x00CC0000 = R=0xCC, G=0, B=0
+            let pixels = [0x00CC0000u32; 16 * 16];
+
+            let hbm_mask = CreateBitmap(16, 16, 1, 1, Some(mask_bytes.as_ptr().cast()));
+            let hbm_color = CreateBitmap(16, 16, 1, 32, Some(pixels.as_ptr().cast()));
+
+            let icon_info = ICONINFO {
+                fIcon: BOOL(1),
+                xHotspot: 0,
+                yHotspot: 0,
+                hbmMask: hbm_mask,
+                hbmColor: hbm_color,
+            };
+
+            if let Ok(hicon) = CreateIconIndirect(&icon_info) {
+                let desc = windows::core::HSTRING::from("unread messages");
+                let _ = taskbar.SetOverlayIcon(hwnd, hicon, &desc);
+                let _ = DestroyIcon(hicon);
+            }
+
+            let _ = DeleteObject(HGDIOBJ(hbm_mask.0));
+            let _ = DeleteObject(HGDIOBJ(hbm_color.0));
+        } else {
+            // Clear the overlay by passing a null HICON.
+            let empty_desc = windows::core::HSTRING::new();
+            let _ = taskbar.SetOverlayIcon(hwnd, HICON::default(), &empty_desc);
+        }
+    });
 }
 
 fn main() {

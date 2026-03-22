@@ -446,9 +446,11 @@ async fn handle_delete_message(
     // Get the message to check ownership
     let message = state.db.get_message(payload.message_id)?
         .ok_or_else(|| anyhow::anyhow!("Message not found"))?;
-    
-    // Verify the user owns the message (TODO: Allow owners to delete any message)
-    if message.user_id != user_id {
+
+    // Verify the user owns the message, OR is an owner (admins can delete any message)
+    let role = state.session_manager.get_user_role(session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session not found"))?;
+    if message.user_id != user_id && role != UserRole::Owner {
         send_error(tx, ErrorCode::Unauthorized, "You can only delete your own messages")?;
         return Ok(());
     }
