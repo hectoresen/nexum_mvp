@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 import { useAppTheme } from '../hooks/useAppTheme'
 import { PrimaryButton, SecondaryButton, CancelButton } from './Button'
 
@@ -148,32 +149,25 @@ export default function AvatarModal({ currentAvatar, serverAddress, sessionId, u
     setError(null)
 
     if (activeTab === 'upload' && selectedFile) {
-      // Upload file to server
+      // Upload file via Tauri backend (bypasses WebView2 CORS/PNA restrictions)
       setUploading(true)
       try {
-        const formData = new FormData()
-        formData.append('avatar', selectedFile)
+        const arrayBuffer = await selectedFile.arrayBuffer()
+        const fileData = Array.from(new Uint8Array(arrayBuffer))
 
-        const response = await fetch(`http://${serverAddress}/api/users/${userId}/avatar`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Session ${sessionId}`,
-          },
-          body: formData,
+        const data = await invoke<{ success: boolean; avatar_path: string; avatar_version: number }>('upload_avatar_via_backend', {
+          serverAddress,
+          userId,
+          sessionId,
+          fileData,
+          fileName: selectedFile.name,
         })
 
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to upload avatar')
-        }
-
-        const data = await response.json()
-        // The avatar path will be something like "avatars/{userId}.webp"
         // Pass the relative path so each client resolves it via their own serverAddress
         onSave(data.avatar_path)
         onClose()
-      } catch (err: any) {
-        setError(err.message || 'Failed to upload avatar')
+      } catch (err: unknown) {
+        setError(typeof err === 'string' ? err : ((err as Error)?.message ?? 'Failed to upload avatar'))
       } finally {
         setUploading(false)
       }

@@ -6,12 +6,12 @@
 
 Esta fase integra el servidor CLI con el cliente para ofrecer una experiencia de usuario unificada.
 
-### 🔴 Bugs de alta prioridad — PENDIENTE
+### 🔴 Bugs de alta prioridad — EN REVISIÓN (rama: feature/fix-avatar-remote-clients, 2026-03-23)
 
-- [ ] **[BUG] Avatar upload falla con "Failed to fetch" para clientes no-host** — Cuando un usuario conectado a un servidor ajeno (no el host) intenta cambiar su imagen de perfil, la petición de subida HTTP falla con "Failed to fetch" y el avatar nunca se actualiza. El problema afecta únicamente a conexiones remotas; el host local no lo sufre. Relacionado con Chrome PNA / CORS — aunque se añadió `allow_private_network(true)` en el `CorsLayer`, el error persiste, indicando que hay otro punto de bloqueo (posiblemente el endpoint de upload-avatar no está cubierto por la misma política CORS, o hay un problema adicional de CSP en el cliente). Investigar qué petición concreta falla (preflight OPTIONS, la propia POST, o la respuesta) y verificar que `tauri.conf.json` CSP permite `connect-src` a IPs privadas.
+- [ ] **[BUG] Avatar upload falla con "Failed to fetch" para clientes no-host** — Implementado: upload redirigido al backend Rust con `reqwest` (comando `upload_avatar_via_backend`). `AvatarModal.tsx` usa `invoke` en lugar de `fetch`. Pendiente validación por usuario.
   - Archivos candidatos: `server/src/websocket.rs` (rutas CORS), `client/src/components/AvatarModal.tsx`, `client/src-tauri/tauri.conf.json`
 
-- [ ] **[BUG] Imágenes de perfil de otros usuarios aparecen rotas para clientes no-host** — Al conectarse a un servidor remoto, los avatares de usuarios que han subido una imagen aparecen como imagen rota (broken image). El host del servidor los ve correctamente. La URL construida con `avatar_path + serverAddress` es formalmente correcta, pero la petición HTTP es bloqueada (probablemente mismo origen PNA/CSP que el bug anterior). Verificar que la política CSP `img-src` en `tauri.conf.json` incluye el schema `http:` para IPs de red privada, y que el servidor sirve el endpoint `/avatars/` con las cabeceras CORS correctas incluyendo `Access-Control-Allow-Private-Network: true`.
+- [ ] **[BUG] Imágenes de perfil de otros usuarios aparecen rotas para clientes no-host** — Implementado: `crossOrigin="anonymous"` añadido a todos los `<img>` que cargan desde URLs `http://` del servidor. Pendiente validación por usuario.
   - Archivos candidatos: `server/src/websocket.rs` (rutas de avatares), `client/src-tauri/tauri.conf.json` (CSP img-src), `client/src/components/UserListPanel.tsx`, `client/src/components/ChatArea.tsx`
 
 - [ ] **[BUG] Usuario kickeado no recibe ningún mensaje de notificación** — Cuando un admin kickea a un usuario, la sesión del usuario kickeado se cierra sin mostrar ningún aviso. El comportamiento esperado es que aparezca un modal o mensaje en pantalla indicando "Has sido expulsado del servidor" (o similar) antes de redirigir al usuario a la lista de servidores. El servidor ya emite `USER_KICKED` como broadcast; hay que verificar que el cliente maneja ese mensaje para el propio usuario kickeado y muestra la notificación adecuada.

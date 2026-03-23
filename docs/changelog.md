@@ -4,6 +4,20 @@ All notable changes and completed tasks are documented here.
 
 ---
 
+## 🚧 In progress — develop (2026-03-23)
+
+**Branch:** `feature/fix-avatar-remote-clients`
+
+### 🐛 Bug Fixes
+
+- [ ] **Avatar upload falla con "Failed to fetch" para clientes no-host** — La petición HTTP `fetch()` de WebView2 desde `tauri://localhost` a IPs privadas es bloqueada por PNA/CORS en ciertas configuraciones de WebView2. El upload de avatar se ha redirigido a través del backend Rust usando `reqwest`, que opera fuera del sandbox del navegador y no está sujeto a restricciones de CORS ni PNA. El nuevo comando Tauri `upload_avatar_via_backend` gestiona la petición multipart directamente desde Rust.
+  - Afectados: `client/src-tauri/Cargo.toml` (añadir `reqwest 0.12`), `client/src-tauri/src/main.rs` (nuevo comando), `client/src/components/AvatarModal.tsx` (usar `invoke` en lugar de `fetch`)
+
+- [ ] **Imágenes de perfil de otros usuarios aparecen rotas para clientes no-host** — Los `<img>` sin atributo `crossOrigin` se cargan en modo `no-cors` (sin header `Origin`), por lo que el middleware CORS del servidor no añade `Access-Control-Allow-Private-Network: true` a la respuesta. En versiones modernas de WebView2/Chromium con PNA activo, estas imágenes son bloqueadas. Añadido `crossOrigin="anonymous"` en todos los `<img>` que cargan URLs de servidor (`http://`), forzando el modo CORS y haciendo que el middleware inyecte los headers necesarios.
+  - Afectados: `client/src/components/UserListPanel.tsx`, `client/src/components/ChatArea.tsx`, `client/src/components/DirectMessageView.tsx`, `client/src/components/MainView.tsx`, `client/src/components/UserProfileModal.tsx`
+
+---
+
 ## ✅ v0.1.5 — Released 2026-03-22
 
 **Type:** Bug Fix Release

@@ -574,6 +574,46 @@ fn set_taskbar_badge(count: u32, app_handle: &tauri::AppHandle) {
     });
 }
 
+/// Upload an avatar image to the server via Rust backend, bypassing WebView2 security
+/// restrictions (CORS, Private Network Access, mixed-content) that block browser-side fetch().
+#[tauri::command]
+async fn upload_avatar_via_backend(
+    server_address: String,
+    user_id: String,
+    session_id: String,
+    file_data: Vec<u8>,
+    file_name: String,
+) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+    let url = format!("http://{}/api/users/{}/avatar", server_address, user_id);
+
+    let part = reqwest::multipart::Part::bytes(file_data)
+        .file_name(file_name)
+        .mime_str("image/webp")
+        .map_err(|e| e.to_string())?;
+
+    let form = reqwest::multipart::Form::new().part("avatar", part);
+
+    let response = client
+        .post(&url)
+        .header("Authorization", format!("Session {}", session_id))
+        .multipart(form)
+        .send()
+        .await
+        .map_err(|e| format!("Network error: {}", e))?;
+
+    if response.status().is_success() {
+        response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        let status = response.status().as_u16();
+        let text = response.text().await.unwrap_or_default();
+        Err(format!("Server returned {}: {}", status, text))
+    }
+}
+
 fn main() {
     // Initialize the server manager
     let server_manager = ServerManager::new();
@@ -621,6 +661,7 @@ fn main() {
             full_reset_server,
             get_device_public_key,
             update_unread_count,
+            upload_avatar_via_backend,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -119,7 +119,7 @@ export default function UserListPanel({ users, currentUserId, currentUserRole, s
           onClick={() => handleUserClick(user)}>
           <div className="relative flex-shrink-0">
             <div className={`w-8 h-8 rounded-full ${tw.bgInput} flex items-center justify-center overflow-hidden`}>
-              {avatarUrl ? <img src={avatarUrl} alt={user.username} className="w-full h-full object-cover" /> : <span className={`text-xs font-medium ${tw.textPrimary}`}>{user.username[0]?.toUpperCase()}</span>}
+              {avatarUrl ? <img src={avatarUrl} alt={user.username} crossOrigin={avatarUrl.startsWith('http://') ? 'anonymous' : undefined} className="w-full h-full object-cover" /> : <span className={`text-xs font-medium ${tw.textPrimary}`}>{user.username[0]?.toUpperCase()}</span>}
             </div>
             <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 ${tw.bgHeader} ${user.is_online ? 'bg-green-500' : 'bg-gray-500'}`} />
           </div>
@@ -195,7 +195,7 @@ export default function UserListPanel({ users, currentUserId, currentUserRole, s
               <button key={tabUserId} onClick={() => onOpenExistingDm?.(tabUser)} className={`w-full px-2 py-1.5 rounded flex items-center gap-2 ${tw.bgHoverSubtle} transition-colors`}>
                 <div className={`w-6 h-6 rounded-full ${tw.bgInput} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
                   {avatarUrl ? (
-                    <img src={avatarUrl} alt={tabUser.username} className="w-full h-full object-cover" />
+                    <img src={avatarUrl} alt={tabUser.username} crossOrigin={avatarUrl.startsWith('http://') ? 'anonymous' : undefined} className="w-full h-full object-cover" />
                   ) : (
                     <span className={`text-xs font-medium ${tw.textPrimary}`}>{tabUser.username[0]?.toUpperCase()}</span>
                   )}
