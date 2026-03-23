@@ -103,28 +103,36 @@ npm run tauri dev
 ### Ready Now
 
 ✅ **Real-time text chat** with SQLite persistence  
-✅ **Channel system** (text and voice types)  
+✅ **Channel system** (text and voice types, drag & drop categories)  
 ✅ **Role-based permissions** (owner/member)  
 ✅ **Multi-user support** (up to 200 configurable users)  
 ✅ **Auto-reconnection** with exponential backoff  
 ✅ **Avatar system** with file upload & URL support  
 ✅ **Server management** from client UI  
 ✅ **Local server management** — start/stop, reset admin password, wipe data, all from client  
+✅ **Private servers** — join password protection  
+✅ **Moderation system** — kick (with kick log), permanent ban, text/voice mute  
+✅ **Device-bound identity** — ed25519 keypair; stable across IP changes  
+✅ **E2E encrypted DMs** — AES-GCM 256 via Web Crypto API; server stores only ciphertext  
+✅ **Notification system** — unread channel badges, DM sound, tray tooltip counter  
+✅ **System tray** — minimizes to tray on close; quit via tray menu  
+✅ **Auto-start on Windows startup** toggle  
 ✅ **Dark & light themes** with persistent preference  
+✅ **Unified installer** — server binary bundled and managed by the client  
 ✅ **Cross-platform** desktop builds
 
 ### In Development
 
-🚧 **Voice chat** audio implementation (UI ready)  
-🚧 **Unified installer** (client + server bundled)
+🚧 **Voice chat** audio implementation (UI and UDP stub ready, audio encoding pending)
 
 ### Planned
 
-📋 Private messaging (DMs)  
-📋 End-to-end encryption for DMs  
 📋 Push-to-talk & voice activation  
-📋 Message search & history pagination  
-📋 TLS support
+📋 Emoji reactions on messages  
+📋 Message history pagination (infinite scroll)  
+📋 Server notification channels & read-only channels  
+📋 Kick/ban reason message shown to the affected user  
+📋 TLS support (recommend reverse proxy in the meantime)
 
 ---
 
@@ -247,24 +255,29 @@ Nexum is perfect for:
 
 ## 📦 Current Status
 
-**Version:** 0.1.4 (Feature Release + Bug Fixes)  
+**Version:** 0.1.5 (Bug Fix Release)  
 **Release:** Beta / Active Development
 
-| Component           | Status                          |
-| ------------------- | ------------------------------- |
-| Text Chat           | ✅ Production-ready             |
-| Private DMs         | ✅ E2E encrypted (AES-GCM 256)  |
-| User Management     | ✅ Fully functional             |
-| Channel System      | ✅ Create, rename, delete       |
-| Avatar System       | ✅ Upload & URL support         |
-| Server Settings     | ✅ Editable from UI             |
-| Local Server Mgmt   | ✅ Start/Stop/Reset/Wipe        |
-| Device Identity     | ✅ ed25519 key (stable across IPs) |
-| Private Servers     | ✅ Join password support        |
-| Dark & Light Themes | ✅ Persistent preference        |
-| Desktop Client      | ✅ Windows/macOS/Linux          |
-| Voice Chat          | 🚧 UI ready, audio pending      |
-| Mobile Apps         | 📋 Future consideration         |
+| Component           | Status                                        |
+| ------------------- | --------------------------------------------- |
+| Text Chat           | ✅ Production-ready                           |
+| Private DMs         | ✅ E2E encrypted (AES-GCM 256)               |
+| User Management     | ✅ Fully functional                           |
+| Channel System      | ✅ Create, rename, delete, categories        |
+| Avatar System       | ✅ Upload & URL support                      |
+| Server Settings     | ✅ Editable from UI                          |
+| Local Server Mgmt   | ✅ Start/Stop/Reset/Wipe                     |
+| Device Identity     | ✅ ed25519 key (stable across IPs)           |
+| Private Servers     | ✅ Join password support                     |
+| Moderation          | ✅ Kick, ban, mute (text & voice)            |
+| Notifications       | ✅ Unread badges, DM sound, tray counter     |
+| System Tray         | ✅ Minimize to tray, quit via menu           |
+| Auto-start          | ✅ Windows startup toggle                    |
+| Dark & Light Themes | ✅ Persistent preference                     |
+| Desktop Client      | ✅ Windows/macOS/Linux                       |
+| Voice Chat          | 🚧 UI ready, audio pending                   |
+| Emoji Reactions     | 📋 Planned                                   |
+| Mobile Apps         | 📋 Future consideration                      |
 
 **Latest builds:** Check [Releases](../../releases)
 
@@ -272,7 +285,20 @@ Nexum is perfect for:
 
 ## 🏷️ Release History
 
-### v0.1.4 — February 28, 2026 _(current)_
+### v0.1.5 — March 22, 2026 _(current)_
+
+**Type:** Bug Fix Release
+
+#### 🐛 Fixes
+- Online presence now accurate for all users (stale binary root cause identified and resolved).
+- Taskbar notification badge is now a circle — replaced `CreateBitmap` DDB with `CreateDIBSection` 32bpp DIB per-pixel alpha.
+- Avatar upload/display fixed for non-host clients — Chrome Private Network Access (PNA) header added to server CORS layer.
+- Browser avatar cache busted with `?v=` suffix on all avatar URLs.
+- Admin message deletion, DM loading for late-joining users, and muted-user input guard.
+
+---
+
+### v0.1.4 — February 28, 2026
 
 **Type:** Feature Release + Bug Fixes
 
@@ -372,7 +398,7 @@ A: Locally on the server machine. When the server is launched from the client it
 A: Absolutely! That's exactly what it's designed for.
 
 **Q: Is voice chat working?**  
-A: Text chat works perfectly. Voice UI is ready but audio implementation is pending.
+A: Text chat works perfectly. Voice UI and the UDP stub are ready but audio encoding/mixing is pending.
 
 **Q: How does it compare to Discord?**  
 A: Similar UX, but fully self-hosted with no corporate servers or data collection.
