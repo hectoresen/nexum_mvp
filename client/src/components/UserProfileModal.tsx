@@ -1,5 +1,6 @@
 import { User } from '../types/protocol'
 import { useAppTheme } from '../hooks/useAppTheme'
+import { buildBaseUrl } from '../lib/urlUtils'
 
 interface UserProfileModalProps {
   user: User
@@ -12,7 +13,7 @@ export default function UserProfileModal({ user, serverAddress, currentUserRole,
   const { tw } = useAppTheme()
 
   // Construct avatar URL
-  const avatarUrl = user.avatar_url || (user.avatar_path && serverAddress ? `http://${serverAddress}/${user.avatar_path}` : null)
+  const avatarUrl = user.avatar_url || (user.avatar_path && serverAddress ? `${buildBaseUrl(serverAddress)}/${user.avatar_path}` : null)
   const avatarInitial = user.username ? user.username[0]?.toUpperCase() : 'U'
 
   // Format join date

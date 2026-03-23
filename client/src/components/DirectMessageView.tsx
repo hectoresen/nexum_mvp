@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { DmMessage, User } from '../types/protocol'
 import { useAppTheme } from '../hooks/useAppTheme'
 import { decryptDm } from '../lib/dmCrypto'
+import { buildBaseUrl } from '../lib/urlUtils'
 
 interface DirectMessageViewProps {
   otherUser: User
@@ -65,10 +66,10 @@ export default function DirectMessageView({ otherUser, messages, currentUserId, 
   }
 
   const getAvatarUrl = (avatarUrl: string | undefined, avatarPath: string | undefined): string | null => {
-    if (avatarPath && serverAddress) return `http://${serverAddress}/${avatarPath}`
+    if (avatarPath && serverAddress) return `${buildBaseUrl(serverAddress)}/${avatarPath}`
     if (avatarUrl) {
       if (avatarUrl.startsWith('http') || avatarUrl.startsWith('data:')) return avatarUrl
-      if (serverAddress) return `http://${serverAddress}/${avatarUrl}`
+      if (serverAddress) return `${buildBaseUrl(serverAddress)}/${avatarUrl}`
     }
     return null
   }

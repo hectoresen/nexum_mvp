@@ -6,25 +6,33 @@
 
 Esta fase integra el servidor CLI con el cliente para ofrecer una experiencia de usuario unificada.
 
-### 🔴 Bugs de alta prioridad — PENDIENTE
+### 🔴 Bugs de alta prioridad — EN REVISIÓN (feature/qa-fixes-round1)
 
-- [ ] **[BUG] Avatar upload falla con "Failed to fetch" para clientes no-host** — Cuando un usuario conectado a un servidor ajeno (no el host) intenta cambiar su imagen de perfil, la petición de subida HTTP falla con "Failed to fetch" y el avatar nunca se actualiza. El problema afecta únicamente a conexiones remotas; el host local no lo sufre. Relacionado con Chrome PNA / CORS — aunque se añadió `allow_private_network(true)` en el `CorsLayer`, el error persiste, indicando que hay otro punto de bloqueo (posiblemente el endpoint de upload-avatar no está cubierto por la misma política CORS, o hay un problema adicional de CSP en el cliente). Investigar qué petición concreta falla (preflight OPTIONS, la propia POST, o la respuesta) y verificar que `tauri.conf.json` CSP permite `connect-src` a IPs privadas.
-  - Archivos candidatos: `server/src/websocket.rs` (rutas CORS), `client/src/components/AvatarModal.tsx`, `client/src-tauri/tauri.conf.json`
+- [ ] **[QA1][BUG] Avatares rotos cuando el servidor es accedido por ngrok/HTTPS en puerto 443** — Las URLs construidas como `http://host:443/avatars/...` son inválidas; el puerto 443 requiere `https://`. El cliente genera `http://${serverAddress}/...` sin detectar el protocolo correcto. Solución: helper `buildBaseUrl(serverAddress)` que emite `https://host` cuando el puerto es 443, `http://host` en resto. Afecta a `UserListPanel`, `ChatArea`, `DirectMessageView`, `UserProfileModal`, `App.tsx`.
+  - Branch: `feature/qa-fixes-round1`
 
-- [ ] **[BUG] Imágenes de perfil de otros usuarios aparecen rotas para clientes no-host** — Al conectarse a un servidor remoto, los avatares de usuarios que han subido una imagen aparecen como imagen rota (broken image). El host del servidor los ve correctamente. La URL construida con `avatar_path + serverAddress` es formalmente correcta, pero la petición HTTP es bloqueada (probablemente mismo origen PNA/CSP que el bug anterior). Verificar que la política CSP `img-src` en `tauri.conf.json` incluye el schema `http:` para IPs de red privada, y que el servidor sirve el endpoint `/avatars/` con las cabeceras CORS correctas incluyendo `Access-Control-Allow-Private-Network: true`.
-  - Archivos candidatos: `server/src/websocket.rs` (rutas de avatares), `client/src-tauri/tauri.conf.json` (CSP img-src), `client/src/components/UserListPanel.tsx`, `client/src/components/ChatArea.tsx`
+- [ ] **[QA3][BUG] Modal de autenticación de admin no muestra error al introducir contraseña incorrecta** — Closure obsoleto (*stale closure*): el handler de mensajes WebSocket captura `showAdminAuthModal = false` en el momento de la conexión. Cuando el modal se abre más tarde y el servidor responde con `UNAUTHORIZED`, el check `if (... && showAdminAuthModal)` siempre es `false` y el error nunca se muestra. Solución: `useRef` que espeja el estado del modal para acceder al valor actual desde el closure.
+  - Branch: `feature/qa-fixes-round1`
 
-- [ ] **[BUG] Usuario kickeado no recibe ningún mensaje de notificación** — Cuando un admin kickea a un usuario, la sesión del usuario kickeado se cierra sin mostrar ningún aviso. El comportamiento esperado es que aparezca un modal o mensaje en pantalla indicando "Has sido expulsado del servidor" (o similar) antes de redirigir al usuario a la lista de servidores. El servidor ya emite `USER_KICKED` como broadcast; hay que verificar que el cliente maneja ese mensaje para el propio usuario kickeado y muestra la notificación adecuada.
-  - Archivos candidatos: `client/src/App.tsx` (handler de `USER_KICKED`), `client/src/components/MainView.tsx` o modal dedicado
+- [ ] **[QA4][BUG] Banear a un usuario no pide motivo al admin ni muestra razón al baneado** — El botón de ban en `UserListPanel` ejecuta `onBan(userId)` sin ningún input de motivo. El servidor envía `"You have been banned from this server"` al baneado sin incluir la razón aunque el payload `BAN_USER` ya soporta `reason: Option<String>`. Solución: añadir UI de motivo en el popover de ban + incluir razón en el mensaje de error que el servidor envía al usuario baneado.
+  - Branch: `feature/qa-fixes-round1`
+
+- [ ] **[QA6][BUG] Puntos de mensajes no leídos en canales inconsistentes** — Causa raíz: `broadcast_to_channel` solo entrega mensajes al usuario que ha hecho `JOIN_CHANNEL` para ese canal específico. Al cambiar de canal, el usuario deja de recibir mensajes de los canales anteriores, por lo que nunca acumula mensajes no leídos en canales no activos. Solución: cambiar `handle_send_message`, `handle_delete_message` y `handle_edit_message` a `broadcast_message` para entregar a todos los usuarios conectados; la lógica de unread en el cliente ya es correcta.
+  - Branch: `feature/qa-fixes-round1`
+
+- [x] **[BUG] Avatar upload falla con "Failed to fetch" para clientes no-host** — Resuelto en `feature/fix-avatar-remote-clients`. Causa: WebView2 PNA bloqueaba `fetch()` a IPs privadas. Solución: comando Tauri `upload_avatar_via_backend` usando `reqwest` (bypassa WebView2).
+
+- [x] **[BUG] Imágenes de perfil de otros usuarios aparecen rotas para clientes no-host** — Parcialmente resuelto con `crossOrigin="anonymous"` en `feature/fix-avatar-remote-clients`. Completado en `feature/qa-fixes-round1` con `buildBaseUrl` (QA1).
 
 ---
 
 ### 🟡 Mejoras de moderación — PENDIENTE
 
-- [ ] **[FEATURE] Mensaje de motivo al kickear a un usuario** — Al kickear a un usuario, el admin debería poder introducir opcionalmente un motivo (texto libre). El usuario kickeado verá ese motivo en la pantalla de notificación de expulsión ("Has sido expulsado: [motivo]"). Si no se introduce motivo, se muestra el mensaje genérico. Requiere:
-  - Servidor: añadir campo `reason: Option<String>` al payload de `KICK_USER` y propagarlo en el mensaje `USER_KICKED` enviado al usuario expulsado.
-  - Cliente admin: añadir un input de texto opcional en el popover de kick antes de confirmar la acción.
-  - Cliente usuario kickeado: mostrar el motivo en el modal/aviso de expulsión.
+- [ ] **[QA2][FEATURE] Badge en barra de tareas para mensajes no leídos en canales de texto** — El badge de la bandeja del sistema solo contabiliza DMs no leídos. Los mensajes nuevos en canales de texto no incrementan el contador. Añadir `unreadChannelIds.size` al cálculo del badge. También: clic derecho sobre un canal para silenciarlo/activarlo.
+
+- [ ] **[QA5][FEATURE] Registro de moderación completo y mejoras al ban** — (a) Registro de moderación unificado (kick, ban, mute, unban, mensajes borrados) visible para el admin. (b) Los usuarios baneados deben desaparecer de la lista de miembros inmediatamente. (c) Mejoras al listado de bans: mostrar IP, motivo, fecha, con opción de filtrado.
+
+- [ ] **[FEATURE] Mensaje de motivo al kickear a un usuario** — Al kickear a un usuario, el admin debería poder introducir opcionalmente un motivo. Requiere añadir `reason: Option<String>` al payload `KICK_USER` en servidor y cliente, e input en el popover de kick.
   - Archivos candidatos: `server/src/handlers.rs`, `server/src/models.rs`, `client/src/components/UserListPanel.tsx`, `client/src/App.tsx`
 
 ---

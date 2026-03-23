@@ -4,6 +4,30 @@ All notable changes and completed tasks are documented here.
 
 ---
 
+## 🔄 En progreso — feature/qa-fixes-round1 (2026-03-23)
+
+**Branch:** `feature/qa-fixes-round1`
+**Base:** `develop`
+**Status:** 🔄 En desarrollo
+
+### 🐛 Bug Fixes
+
+- [ ] **[QA1] buildBaseUrl: detectar https cuando el puerto es 443** — Nuevo helper `buildBaseUrl(serverAddress)` en `client/src/lib/urlUtils.ts`. Cuando el serverAddress termina en `:443`, emite `https://host`; en otros casos `http://host:port`. Se aplica en todos los componentes que construyen URLs de avatares/recursos del servidor: `UserListPanel`, `ChatArea`, `DirectMessageView`, `UserProfileModal`, `App.tsx`.
+
+- [ ] **[QA3] Stale closure en modal de auth de admin** — Añadido `showAdminAuthModalRef = useRef(false)` y `showChangePasswordModalRef = useRef(false)` en `App.tsx` para que los handlers WebSocket registrados en tiempo de conexión puedan acceder al estado actual del modal sin depender del closure capturado.
+
+- [ ] **[QA4] Motivo de ban: input en UI + mensaje al baneado** — `UserListPanel.tsx`: el botón de Ban ahora despliega un formulario de confirmación con campo de motivo opcional. El motivo se pasa como segundo argumento a `onBan(userId, reason)`. Servidor: `handle_ban_user` ahora incluye el motivo en el mensaje de error enviado al usuario baneado (`"You have been banned from this server: [reason]"`). Tipos: `UserBannedPayload` en `protocol.ts` actualizado con `reason?: string`.
+
+- [ ] **[QA6] Puntos de no leídos en canales** — Causa raíz: `broadcast_to_channel` solo enviaba mensajes al usuario actualmente en ese canal; al cambiar de canal el usuario dejaba de recibir mensajes de los canales anteriores. Solución: `handle_send_message`, `handle_delete_message` y `handle_edit_message` ahora usan `broadcast_message` para entregar a todos los usuarios conectados al servidor. La lógica de unread en el cliente no requiere cambios.
+
+---
+
+## 🔄 En progreso — feature/fix-avatar-remote-clients (2026-03-23)
+
+**Branch:** `feature/fix-avatar-remote-clients`
+**Base:** `develop`
+**Status:** 🔄 Esperando revisión/merge
+
 ## ✅ v0.1.5 — Released 2026-03-22
 
 **Type:** Bug Fix Release

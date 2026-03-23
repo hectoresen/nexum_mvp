@@ -724,6 +724,8 @@ pub struct UserKickedPayload {
 pub struct UserBannedPayload {
     pub user_id: Uuid,
     pub username: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
