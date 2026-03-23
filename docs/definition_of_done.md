@@ -151,18 +151,19 @@ After successful validation:
 
 Append:
 
+- **Date** of the change (YYYY-MM-DD or the version it belongs to)
 - Description of the change
 - Type (feature, fix, refactor, test, breaking change)
 - Affected modules
 - Any migration notes (if needed)
 
-Entries must be concise and factual.
+Entries must be concise and factual. Missing dates are not acceptable.
 
 ## 7.2 Update `todo.md`
 
 - Locate the related task.
-- Mark it as completed if fully resolved.
-- If partially completed, update its status clearly.
+- Mark it as completed with a **date** and any relevant comment.
+- If partially completed, update its status clearly with current date.
 
 ---
 
@@ -173,16 +174,28 @@ Entries must be concise and factual.
 All development MUST follow this branch flow:
 
 ```
-feature/* → develop → main
+develop → feature/<feature-name>  (agent creates branch)
+    ↓
+  agent commits & pushes feature branch
+    ↓
+  agent signals "ready for testing"
+    ↓
+  human tests manually
+    ↓
+  human creates PR feature/* → develop and merges
+    ↓
+  next feature starts from updated develop
 ```
 
 Rules:
 
+- All feature branches MUST be created from `develop`.
 - Work MUST be performed in a `feature/*` branch.
-- Feature branches MUST be merged into `develop`.
-- Direct commits to `main` are strictly forbidden.
-- If the current branch is `main`, development MUST STOP immediately.
+- Merges into `develop` are **always done by the human** via pull request.
+- Direct commits to `develop` or `main` are strictly forbidden.
+- If the current branch is `main` or `develop`, development MUST STOP immediately.
 - `main` must always remain stable and production-ready.
+- A feature is NOT done until the human confirms it passes testing.
 
 ---
 
@@ -191,12 +204,14 @@ Rules:
 The agent:
 
 - MAY create `feature/*` branches.
-- MAY merge `feature/*` into `develop`.
+- MAY commit and push within `feature/*` branches.
 
 The agent MUST NOT:
 
+- Push directly to `develop`
 - Push directly to `main`
-- Modify `main`
+- Merge any branch into `develop` or `main`
+- Create pull requests autonomously
 - Create git tags
 - Create releases
 - Modify version numbers
@@ -206,7 +221,7 @@ The agent MUST NOT:
 - Force push
 - Delete branches
 
-Repository governance is human-controlled.
+All merges into `develop` and all merges from `develop` into `main` are performed exclusively by the human via pull request. The agent signals readiness; the human validates, approves, and merges.
 
 ---
 
@@ -222,7 +237,64 @@ No automated versioning is allowed.
 
 ---
 
-## 9. Final Verification Loop
+# 9. Release Process (Human-Triggered)
+
+A release is ONLY initiated when the human explicitly authorises it (e.g. "prepare the X.X.X release" or "let's ship the release").
+
+## 9.1 Release Flow
+
+```
+human validates develop
+    ↓
+human says "prepare release vX.X.X"
+    ↓
+agent creates branch: release/vX.X.X from develop
+    ↓
+agent bumps version in: client/package.json, client/src-tauri/Cargo.toml,
+                        client/src-tauri/tauri.conf.json, server/Cargo.toml
+    ↓
+agent runs full build:  cargo build --release (server)
+                        copy voice-server.exe → client/src-tauri/resources/
+                        npm run tauri build   (client + installer)
+    ↓
+agent creates releases/vX.X.X/ folder with:
+    - README.md (release notes)
+    - installer files (.msi, -setup.exe, standalone server .exe)
+    ↓
+agent updates docs/changelog.md, docs/todo.md, releases/README.md
+    ↓
+agent signals "release branch ready"
+    ↓
+human validates manually
+    ↓
+human merges release/vX.X.X → develop
+    ↓
+human PRs develop → main
+    ↓
+human tags + publishes
+```
+
+## 9.2 Release Agent Rules
+
+The agent:
+
+- MAY create `release/*` branches.
+- MAY build and compile all artifacts.
+- MAY create the `releases/vX.X.X/` folder and release notes.
+- MAY bump version numbers **only when explicitly authorised by the human**.
+
+The agent MUST NOT:
+
+- Initiate a release without explicit human instruction.
+- Push `release/*` to `main`.
+- Create git tags or GitHub releases.
+- Skip the build validation step.
+
+> **The release-manager skill** (`.claude/skills/release-manager/SKILL.md`) contains the detailed step-by-step instructions for executing a release.
+
+---
+
+# 10. Final Verification Loop
 
 After:
 
@@ -247,7 +319,7 @@ If any issue is found → fix and repeat full validation flow.
 
 ---
 
-# 10. Completion Criteria
+# 11. Completion Criteria
 
 A task is considered DONE only if:
 
@@ -259,10 +331,12 @@ A task is considered DONE only if:
 - New tests are added and pass
 - Client build succeeds
 - Server build succeeds
-- `Changelog.md` updated
-- `todo.md` updated
-- The change is merged into `develop`
-- No direct modification of `main` occurred
+- `Changelog.md` updated with date and description
+- `todo.md` updated with date and completion status
+- Feature branch pushed and agent has signalled "ready for testing"
+- Human has validated the feature manually and confirmed OK
+- Human has merged the feature branch into `develop` via PR
+- No direct modification of `develop` or `main` by the agent
 - No version/tag/release was created by the agent
 
 If any condition is not satisfied → the task is NOT complete.
@@ -273,6 +347,6 @@ If any condition is not satisfied → the task is NOT complete.
 
 Never mark a task as finished without:
 
-Tests + Clean Build + Documentation + Architectural Integrity + Proper Branch Flow + Human-Controlled Release
+Tests + Clean Build + Documentation + Human Testing Confirmation + Architectural Integrity + Proper Branch Flow + Human-Controlled Merge
 
 ---
