@@ -10,12 +10,18 @@ Each version has its own folder containing:
 releases/
 ├── README.md                    # This file (general info)
 ├── v0.1.0/                      # Version folder
-│   ├── README.md                # v0.1.0 release notes
+│   ├── README.md                # Release notes
 │   ├── Nexum_0.1.0_x64_en-US.msi
 │   ├── Nexum_0.1.0_x64-setup.exe
 │   └── Nexum-Server_0.1.0_x64.exe
-└── v0.1.1/                      # Next version...
-    └── ...
+├── v0.1.2/
+├── v0.1.3/
+├── v0.1.4/
+└── v0.1.5/                      # Latest
+    ├── README.md
+    ├── Nexum_0.1.5_x64_en-US.msi
+    ├── Nexum_0.1.5_x64-setup.exe
+    └── Nexum-Server_0.1.5_x64.exe
 ```
 
 ## 🚀 Latest Release
@@ -23,7 +29,7 @@ releases/
 **[v0.1.5 — Bug Fix Release](v0.1.5/)** (March 22, 2026)
 
 - Online presence now accurate for all users
-- Taskbar badge is now a circle (not a square)
+- Taskbar badge is now a circle (not a square) — fixed via `CreateDIBSection` 32bpp DIB per-pixel alpha
 - Avatar upload/display fixed for non-host clients (Chrome PNA)
 - Admin message deletion, muted-user input guard, DM loading fixes
 - See [v0.1.5 Release Notes](v0.1.5/README.md) for details
@@ -37,7 +43,7 @@ releases/
 | [v0.1.4](v0.1.4/) | Feb 28, 2026 | Feature + Bug Fixes |
 | [v0.1.3](v0.1.3/) | Feb 27, 2026 | Feature Release |
 | [v0.1.2](v0.1.2/) | Feb 25, 2026 | Feature Release |
-| [v0.1.0](v0.1.0/) | Feb 23, 2026 | MVP / Alpha |
+| [v0.1.0](v0.1.0/) | Feb 22, 2026 | MVP / Alpha |
 
 ---
 
@@ -87,6 +93,10 @@ See [Server Deployment Guide](../docs/server_deployment.md) for advanced setup.
 
 ## 🔖 Version History
 
-| Version           | Date       | Type      | Notes                |
-| ----------------- | ---------- | --------- | -------------------- |
-| [v0.1.0](v0.1.0/) | 2026-02-23 | MVP/Alpha | First public release |
+| Version           | Date       | Type             | Notes                                            |
+| ----------------- | ---------- | ---------------- | ------------------------------------------------ |
+| [v0.1.5](v0.1.5/) | 2026-03-22 | Bug Fix Release  | Presence fix, taskbar badge, avatar PNA fix      |
+| [v0.1.4](v0.1.4/) | 2026-02-28 | Feature + Fixes  | E2E DMs, ed25519 identity, standalone wizard     |
+| [v0.1.3](v0.1.3/) | 2026-02-27 | Feature Release  | Private servers, unified config modal, auto-start|
+| [v0.1.2](v0.1.2/) | 2026-02-25 | Feature Release  | Avatars, channel rename/delete, dark mode        |
+| [v0.1.0](v0.1.0/) | 2026-02-22 | MVP / Alpha      | First public release                             |
