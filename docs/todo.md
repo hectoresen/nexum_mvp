@@ -1,10 +1,10 @@
 # TODO List - Nexum
 
-## 🚧 Phase 0.5: Client-Server Integration (IN PROGRESS)
+## 🚧 Fase 0.5: Integración cliente-servidor (EN PROGRESO)
 
-**Priority: HIGH - Current Focus**
+**Prioridad: ALTA - Foco actual**
 
-This phase integrates the CLI server with the client for a unified user experience.
+Esta fase integra el servidor CLI con el cliente para ofrecer una experiencia de usuario unificada.
 
 ### 🔴 Bugs de alta prioridad — PENDIENTE
 
@@ -121,7 +121,7 @@ El cliente genera un par de claves ed25519 en el primer arranque y persiste la c
 
 ---
 
-### 0.5.22 / 0.5.23 — Installer Fix + Private Messaging ✅
+### 0.5.22 / 0.5.23 — Corrección del instalador + Mensajería privada ✅
 
 - [x] **NSIS installer launch checkbox (0.5.22)** — Fixed "Launch Nexum" checkbox not working after NSIS install. Added `nsis.installMode: "currentUser"` to `tauri.conf.json`.
 
@@ -137,7 +137,7 @@ El cliente genera un par de claves ed25519 en el primer arranque y persiste la c
   - Future: true forward-secret key exchange (ECDH)
   - Future: message delete/edit in DMs
 
-### 0.5.0 Admin Features & UX Polish ✅
+### 0.5.0 Funciones de administrador y mejoras de UX ✅
 
 - [x] **Username persistence** — server sends username back in `WELCOME`, saved to localStorage; no more username prompts on reconnect
 - [x] **Pre-WELCOME error guard** — if server rejects `resume_session_id` (e.g. DB wiped), clear stored userId and redirect to username modal gracefully
@@ -156,14 +156,14 @@ El cliente genera un par de claves ed25519 en el primer arranque y persiste la c
 - [x] **Client settings panel** — modal with placeholders for auto-start, language, theme, audio devices
 - [x] **Documentation reorganization** — moved 10 .md files into `docs/` folder
 
-### 0.5.1 Installation Architecture ✅
+### 0.5.1 Arquitectura de instalación ✅
 
 - [x] Design unified installation structure (client + server same directory)
 - [x] Configure Tauri bundle to include server binary (`tauri.conf.json` → resources)
 - [x] Create unified build script (`build.ps1` with `-Release`, `-Bundle`, `-ServerOnly` flags)
 - [ ] Test installation on clean Windows system
 
-### 0.5.2 Avatar System & User UI ✅
+### 0.5.2 Sistema de avatares e interfaz de usuario ✅
 
 - [x] **Avatar file upload support** — server accepts image files up to 10MB (jpg, png, gif, webp)
 - [x] **Avatar URL support** — users can also provide direct image URLs
@@ -177,7 +177,7 @@ El cliente genera un par de claves ed25519 en el primer arranque y persiste la c
 - [x] **User list loading fix** — removed owner-only restriction from GET_USERS, now accessible to all authenticated users
 - [x] **Avatar display after upload fix** — client constructs full URLs from server's avatar_path + serverAddress
 
-### 0.5.3 Home Screen UX Redesign ✅
+### 0.5.3 Rediseño de UX de la pantalla de inicio ✅
 
 - [x] **Server dropdown navigation** — moved local server management from card to header dropdown
 - [x] **Settings dropdown with sections** — General (app/language/appearance) and Voice & Video (audio devices)
@@ -187,15 +187,15 @@ El cliente genera un par de claves ed25519 en el primer arranque y persiste la c
 - [x] **Removed gear icon** — consolidated settings access into dropdown menu
 - [x] **Server card connect button** — replaced text button with icon-only button with tooltip
 
-### 0.5.4 Light Mode Theme Analysis & Implementation ✅
+### 0.5.4 Análisis e implementación del tema claro ✅
 
-**Priority: MEDIUM - COMPLETED 2026-02-24**
+**Prioridad: MEDIA - COMPLETADO 2026-02-24**
 
-Analyze and implement light theme support across entire application.
+Analizadas e implementadas las clases de tema claro en toda la aplicación.
 
-#### Implementation Completed ✅
+#### Implementación completada ✅
 
-**Core Features Implemented:**
+**Funcionalidades implementadas:**
 
 - [x] Create theme context/provider in React (`ThemeContext.tsx`)
 - [x] Define color palette for both themes in `theme.ts`
@@ -206,7 +206,7 @@ Analyze and implement light theme support across entire application.
 - [x] Wire theme selector in ClientSettingsModal to actual theme switching
 - [x] Add smooth transition between themes
 
-**Visual Refinements:**
+**Refinamientos visuales:**
 
 - [x] Revised light mode color palette (`#f8f9fa` main bg, `#ffffff` cards)
 - [x] Fixed light mode visibility issues (headers, dropdowns, server cards)
@@ -215,17 +215,17 @@ Analyze and implement light theme support across entire application.
 - [x] Renamed "User Settings" to "Profile" with user icon
 - [x] Added cursor-pointer to all clickable elements
 
-**Components Updated:** 20+ files  
-**Classes Modified:** 500+ Tailwind classes  
-**Build Status:** ✅ Clean client & server builds
+**Componentes actualizados:** 20+ archivos  
+**Clases modificadas:** 500+ clases Tailwind  
+**Estado de compilación:** ✅ Sin errores en cliente y servidor
 
-### 0.5.5 Message System Enhancements ✅
+### 0.5.5 Mejoras del sistema de mensajes ✅
 
-**Priority: HIGH - Completed**
+**Prioridad: ALTA - Completado**
 
-Improve messaging system with avatar display, user profiles, and message management.
+Mejoras del sistema de mensajes: visualización de avatares, perfiles de usuario y gestión de mensajes.
 
-#### Bug Fixes
+#### Correcciones de bugs
 
 - [x] **Avatar display in messages** — User avatars not showing in text channel messages (showing default instead of uploaded avatar)
   - ✅ Extended MessagePayload to include avatar_url, avatar_path, avatar_version
@@ -234,7 +234,7 @@ Improve messaging system with avatar display, user profiles, and message managem
   - ✅ ChatArea now constructs avatar URLs and displays images
   - ✅ Commit: `dbe7db2` - "fix: Display user avatars in chat messages"
 
-#### New Features
+#### Nuevas funcionalidades
 
 - [x] **User profile modal (clickable users)** — Click on user in member list or message shows user info popup
   - ✅ Created UserProfileModal component
@@ -265,9 +265,9 @@ Improve messaging system with avatar display, user profiles, and message managem
   - ✅ Commit: `3f7c5f1` - "feat: Implement message editing"
   - Future: Show edit history on hover
 
-#### Technical Implementation
+#### Detalles de implementación técnica
 
-**Protocol Changes:**
+**Cambios de protocolo:**
 
 - ✅ `DELETE_MESSAGE` client message type + DeleteMessagePayload
 - ✅ `MESSAGE_DELETED` server message type + MessageDeletedPayload
@@ -276,7 +276,7 @@ Improve messaging system with avatar display, user profiles, and message managem
 - ✅ Extended `Message` model with `deleted_by`, `deleted_at` fields
 - ✅ Added `edited_at` field to `Message` model
 
-**Database Schema:**
+**Esquema de base de datos:**
 
 ```sql
 ✅ ALTER TABLE messages ADD COLUMN deleted_by_user_id TEXT;
@@ -284,7 +284,7 @@ Improve messaging system with avatar display, user profiles, and message managem
 ✅ ALTER TABLE messages ADD COLUMN edited_at INTEGER;
 ```
 
-**Component Updates:**
+**Actualizaciones de componentes:**
 
 - ✅ `ChatArea.tsx` - Added message delete button
 - ✅ `UserProfileModal.tsx` (NEW) - Modal showing user details
@@ -293,16 +293,16 @@ Improve messaging system with avatar display, user profiles, and message managem
 - ✅ Add edit button to message hover state
 - ✅ Add inline edit mode for messages
 
-**UI/UX Improvements:**
+**Mejoras de UI/UX:**
 
 - ✅ Added cursor pointer to avatars (clickable to view profile)
 - ✅ Added cursor pointer to message content (clickable to view sender profile)
 - ✅ Changed default theme to dark mode on first launch
 - ✅ Restricted User ID visibility to owners only (privacy enhancement)
 
-### 0.5.6 Documentation & Release Structure ✅
+### 0.5.6 Documentación y estructura de releases ✅
 
-**Priority: LOW - Housekeeping**
+**Prioridad: BAJA - Mantenimiento**
 
 - [ ] **Simplify releases structure** — Consolidate README files
   - Remove redundant `releases/README.md` (generic overview)
@@ -310,19 +310,15 @@ Improve messaging system with avatar display, user profiles, and message managem
   - Update release workflow to only maintain version-specific READMEs
   - Generic release info should be in main project README
 
-### 0.5.7 Local Server Detection & Configuration ✅
+### 0.5.7 Detección y configuración del servidor local ✅
 
-**Priority: HIGH - Bug Fix + Feature Enhancement**
+**Prioridad: ALTA - Corrección de bug + mejora de funcionalidad**
 
-#### Problem
+#### Problema
 
-The local server detection is not working correctly:
+La detección del servidor local no funcionaba correctamente. El cliente mostraba "Not installed" aunque el servidor estuviera en el mismo directorio. Los usuarios no podían especificar manualmente la ruta si estaba en una ubicación no estándar.
 
-- Client shows "Not installed" even when server is in the same directory
-- Example case: `E:\voice_mvp\` contains `voice-client.exe`, `voice-server.exe`, and `Uninstall Nexum.exe` but detection fails
-- Users cannot manually specify server path if it's in a non-standard location
-
-#### Tasks
+#### Tareas
 
 - [x] **Fix automatic server detection** — Improved detection with 6 executable name variants and prioritized path order (same dir > CWD > resources > standard paths)
 - [x] **Manual server path configuration** — "Configure Server Path" button with file picker (Tauri dialog plugin)
@@ -331,15 +327,15 @@ The local server detection is not working correctly:
 - [x] **Fix username taken error loop** — Client now stops auto-reconnect on pre-auth errors, shows message to user
 - [x] **Add `--data-path` CLI argument to server** — Server accepts custom data directory via `--data-path` argument
 
-### 0.5.8 Remove Redundant "View Users" Button ✅
+### 0.5.8 Eliminar botón redundante "Ver usuarios" ✅
 
-**Priority: LOW - UI Cleanup - COMPLETED 2026-02-25**
+**Prioridad: BAJA - Limpieza de UI - COMPLETADO 2026-02-25**
 
-#### Problem
+#### Problema
 
-After implementing the right sidebar user list in 0.5.2, the "View Users" button in the admin dropdown was redundant. All users (not just admins) can see the server members in the right panel.
+Tras implementar la lista de usuarios en el panel lateral derecho (0.5.2), el botón "View Users" en el menú de administrador era redundante.
 
-#### Implemented ✅
+#### Implementado ✅
 
 - [x] Removed `onViewUsers` prop and button from `MainView.tsx`
 - [x] Removed `handleGetUsers` function from `App.tsx`
@@ -350,25 +346,19 @@ After implementing the right sidebar user list in 0.5.2, the "View Users" button
 
 **Affected files:** `client/src/components/MainView.tsx`, `client/src/App.tsx`
 
-### 0.5.9 Channel Categories & Organization ✅
+### 0.5.9 Categorías y organización de canales ✅
 
-**Priority: MEDIUM - Feature Enhancement - COMPLETED**
+**Prioridad: MEDIA - Mejora de funcionalidad - COMPLETADO**
 
-#### Problem
+#### Problema
 
-Servers with many channels become cluttered and hard to navigate. Users need a way to organize channels into logical groups.
+Los servidores con muchos canales se vuelven desordenados. Los usuarios necesitan agrupar canales en categorías colapsables.
 
-#### Proposed Solution
+#### Solución
 
-Implement collapsible channel categories similar to Discord's approach:
+Implementar categorías colapsables similares a Discord: agrupaciones visuales (no entidades separadas en BD), configurables e identificadas por color.
 
-- Categories are visual groupings (not separate entities in DB)
-- Channels can belong to a category or be uncategorized
-- Categories can be collapsed/expanded per user (saved in localStorage)
-- Admins can create, rename, and delete categories
-- Admins can drag channels between categories
-
-#### Tasks
+#### Tareas
 
 - [x] **Database schema update** — Add category support
   - Add `category_id` (optional) to channels table
@@ -396,13 +386,13 @@ Implement collapsible channel categories similar to Discord's approach:
   - Delete category moves channels to uncategorized
   - Channels without category_id render in "Channels" section
 
-**Build Status:** ✅ Clean client & server builds
+**Estado de compilación:** ✅ Sin errores en cliente y servidor
 
-### 0.5.10 Auto-start on System Boot ✅
+### 0.5.10 Arranque automático al iniciar Windows ✅
 
-**Priority: LOW - COMPLETED 2026-02-25**
+**Prioridad: BAJA - COMPLETADO 2026-02-25**
 
-#### Implemented ✅
+#### Implementado ✅
 
 - [x] **Backend implementation** — 3 Tauri commands using `winreg` crate
   - `is_auto_start_enabled(app_handle)` — reads `HKCU\Run` registry key
@@ -422,15 +412,15 @@ Implement collapsible channel categories similar to Discord's approach:
 - `client/src-tauri/src/main.rs` — 3 new commands + registered in invoke_handler
 - `client/src/components/ClientSettingsModal.tsx` — wired toggle to real commands
 
-### 0.5.11 Local Server Management UI ✅
+### 0.5.11 UI de gestión del servidor local ✅
 
-**Priority: MEDIUM - Completed**
+**Prioridad: MEDIA - Completado**
 
-#### Problem
+#### Problema
 
-Once the local server was running, the "Configure Server" button in the dropdown did nothing. There was no way to stop the server, reset the admin password, or wipe server data from the client UI.
+Una vez arrancado el servidor local, el botón "Configure Server" no hacía nada. No había forma de detenerlo, reiniciar la contraseña o borrar datos desde la UI del cliente.
 
-#### Implemented ✅
+#### Implementado ✅
 
 - [x] **Server dropdown three-way split** — running: Stop Server (red) + Configure Server (gear); installed+stopped: Start Server; not installed: existing path controls
 - [x] **Local Server Management Modal** — tabbed panel opened by "Configure Server" when running
@@ -443,7 +433,7 @@ Once the local server was running, the "Configure Server" button in the dropdown
 - Commits: `7097a7e`, `45a7647`, `(delete-data-ux)`
 - Starts polling server health when modal is open
 
-**Edge cases:**
+**Casos límite:**
 
 - Disable password reset if server is running
 - Show clear warning before data wipe
@@ -453,9 +443,9 @@ Once the local server was running, the "Configure Server" button in the dropdown
 - [ ] Implement end-to-end encryption for private messages
 - [ ] Add encryption indicator in private chat UI
 
-### 0.5.25 Message History Pagination 🔴 CRÍTICO
+### 0.5.25 Paginación del historial de mensajes 🔴 CRÍTICO
 
-**Priority: HIGH — Scalability**
+**Prioridad: ALTA — Escalabilidad**
 
 Actualmente `GET_MESSAGE_HISTORY` carga **todos** los mensajes de un canal en memoria de una sola vez. En servidores con uso prolongado esto provocará tiempos de carga altos, consumo de RAM elevado y una UX degradada.
 
@@ -487,15 +477,15 @@ Actualmente `GET_MESSAGE_HISTORY` carga **todos** los mensajes de un canal en me
 
 ---
 
-### 0.5.12 Moderation System ✅
+### 0.5.12 Sistema de moderación ✅
 
-**Priority: HIGH - v0.1.5 — COMPLETED (merged to develop)**
+**Prioridad: ALTA - v0.1.5 — COMPLETADO (mergeado a develop)**
 
-Enable server admins to manage disruptive users via kick, ban and per-user mutes.
+Permitir a los administradores gestionar usuarios problemáticos mediante expulsión, ban y silenciado individual.
 
 ---
 
-#### Kick
+#### Expulsión (Kick)
 
 - [x] Admin can kick a user — forcibly disconnects them; they can reconnect immediately with no restrictions
 - [x] `KICK_USER` client message → server closes the target's WebSocket with a `KICKED` error code
@@ -505,7 +495,7 @@ Enable server admins to manage disruptive users via kick, ban and per-user mutes
 
 ---
 
-#### Ban
+#### Ban permanente
 
 - [x] Admin can ban a user — permanently blocks reconnection from that device
 - [x] Ban is enforced by **device_public_key + IP address + user_id** (NOT username)
@@ -518,7 +508,7 @@ Enable server admins to manage disruptive users via kick, ban and per-user mutes
 
 ---
 
-#### Mute (text and/or voice)
+#### Silenciado (texto y/o voz)
 
 - [x] Two independent mute types: **text mute** (cannot send messages) and **voice mute** (flag set, UI shown)
 - [x] Mutes applied via popover in right-panel member list (owner-only controls)
@@ -533,20 +523,20 @@ Enable server admins to manage disruptive users via kick, ban and per-user mutes
 
 ---
 
-#### Moderation tab in Server Settings
+#### Pestaña de moderación en Configuración del servidor
 
 - [x] **"Moderation"** tab in `ServerConfigModal` (manage mode only)
 - [x] **Banned users section** — list of active bans with username, IP, banned at; "Revoke ban" button per row
 - [x] **Kick log section** — read-only list of historical kicks: username, IP, kicked at
 - [x] Loaded via `GET_BAN_LIST` / `GET_KICK_LOG` WebSocket messages
 
-### 0.5.13 Server Join Password ✅
+### 0.5.13 Contraseña de acceso al servidor ✅
 
-**Priority: LOW - Privacy Feature**
+**Prioridad: BAJA - Funcionalidad de privacidad**
 
-Allow server owners to require a password for joining, making the server private.
+Permitir a los propietarios del servidor requerir una contraseña para unirse, haciendo el servidor privado.
 
-#### Tasks
+#### Tareas
 
 - [x] **Config field** — added `join_password: Option<String>` to `ServerConfig` in `server.toml`; default `None` (public server)
 - [x] **Protocol change** — `ConnectPayload` gains optional `join_password` field; new `ErrorCode::PasswordRequired` returned when missing or wrong; server distinguishes "not provided" vs "incorrect" with distinct messages
@@ -555,18 +545,18 @@ Allow server owners to require a password for joining, making the server private
 - [x] **`is_private` flag in `ServerSettingsPayload`** — server sends `is_private: bool` so the client knows privacy status without revealing the actual password
 - [x] **Empty = open** — empty string / absent field means no password required
 
-### 0.5.16 Server Disconnect Detection ✅
+### 0.5.16 Detección de desconexión del servidor ✅
 
-**Priority: HIGH - Critical UX Bug**
+**Prioridad: ALTA - Bug crítico de UX**
 
-**Bug:** When the server process is killed while clients are connected, the clients do not react at all. They remain on the "connected" view showing a stale UI. They only discover something is wrong when they try to interact (send a message, etc.).
+**Bug:** cuando el proceso del servidor se mataba mientras había clientes conectados, los clientes no reaccionaban. Se quedaban en la vista conectada mostrando una UI obsoleta.
 
-#### Expected Behavior
+#### Comportamiento esperado
 
-- When the WebSocket connection closes unexpectedly and all reconnect attempts are exhausted, the client should navigate back to the server-list view with a clear "Lost connection to server" error message.
-- While reconnect attempts are in progress, show a visible "Reconnecting…" banner in the connected view.
+- Al cerrar el WebSocket inesperadamente y agotar todos los intentos de reconexión, el cliente debe volver a la lista de servidores con un mensaje claro de error.
+- Mientras se reintenta la conexión, mostrar un banner visible "Reconnecting…" en la vista conectada.
 
-#### Tasks
+#### Tareas
 
 - [x] Add `onGiveUp?: () => void` callback to `WebSocketClient` — fires when all `maxReconnectAttempts` are exhausted
 - [x] In `WebSocketClient.onclose`: call `onGiveUp?.()` when reconnect loop will not retry
@@ -577,18 +567,18 @@ Allow server owners to require a password for joining, making the server private
 
 ---
 
-### 0.5.17 Channel Deletion Bug Fix ✅
+### 0.5.17 Corrección de bug: eliminación de canales ✅
 
-**Priority: HIGH - Functionality Bug**
+**Prioridad: ALTA - Bug de funcionalidad**
 
-**Bug:** Clicking the trash icon on a channel shows the delete confirmation UI (✓ / ✕). However, clicking ✓ does nothing — the channel is not deleted from the list and no error is shown.
+**Bug:** hacer clic en el icono de papelera mostraba la UI de confirmación (✓ / ✕), pero hacer clic en ✓ no hacía nada.
 
-#### Root Causes
+#### Causas raíz
 
-1. **Client (ChannelList.tsx):** The channel row `div` has `draggable={isOwner}` applied even when the delete-confirmation UI is active. On Tauri/WebView, the draggable attribute on a parent can suppress click events on child buttons in certain configurations. The ✓ button clicks are intercepted before the handler fires.
-2. **Server (handlers.rs / db.rs):** `delete_channel` does not delete associated messages first. If SQLite foreign-key enforcement is active (it is enabled per-connection in some rusqlite builds), the `DELETE FROM channels` statement fails silently, no `CHANNEL_DELETED` broadcast is sent, and the client sees nothing happen. Even when FK enforcement is off, messages remain as orphaned rows.
+1. **Cliente (`ChannelList.tsx`):** El atributo `draggable` del contenedor padre suprimía los clics en los botones hijo en Tauri/WebView.
+2. **Servidor (`handlers.rs` / `db.rs`):** `delete_channel` no eliminaba los mensajes asociados antes de borrar el canal, provocando fallos silenciosos por restricciones FK en SQLite.
 
-#### Tasks
+#### Tareas
 
 - [x] **Client — `ChannelList.tsx`:** Change `draggable={isOwner}` to `draggable={isOwner && !isDeleting && !isRenaming}` so the row is never draggable while edit/delete UI is active
 - [x] **Client — `ChannelList.tsx`:** Add `e.stopPropagation()` to the ✓ confirm button `onClick` to prevent any parent event interference
@@ -600,13 +590,13 @@ Allow server owners to require a password for joining, making the server private
 
 ---
 
-### 0.5.18 Pre-launch Admin Password Reset ✅
+### 0.5.18 Reseteo de contraseña de admin antes del lanzamiento ✅
 
-**Priority: HIGH - UX Gap**
+**Prioridad: ALTA - Laguna de UX**
 
-**Problem:** When clicking "Start Server" with a server already configured, the Security tab shows a static info note saying "To change the password use Server → Configure Server → Reset Password after the server is running." The user cannot reset the admin password from the pre-launch modal — they are forced to start the server first, connect, open manage mode and change it there.
+**Problema:** en la pestaña de Seguridad del modal "Start Server" con servidor ya configurado, no era posible cambiar la contraseña de administrador sin arrancar el servidor primero.
 
-#### Tasks
+#### Tareas
 
 - [x] **Rust — `client/src-tauri/src/main.rs`:** Add `update_server_admin_password(new_password: String)` Tauri command
   - Reads `~/.nexum/server/server.toml`, replaces the `admin_password = "..."` line, writes back
@@ -621,13 +611,13 @@ Allow server owners to require a password for joining, making the server private
 
 ---
 
-### 0.5.19 Pre-launch Modal Config Not Persisting ✅
+### 0.5.19 Persistencia de configuración en el modal de pre-lanzamiento ✅
 
-**Priority: HIGH - UX Bug**
+**Prioridad: ALTA - Bug de UX**
 
-**Problem:** When re-opening the "Start Server" modal on an already-configured server, the General tab always showed the default "My Nexum Server" name and default limits instead of the previously saved values. `ServerConfigModal` initialises from the `settings` prop (which is only populated in manage mode) and had no mechanism to read `server.toml` in pre-launch mode.
+**Problema:** al reabrir el modal "Start Server" en un servidor ya configurado, la pestaña General siempre mostraba "My Nexum Server" y los límites por defecto en lugar de los valores previamente guardados.
 
-#### Tasks
+#### Tareas
 
 - [x] **Rust — `client/src-tauri/src/main.rs`:** Add `read_server_config()` Tauri command — parses `~/.nexum/server/server.toml` line-by-line, returns `{ name, max_users, max_users_per_voice_channel, max_message_size, is_private }` as a serialised struct
 - [x] **Frontend — `ServerConfigModal.tsx`:** Add `useEffect` on mount that calls `read_server_config` when `mode === 'pre-launch' && isConfigured`, then sets `serverName`, `maxUsers`, `maxVoice`, `maxMessage`, `isPrivate` from the result
@@ -636,13 +626,13 @@ Allow server owners to require a password for joining, making the server private
 
 ---
 
-### 0.5.20 Standalone Server First-Run Setup Wizard ✅
+### 0.5.20 Asistente de configuración inicial del servidor standalone ✅
 
-**Priority: HIGH - Missing UX**
+**Prioridad: ALTA - UX incompleta**
 
-**Problem:** The standalone server binary only asked for an admin password on first run. It did not ask for server name or whether the server should be public or private, even though these settings exist in `server.toml` and are fully supported. Users were forced to edit the TOML file manually after setup.
+**Problema:** el binario standalone del servidor solo pedía contraseña de administrador en el primer arranque. No preguntaba por el nombre del servidor ni la visibilidad pública/privada.
 
-#### Tasks
+#### Tareas
 
 - [x] **Expand `prompt_for_setup()` in `server/src/config.rs`** — replace the old password-only `prompt_for_password()` with a full wizard:
   - Step 1: Server name (`dialoguer::Input` with default "My Nexum Server")
@@ -656,13 +646,13 @@ Allow server owners to require a password for joining, making the server private
 
 ---
 
-### 0.5.21 Standalone Server Data Path Unification ✅
+### 0.5.21 Unificación de rutas de datos del servidor standalone ✅
 
-**Priority: HIGH - Data Consistency Bug**
+**Prioridad: ALTA - Bug de consistencia de datos**
 
-**Problem:** The standalone server stored `server.toml` and `data/` in the current working directory (wherever the user launched the binary). The Tauri client always used `~/.nexum/server/`. This meant a server configured via the client would not be found when re-launched standalone, and vice-versa — effectively two isolated environments.
+**Problema:** el servidor standalone guardaba `server.toml` y `data/` en el directorio de trabajo actual, mientras que el cliente Tauri siempre usaba `~/.nexum/server/`. Esto provocaba que los servidores configurados desde el cliente no se encontraran al relanzar el standalone, y viceversa.
 
-#### Tasks
+#### Tareas
 
 - [x] **`server/Cargo.toml`**: Add `dirs = "5.0"` dependency
 - [x] **`server/src/config.rs`**: Add `nexum_server_dir()` helper that returns `~/.nexum/server/`; update `Config::load()` to use it as default config and data path (respects existing `CONFIG_PATH` env var override)
@@ -671,9 +661,9 @@ Allow server owners to require a password for joining, making the server private
 
 ---
 
-### 0.5.26 System Tray ✅
+### 0.5.26 Bandeja del sistema (System Tray) ✅
 
-**Priority: HIGH — Prerequisite for notifications — COMPLETED**
+**Prioridad: ALTA — Requisito previo para notificaciones — COMPLETADO**
 
 La app no se cierra al pulsar la X de la ventana: se minimiza a la bandeja del sistema (esquina inferior derecha de Windows). Para salir completamente el usuario usa el menú contextual del icono.
 
@@ -702,9 +692,9 @@ La app no se cierra al pulsar la X de la ventana: se minimiza a la bandeja del s
 
 ---
 
-### ✅ 0.5.14 Notification System — COMPLETADO
+### ✅ 0.5.14 Sistema de notificaciones — COMPLETADO
 
-**Priority: HIGH — depende de 0.5.26 (System Tray)**
+**Prioridad: ALTA — depende de 0.5.26 (Bandeja del sistema)**
 
 Sistema de notificaciones de mensajes pendientes. El objetivo MVP es que el usuario sepa cuando tiene mensajes sin leer sin tener la ventana visible.
 
@@ -768,9 +758,9 @@ Sistema de notificaciones de mensajes pendientes. El objetivo MVP es que el usua
 
 ---
 
-### 0.5.27 Server Notification Channel + Read-only Channels 🚧
+### 0.5.27 Canal de notificaciones del servidor + Canales de solo lectura 🚧
 
-**Priority: HIGH — Prerequisite for server-side notifications**
+**Prioridad: ALTA — Requisito previo para notificaciones del servidor**
 
 #### Canal de notificaciones del servidor
 
@@ -822,9 +812,9 @@ El administrador puede marcar un canal de texto como **solo lectura**: los usuar
 
 ---
 
-### 0.5.28 Message Reactions 🚧
+### 0.5.28 Reacciones a mensajes 🚧
 
-**Priority: LOW**
+**Prioridad: BAJA**
 
 Los usuarios pueden reaccionar a cualquier mensaje con emojis (como Discord / WhatsApp). Pueden añadir una reacción o eliminar una que ya pusieron.
 
@@ -848,9 +838,9 @@ Los usuarios pueden reaccionar a cualquier mensaje con emojis (como Discord / Wh
 
 ---
 
-### 0.5.29 Mention System 🚧
+### 0.5.29 Sistema de menciones 🚧
 
-**Priority: LOW**
+**Prioridad: BAJA**
 
 Permite mencionar usuarios con `@username` en mensajes de canal. MVP: solo detección y highlight visual en el cliente, sin notificación sonora ni push.
 
@@ -863,23 +853,20 @@ Permite mencionar usuarios con `@username` en mensajes de canal. MVP: solo detec
 
 ---
 
-### 0.5.15 Server Launch UX & Unified Server Config Modal 🚧
+### 0.5.15 UX de lanzamiento del servidor y modal unificado de configuración ✅
 
-**Priority: HIGH - UX Gap + Refactor**
+**Prioridad: ALTA - Laguna de UX + Refactor**
 
-#### Problem
+#### Problema
 
-1. When the user clicks "Start Server" in the Server dropdown, the server starts but gives zero feedback — no config step, no spinner, no "ready" notification, no "Connect now" shortcut.
-2. `ServerSettingsModal` (used when connected as admin) is a flat list with no tabs — no room for future sections (Moderation, etc.).
+1. Al hacer clic en "Start Server", el servidor arrancaba sin dar ningún feedback: sin paso de configuración, sin spinner, sin notificación "listo", sin acceso directo a "Conectar ahora".
+2. `ServerSettingsModal` era una lista plana sin pestañas, sin espacio para secciones futuras (Moderación, etc.).
 
-#### Solution
+#### Solución
 
-Replace both flows with a single unified `ServerConfigModal` component that adapts to two modes:
+Sustituir ambos flujos por un único componente `ServerConfigModal` que se adapta a dos modos: **pre-launch** (antes de arrancar) y **manage** (modo administrador conectado).
 
-- **`pre-launch` mode** — opens when user clicks "Start Server"; shows tabbed config, launches server, shows progress, shows "ready + Connect Now" on success.
-- **`manage` mode** — replaces `ServerSettingsModal` when connected as admin; shows same tabs with live-edit of running server settings.
-
-#### Subtasks
+#### Subtareas
 
 **Rust — `server_manager.rs` + `main.rs`**
 
@@ -892,7 +879,7 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
   - Returns `true` when server is accepting connections
   - Registered in `invoke_handler`
 
-**Frontend — `ServerConfigModal.tsx` (new component)**
+**Frontend — `ServerConfigModal.tsx` (nuevo componente)**
 
 - [x] Create `ServerConfigModal.tsx` with props: `mode`, `isConfigured`, `port`, `settings?`, `onClose`, `onSaveSettings?`, `onChangePassword?`, `onConnectNow?`
 - [x] Tab: **General** — server name input + Max Users + Max Voice Channel Users + Max Message Size
@@ -910,13 +897,13 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
   - [x] `phase='error'`: error message + "Try Again" button (resets to `phase='config'`)
 - [x] Manage mode: save/close behavior identical to old `ServerSettingsModal`
 
-**Refactor — replace `ServerSettingsModal`**
+**Refactor — sustituir `ServerSettingsModal`**
 
 - [x] Replace `<ServerSettingsModal>` usage in `App.tsx` with `<ServerConfigModal mode='manage'>`
 - [x] Remove `ServerSettingsModal.tsx` from codebase
 - [x] Remove `import ServerSettingsModal` from `App.tsx`
 
-**Wire to `App.tsx`**
+**Conexión a `App.tsx`**
 
 - [x] Open `<ServerConfigModal mode='pre-launch'>` from `handleLaunchLocalServer` (replaces old `showLocalServerSetupModal`)
 - [x] Remove old states: `showLocalServerSetupModal`, `localSetupPassword`, `localSetupError`, `localSetupLaunching`
@@ -924,17 +911,17 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [x] Pass `onConnectNow` (`handleServerConnectNow`): auto-adds local server entry if missing + opens `ServerConnectModal`
 - [x] Pass `isConfigured` from `invoke('is_server_configured')` called on modal open
 
-**Validation**
+**Validación**
 
 - [x] `tsc --noEmit` — clean
 - [x] `cargo check` — clean
 
-**Docs**
+**Documentación**
 
 - [x] `changelog.md` updated
 - [x] `todo.md` subtasks ticked
 
-### 0.5.3 Server Detection ✅
+### 0.5.3 Detección del servidor ✅
 
 - [x] Create `server_manager.rs` module in client backend
 - [x] Implement `detect_server()` function (searches ~7 common install paths)
@@ -942,7 +929,7 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [x] Add Tauri command `detect_local_server()`
 - [x] Unit tests passing (3/3)
 
-### 0.5.3 Server Control ✅
+### 0.5.3 Control del servidor ✅
 
 - [x] Implement `start_local_server()` command
   - [x] Launch server process with `--non-interactive`
@@ -952,7 +939,7 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [x] Implement `get_server_status()` command
 - [x] Implement `check_server_health()` - detects crashed processes
 
-### 0.5.4 Initial Setup Flow ✅
+### 0.5.4 Flujo de configuración inicial ✅
 
 - [x] Create first-run detection (`is_server_configured()` → checks server.toml)
 - [x] Password input integrated in `LocalServerPanel`
@@ -962,7 +949,7 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [x] Pass `--admin-password` on first start
 - [ ] Persist password securely in system keychain
 
-### 0.5.5 UI Components ✅
+### 0.5.5 Componentes de UI ✅
 
 - [x] Create `LocalServerPanel` component
   - [x] Server status indicator with animated pulse
@@ -976,14 +963,14 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [ ] Collapse/expand panel option
 - [x] "Connect to Local" quick button after server starts — "Connect Now →" button in launch modal
 
-### 0.5.6 Auto-Connection 🚧
+### 0.5.6 Conexión automática 🚧
 
 - [x] Auto-fill `localhost:8080` on server start
 - [x] Auto-trigger Connect after server starts — "Connect Now →" in launch ready step
 - [ ] Handle connection failures gracefully
 - [ ] Add retry logic with exponential backoff
 
-### 0.5.7 Configuration Management 🚧
+### 0.5.7 Gestión de configuración 🚧
 
 - [x] Add "Local Server Settings" to Settings modal — implemented as `ServerConfigModal` (tabbed: General, Security, Moderation)
   - [x] Change admin password — Security tab (manage mode + pre-launch 0.5.18)
@@ -994,7 +981,7 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [ ] Restart server when config changes
 - [ ] Validate configuration before applying
 
-### 0.5.8 Setup Wizard 🚧
+### 0.5.8 Asistente de configuración inicial 🚧
 
 - [ ] Create first-launch wizard component
   - [ ] Welcome screen
@@ -1004,7 +991,7 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [ ] Save wizard completion state (localStorage)
 - [ ] Skip wizard on subsequent launches
 
-### 0.5.9 Build & Distribution ✅
+### 0.5.9 Compilación y distribución ✅
 
 - [x] Create unified build script (`build.ps1`)
 - [x] Bundle server binary with client in installer
@@ -1012,18 +999,18 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [ ] Verify both client and server are installed together
 - [ ] Test uninstallation (clean removal)
 
-### 0.5.10 Documentation 🚧
+### 0.5.10 Documentación 🚧
 
 - [ ] Update README with new installation process
 - [ ] Create user guide for local server mode
 - [ ] Document troubleshooting steps
 - [ ] Add FAQ for common issues
 
-**Reference:** See [CLIENT_SERVER_INTEGRATION.md](CLIENT_SERVER_INTEGRATION.md) for detailed design.
+**Referencia:** Ver [CLIENT_SERVER_INTEGRATION.md](CLIENT_SERVER_INTEGRATION.md) para diseño detallado.
 
 ---
 
-## ✅ Phase 0: Project Setup (COMPLETED)
+## ✅ Fase 0: Configuración del proyecto (COMPLETADO)
 
 - [x] Create documentation structure
 - [x] Define technology stack
@@ -1033,44 +1020,44 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 
 ---
 
-## ✅ Phase 1: Server Core (COMPLETED)
+## ✅ Fase 1: Núcleo del servidor (COMPLETADO)
 
-### 1.1 Project Structure ✅
+### 1.1 Estructura del proyecto ✅
 
 - [x] Initialize Cargo project in `server/`
 - [x] Set up folder structure (all files created)
 - [x] Add all dependencies to Cargo.toml
 
-**Decisions Made:**
+**Decisiones tomadas:**
 
 - Using env vars and TOML config (no CLI args for MVP)
 - Default ports: WebSocket (8080), UDP (9000)
 
-### 1.2 Configuration ✅
+### 1.2 Configuración ✅
 
 - [x] Create `server.toml` example
 - [x] Implement config loader with serde
 - [x] Add default values
 - [x] Support environment variable overrides
 
-**Decisions Made:**
+**Decisiones tomadas:**
 
 - Config in `./server.toml` (same folder)
 - maxUsers requires restart to change
 
-### 1.3 Database Setup ✅
+### 1.3 Configuración de la base de datos ✅
 
 - [x] Define SQL schema (users, channels, messages, call_history, server_config)
 - [x] Implement SQLite connection (Arc<Mutex<Connection>>)
 - [x] Write init_db() function
 - [x] Add CRUD for users, channels, messages
 
-**Decisions Made:**
+**Decisiones tomadas:**
 
 - Single connection wrapped in Arc<Mutex> (sufficient for MVP)
 - Hard deletes (no soft delete for MVP)
 
-### 1.4 WebSocket Server ✅
+### 1.4 Servidor WebSocket ✅
 
 - [x] Set up Axum router
 - [x] Implement WebSocket upgrade handler
@@ -1080,16 +1067,16 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [x] Implement ERROR responses
 - [x] Add ping/pong keepalive
 
-**Decisions Made:**
+**Decisiones tomadas:**
 
 - No username validation (accepts any string 1-32 chars)
 - No per-IP connection limit for MVP
 
 ---
 
-## ✅ Phase 2: Domain Logic (COMPLETED)
+## ✅ Fase 2: Lógica de dominio (COMPLETADO)
 
-### 2.1 User Management ✅
+### 2.1 Gestión de usuarios ✅
 
 - [x] Create user on first connect
 - [x] Assign userId (UUID)
@@ -1097,12 +1084,12 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [x] Handle username changes (DB method exists)
 - [x] Implement role assignment (owner vs member)
 
-**Decisions Made:**
+**Decisiones tomadas:**
 
 - First user is always owner
 - Owner role transfer not implemented in MVP
 
-### 2.2 Channel Management ✅
+### 2.2 Gestión de canales ✅
 
 - [x] CREATE_CHANNEL message handler
 - [x] DELETE_CHANNEL message handler
@@ -1111,12 +1098,12 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [x] LEAVE_CHANNEL logic
 - [x] Enforce max_users per channel
 
-**Decisions Made:**
+**Decisiones tomadas:**
 
 - No channel descriptions for MVP
 - No channel renaming for MVP
 
-### 2.3 Text Messaging ✅
+### 2.3 Mensajería de texto ✅
 
 - [x] SEND_MESSAGE handler
 - [x] Validate message size (2000 chars)
@@ -1124,12 +1111,12 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [x] Broadcast to channel members
 - [x] Rate limiting (basic structure, not enforced)
 
-**Decisions Made:**
+**Decisiones tomadas:**
 
 - Rate limit: 60 messages/minute (configured, not enforced yet)
 - Empty messages blocked by UI
 
-### 2.4 Role Enforcement ✅
+### 2.4 Control de roles ✅
 
 - [x] Check permissions for channel creation
 - [x] Check permissions for channel deletion
@@ -1138,9 +1125,9 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 
 ---
 
-## ⚠️ Phase 3: Voice Integration (PARTIAL)
+## ⚠️ Fase 3: Integración de voz (PARCIAL)
 
-### 3.1 UDP Server ⚠️
+### 3.1 Servidor UDP ⚠️
 
 - [x] Bind UDP socket
 - [x] Parse incoming packets (version + sessionId + opus)
@@ -1149,14 +1136,14 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [ ] 🚧 **Forward packet to all other channel members** (needs UDP address tracking)
 - [x] Handle errors gracefully (no crash on bad packets)
 
-**Known Issue:** UDP address registration per session not implemented
+**Problema conocido:** el registro de la dirección UDP por sesión no está implementado
 
-**Decisions Made:**
+**Decisiones tomadas:**
 
 - Validate packet structure, drop invalid
 - Drop packets from non-authenticated sessions
 
-### 3.2 Voice Channel State ✅
+### 3.2 Estado de canales de voz ✅
 
 - [x] Track active voice connections per channel
 - [x] JOIN_VOICE handler
@@ -1164,12 +1151,12 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [x] Notify channel members on join/leave
 - [x] Enforce max_users_per_voice_channel
 
-**Decisions Made:**
+**Decisiones tomadas:**
 
 - Auto-leave voice on disconnect (yes)
 - No "speaking" state tracking for MVP
 
-### 3.3 Call History ❌
+### 3.3 Historial de llamadas ❌
 
 - [ ] Log call start time (deferred)
 - [ ] Log call end time (deferred)
@@ -1178,9 +1165,9 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 
 ---
 
-## ✅ Phase 4: Client (MOSTLY COMPLETE)
+## ✅ Fase 4: Cliente (MAYORMENTE COMPLETADO)
 
-### 4.1 Project Setup ✅
+### 4.1 Configuración del proyecto ✅
 
 - [x] Initialize Tauri project
 - [x] Set up React + TypeScript
@@ -1188,7 +1175,7 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [x] Create basic app layout
 - [x] No routing needed (single view app)
 
-### 4.2 Connection UI ✅
+### 4.2 UI de conexión ✅
 
 - [x] Username input field
 - [x] Server address input (IP:PORT)
@@ -1196,12 +1183,12 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [x] Connection status indicator
 - [x] Error message display
 
-**Decisions Made:**
+**Decisiones tomadas:**
 
 - No localStorage for username (fresh each time)
 - No pre-connect validation (server validates)
 
-### 4.3 WebSocket Client ✅
+### 4.3 Cliente WebSocket ✅
 
 - [x] Implement WebSocket connection
 - [x] Send CONNECT message
@@ -1210,12 +1197,12 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [x] Implement auto-reconnect logic
 - [x] Ping/pong handling
 
-**Decisions Made:**
+**Decisiones tomadas:**
 
 - Reconnect backoff: 1s, 2s, 4s, 8s, max 10s (exponential)
 - Show reconnection in connection status (not separate UI)
 
-### 4.4 Main UI ✅
+### 4.4 UI principal ✅
 
 - [x] Channel list sidebar
 - [x] Text chat area
@@ -1223,12 +1210,12 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [x] Voice controls UI (non-functional)
 - [ ] User list per channel (deferred)
 
-**Decisions Made:**
+**Decisiones tomadas:**
 
 - Fixed layout (no resizing for MVP)
 - Show timestamps on messages (yes)
 
-### 4.5 Audio Capture ❌ (NOT IMPLEMENTED)
+### 4.5 Captura de audio ❌ (NO IMPLEMENTADO)
 
 - [ ] 🚧 Request microphone permission
 - [ ] 🚧 Capture audio with Web Audio API
@@ -1236,9 +1223,9 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [ ] 🚧 Send via UDP
 - [ ] 🚧 Implement push-to-talk
 
-**Blocker:** Requires audio engineering expertise and Opus WASM library
+**Bloqueante:** se requiere experiencia en ingeniería de audio y la biblioteca Opus WASM
 
-### 4.6 Audio Playback ❌ (NOT IMPLEMENTED)
+### 4.6 Reproducción de audio ❌ (NO IMPLEMENTADO)
 
 - [ ] 🚧 Receive UDP packets (need Tauri UDP bridge)
 - [ ] 🚧 Decode Opus frames
@@ -1246,20 +1233,20 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [ ] 🚧 Play through AudioContext
 - [ ] 🚧 Handle packet loss
 
-**Blocker:** Requires audio implementation + UDP in Tauri
+**Bloqueante:** se requiere implementación de audio + UDP en Tauri
 
 ---
 
-## 🎯 Phase 5: Packaging (CURRENT FOCUS)
+## 🎯 Fase 5: Empaquetado (FOCO ACTUAL)
 
-### 5.1 Server Binary
+### 5.1 Binario del servidor
 
 - [x] Cross-compile for Windows x64
 - [ ] Cross-compile for macOS (Intel + ARM)
 - [x] Test binary standalone
 - [x] Create default config structure (creates server.example.toml)
 
-### 5.2 Client Bundling ✅
+### 5.2 Empaquetado del cliente ✅
 
 - [x] Embed server binary in Tauri resources
 - [x] Implement "Start Local Server" button
@@ -1267,12 +1254,12 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [ ] Display server logs in UI (optional)
 - [x] Handle server process lifecycle
 
-**Decisions:**
+**Decisiones:**
 
 - Defer server embedding for MVP
 - Focus on standalone client installer first
 
-### 5.3 Installers ✅ **LINUX COMPLETE, WINDOWS DOCUMENTED**
+### 5.3 Instaladores ✅ **LINUX COMPLETADO, WINDOWS DOCUMENTADO**
 
 - [x] 🎯 **Verify client compiles successfully**
 - [x] 🎯 **Create app icons (PNG, ICO, ICNS)** - Generated via Tauri CLI from SVG
@@ -1283,7 +1270,7 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [ ] Build macOS .dmg with Tauri (later)
 - [ ] Test installation flow on macOS (later)
 
-**Status:**
+**Estado:**
 
 - ✅ Linux builds successful (3.8 MB `.deb`, 74 MB `.AppImage`)
 - 📝 Windows build guide created with complete instructions
@@ -1292,9 +1279,9 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 
 ---
 
-## Phase 6: Polish (DEFERRED)
+## Fase 6: Refinamiento (APLAZADO)
 
-### 6.1 Error Handling
+### 6.1 Manejo de errores
 
 - [x] User-friendly error messages (basic)
 - [x] Handle network failures gracefully
@@ -1302,14 +1289,14 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 - [x] Auto-reconnect mechanism
 - [ ] Better error details (can improve)
 
-### 6.2 UX Improvements
+### 6.2 Mejoras de UX
 
 - [ ] Loading states (basic spinners)
 - [x] Empty states (no channels, no messages)
 - [ ] Keyboard shortcuts
 - [ ] Sound notifications
 
-### 6.3 Testing
+### 6.3 Pruebas
 
 - [ ] Manual test full flow
 - [ ] Test with 2+ clients simultaneously
@@ -1319,9 +1306,9 @@ Replace both flows with a single unified `ServerConfigModal` component that adap
 
 ---
 
-## ❌ Non-MVP (Explicitly Deferred)
+## ❌ Fuera del MVP (aplazado explícitamente)
 
-All features below are OUT OF SCOPE for initial release:
+Todas las funcionalidades de abajo están FUERA DEL ALCANCE del lanzamiento inicial:
 
 - [ ] TLS support (use reverse proxy)
 - [ ] Message search

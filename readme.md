@@ -103,28 +103,36 @@ npm run tauri dev
 ### Ready Now
 
 ✅ **Real-time text chat** with SQLite persistence  
-✅ **Channel system** (text and voice types)  
+✅ **Channel system** (text and voice types, drag & drop categories)  
 ✅ **Role-based permissions** (owner/member)  
 ✅ **Multi-user support** (up to 200 configurable users)  
 ✅ **Auto-reconnection** with exponential backoff  
 ✅ **Avatar system** with file upload & URL support  
 ✅ **Server management** from client UI  
 ✅ **Local server management** — start/stop, reset admin password, wipe data, all from client  
+✅ **Private servers** — join password protection  
+✅ **Moderation system** — kick (with kick log), permanent ban, text/voice mute  
+✅ **Device-bound identity** — ed25519 keypair; stable across IP changes  
+✅ **E2E encrypted DMs** — AES-GCM 256 via Web Crypto API; server stores only ciphertext  
+✅ **Notification system** — unread channel badges, DM sound, tray tooltip counter  
+✅ **System tray** — minimizes to tray on close; quit via tray menu  
+✅ **Auto-start on Windows startup** toggle  
 ✅ **Dark & light themes** with persistent preference  
+✅ **Unified installer** — server binary bundled and managed by the client  
 ✅ **Cross-platform** desktop builds
 
 ### In Development
 
-🚧 **Voice chat** audio implementation (UI ready)  
-🚧 **Unified installer** (client + server bundled)
+🚧 **Voice chat** audio implementation (UI and UDP stub ready, audio encoding pending)
 
 ### Planned
 
-📋 Private messaging (DMs)  
-📋 End-to-end encryption for DMs  
 📋 Push-to-talk & voice activation  
-📋 Message search & history pagination  
-📋 TLS support
+📋 Emoji reactions on messages  
+📋 Message history pagination (infinite scroll)  
+📋 Server notification channels & read-only channels  
+📋 Kick/ban reason message shown to the affected user  
+📋 TLS support (recommend reverse proxy in the meantime)
 
 ---
 
@@ -247,74 +255,37 @@ Nexum is perfect for:
 
 ## 📦 Current Status
 
-**Version:** 0.1.4 (Feature Release + Bug Fixes)  
+**Version:** 0.1.5 (Bug Fix Release)  
 **Release:** Beta / Active Development
 
-| Component           | Status                          |
-| ------------------- | ------------------------------- |
-| Text Chat           | ✅ Production-ready             |
-| Private DMs         | ✅ E2E encrypted (AES-GCM 256)  |
-| User Management     | ✅ Fully functional             |
-| Channel System      | ✅ Create, rename, delete       |
-| Avatar System       | ✅ Upload & URL support         |
-| Server Settings     | ✅ Editable from UI             |
-| Local Server Mgmt   | ✅ Start/Stop/Reset/Wipe        |
-| Device Identity     | ✅ ed25519 key (stable across IPs) |
-| Private Servers     | ✅ Join password support        |
-| Dark & Light Themes | ✅ Persistent preference        |
-| Desktop Client      | ✅ Windows/macOS/Linux          |
-| Voice Chat          | 🚧 UI ready, audio pending      |
-| Mobile Apps         | 📋 Future consideration         |
+| Component           | Status                                        |
+| ------------------- | --------------------------------------------- |
+| Text Chat           | ✅ Production-ready                           |
+| Private DMs         | ✅ E2E encrypted (AES-GCM 256)               |
+| User Management     | ✅ Fully functional                           |
+| Channel System      | ✅ Create, rename, delete, categories        |
+| Avatar System       | ✅ Upload & URL support                      |
+| Server Settings     | ✅ Editable from UI                          |
+| Local Server Mgmt   | ✅ Start/Stop/Reset/Wipe                     |
+| Device Identity     | ✅ ed25519 key (stable across IPs)           |
+| Private Servers     | ✅ Join password support                     |
+| Moderation          | ✅ Kick, ban, mute (text & voice)            |
+| Notifications       | ✅ Unread badges, DM sound, tray counter     |
+| System Tray         | ✅ Minimize to tray, quit via menu           |
+| Auto-start          | ✅ Windows startup toggle                    |
+| Dark & Light Themes | ✅ Persistent preference                     |
+| Desktop Client      | ✅ Windows/macOS/Linux                       |
+| Voice Chat          | 🚧 UI ready, audio pending                   |
+| Emoji Reactions     | 📋 Planned                                   |
+| Mobile Apps         | 📋 Future consideration                      |
 
-**Latest builds:** Check [Releases](../../releases)
+**Latest builds:** [releases/README.md](releases/README.md)
 
 ---
 
 ## 🏷️ Release History
 
-### v0.1.4 — February 28, 2026 _(current)_
-
-**Type:** Feature Release + Bug Fixes
-
-#### ✨ New
-- **Private E2E Encrypted DMs (0.5.23)** — AES-GCM 256 via Web Crypto API; server stores only ciphertext. DM tab bar, unread badges, tab recovery, pulsing notifications.
-- **Device-bound ed25519 Identity (0.5.24)** — Stable user identity across IP changes. Keypair generated on first run, stored in `~/.nexum/device.key`. No hardware fingerprinting.
-- **Admin Password Reset (0.5.18)** — Reset admin password pre-launch from the Security tab without wiping config.
-- **Pre-launch Config Persistence (0.5.19)** — Server name and limits now correctly restored when re-opening the "Start Server" modal.
-- **Standalone Server First-Run Wizard (0.5.20)** — Guides through server name, password and visibility step-by-step on first launch.
-- **Standalone Server Data Path Unification (0.5.21)** — Server binary and client now both use `~/.nexum/server/` for config and data.
-
-#### 🐛 Fixes
-- NSIS installer "Launch Nexum" checkbox now correctly launches the app post-install (0.5.22).
-- DM popover rendered via `createPortal` to fix `overflow-y` clipping (0.5.23).
-- Username-taken error now shown in the connection modal instead of being swallowed (0.5.23).
-- Server disconnect detection with 5-attempt reconnect and user-facing banner (0.5.16).
-- Channel deletion now reliably cleans up messages and sends error feedback (0.5.17).
-
----
-
-### v0.1.3 — February 27, 2026
-
-**Type:** Feature Release + Bug Fixes  
-- Private servers with join password (0.5.13)  
-- Unified "Start Server" tabbed config modal with health-check polling (0.5.15)  
-- Auto-start on Windows startup toggle (0.5.10)  
-- Server binary detection fix for versioned filenames
-
----
-
-### v0.1.2 — February 25, 2026
-
-- Avatar system (upload + URL), real-time updates  
-- Channel rename and delete from UI  
-- Editable server settings modal  
-- Dark mode, server user list, admin auth improvements  
-
----
-
-### v0.1.0 — February 22, 2026
-
-- Initial MVP: text channels, WebSocket server, Tauri desktop client, user join/leave, basic admin, SQLite persistence
+For the complete release history, changelogs, and download links see **[releases/README.md](releases/README.md)**.
 
 ---
 
@@ -372,7 +343,7 @@ A: Locally on the server machine. When the server is launched from the client it
 A: Absolutely! That's exactly what it's designed for.
 
 **Q: Is voice chat working?**  
-A: Text chat works perfectly. Voice UI is ready but audio implementation is pending.
+A: Text chat works perfectly. Voice UI and the UDP stub are ready but audio encoding/mixing is pending.
 
 **Q: How does it compare to Discord?**  
 A: Similar UX, but fully self-hosted with no corporate servers or data collection.
