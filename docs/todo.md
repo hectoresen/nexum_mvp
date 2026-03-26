@@ -6,25 +6,128 @@
 
 Esta fase integra el servidor CLI con el cliente para ofrecer una experiencia de usuario unificada.
 
-### 🔴 Bugs de alta prioridad — PENDIENTE
+### 🔴 Bugs de alta prioridad — EN REVISIÓN (feature/qa-fixes-round1)
 
-- [ ] **[BUG] Avatar upload falla con "Failed to fetch" para clientes no-host** — Cuando un usuario conectado a un servidor ajeno (no el host) intenta cambiar su imagen de perfil, la petición de subida HTTP falla con "Failed to fetch" y el avatar nunca se actualiza. El problema afecta únicamente a conexiones remotas; el host local no lo sufre. Relacionado con Chrome PNA / CORS — aunque se añadió `allow_private_network(true)` en el `CorsLayer`, el error persiste, indicando que hay otro punto de bloqueo (posiblemente el endpoint de upload-avatar no está cubierto por la misma política CORS, o hay un problema adicional de CSP en el cliente). Investigar qué petición concreta falla (preflight OPTIONS, la propia POST, o la respuesta) y verificar que `tauri.conf.json` CSP permite `connect-src` a IPs privadas.
-  - Archivos candidatos: `server/src/websocket.rs` (rutas CORS), `client/src/components/AvatarModal.tsx`, `client/src-tauri/tauri.conf.json`
+- [ ] **[QA1][BUG] Avatares rotos cuando el servidor es accedido por ngrok/HTTPS en puerto 443** — Las URLs construidas como `http://host:443/avatars/...` son inválidas; el puerto 443 requiere `https://`. El cliente genera `http://${serverAddress}/...` sin detectar el protocolo correcto. Solución: helper `buildBaseUrl(serverAddress)` que emite `https://host` cuando el puerto es 443, `http://host` en resto. Afecta a `UserListPanel`, `ChatArea`, `DirectMessageView`, `UserProfileModal`, `App.tsx`.
+  - Branch: `feature/qa-fixes-round1`
 
-- [ ] **[BUG] Imágenes de perfil de otros usuarios aparecen rotas para clientes no-host** — Al conectarse a un servidor remoto, los avatares de usuarios que han subido una imagen aparecen como imagen rota (broken image). El host del servidor los ve correctamente. La URL construida con `avatar_path + serverAddress` es formalmente correcta, pero la petición HTTP es bloqueada (probablemente mismo origen PNA/CSP que el bug anterior). Verificar que la política CSP `img-src` en `tauri.conf.json` incluye el schema `http:` para IPs de red privada, y que el servidor sirve el endpoint `/avatars/` con las cabeceras CORS correctas incluyendo `Access-Control-Allow-Private-Network: true`.
-  - Archivos candidatos: `server/src/websocket.rs` (rutas de avatares), `client/src-tauri/tauri.conf.json` (CSP img-src), `client/src/components/UserListPanel.tsx`, `client/src/components/ChatArea.tsx`
+- [x] **[QA3][BUG] Modal de autenticación de admin no muestra error al introducir contraseña incorrecta** — Closure obsoleto (*stale closure*): el handler de mensajes WebSocket captura `showAdminAuthModal = false` en el momento de la conexión. Cuando el modal se abre más tarde y el servidor responde con `UNAUTHORIZED`, el check `if (... && showAdminAuthModal)` siempre es `false` y el error nunca se muestra. Solución: `useRef` que espeja el estado del modal para acceder al valor actual desde el closure.
+  - Branch: `feature/qa-fixes-round1`
 
-- [ ] **[BUG] Usuario kickeado no recibe ningún mensaje de notificación** — Cuando un admin kickea a un usuario, la sesión del usuario kickeado se cierra sin mostrar ningún aviso. El comportamiento esperado es que aparezca un modal o mensaje en pantalla indicando "Has sido expulsado del servidor" (o similar) antes de redirigir al usuario a la lista de servidores. El servidor ya emite `USER_KICKED` como broadcast; hay que verificar que el cliente maneja ese mensaje para el propio usuario kickeado y muestra la notificación adecuada.
-  - Archivos candidatos: `client/src/App.tsx` (handler de `USER_KICKED`), `client/src/components/MainView.tsx` o modal dedicado
+- [x] **[QA4][BUG] Banear a un usuario no pide motivo al admin ni muestra razón al baneado** — El botón de ban en `UserListPanel` ejecuta `onBan(userId)` sin ningún input de motivo. El servidor envía `"You have been banned from this server"` al baneado sin incluir la razón aunque el payload `BAN_USER` ya soporta `reason: Option<String>`. Solución: añadir UI de motivo en el popover de ban + incluir razón en el mensaje de error que el servidor envía al usuario baneado.
+  - Branch: `feature/qa-fixes-round1`
+
+- [x] **[QA6][BUG] Puntos de mensajes no leídos en canales inconsistentes** — Causa raíz: `broadcast_to_channel` solo entrega mensajes al usuario que ha hecho `JOIN_CHANNEL` para ese canal específico. Al cambiar de canal, el usuario deja de recibir mensajes de los canales anteriores, por lo que nunca acumula mensajes no leídos en canales no activos. Solución: cambiar `handle_send_message`, `handle_delete_message` y `handle_edit_message` a `broadcast_message` para entregar a todos los usuarios conectados; la lógica de unread en el cliente ya es correcta.
+  - Branch: `feature/qa-fixes-round1`
+
+- [x] **[BUG] Avatar upload falla con "Failed to fetch" para clientes no-host** — Resuelto en `feature/fix-avatar-remote-clients`. Causa: WebView2 PNA bloqueaba `fetch()` a IPs privadas. Solución: comando Tauri `upload_avatar_via_backend` usando `reqwest` (bypassa WebView2).
+
+- [x] **[BUG] Imágenes de perfil de otros usuarios aparecen rotas para clientes no-host** — Parcialmente resuelto con `crossOrigin="anonymous"` en `feature/fix-avatar-remote-clients`. Completado en `feature/qa-fixes-round1` con `buildBaseUrl` (QA1).
 
 ---
 
-### 🟡 Mejoras de moderación — PENDIENTE
+### 🔴 Bug crítico — Autenticación de admin falla para clientes remotos (feature/qa-fixes-round2) — ✅ RESUELTO
 
-- [ ] **[FEATURE] Mensaje de motivo al kickear a un usuario** — Al kickear a un usuario, el admin debería poder introducir opcionalmente un motivo (texto libre). El usuario kickeado verá ese motivo en la pantalla de notificación de expulsión ("Has sido expulsado: [motivo]"). Si no se introduce motivo, se muestra el mensaje genérico. Requiere:
-  - Servidor: añadir campo `reason: Option<String>` al payload de `KICK_USER` y propagarlo en el mensaje `USER_KICKED` enviado al usuario expulsado.
-  - Cliente admin: añadir un input de texto opcional en el popover de kick antes de confirmar la acción.
-  - Cliente usuario kickeado: mostrar el motivo en el modal/aviso de expulsión.
+**Síntoma:** Un usuario que descarga la app e intenta autenticarse como admin en el servidor de otro PC introduce la contraseña correcta, pero su rol sigue como `member` y no obtiene acceso a las herramientas de administrador. El host en el mismo PC donde corre el servidor autenticó correctamente en una sesión anterior y su rol `owner` fue persistido en DB, por lo que al reconectarse ya no necesita volver a autenticarse — lo que da la falsa impresión de que la autenticación funciona para el host pero no para el guest.
+
+**Causa raíz:** El handler `ADMIN_AUTHENTICATED` en `handleServerMessage` llamaba a `setShowAdminAuthModal(false)` y `setAdminAuthError(null)` **dentro del actualizador funcional de `setView`**. Esto convierte esas llamadas en *side effects* de un actualizador de estado, comportamiento que React 18 con automatic batching puede ejecutar en condiciones inesperadas. `handleServerMessage` es capturado por el closure del `wsClient.onMessage` en el momento de la conexión, y cuando el actualizador se ejecuta más tarde para un cliente remoto (donde la latencia de red hace que el modal ya esté abierto y el componente haya re-renderizado varias veces), los efectos secundarios dentro del updater pueden comportarse de forma inconsistente.
+
+**Solución aplicada:**
+- Ambos `wsClient.onMessage` handlers (en `handleConnectWithUserId` y en `handleConnect`) ahora detectan `message.type === 'ADMIN_AUTHENTICATED'` directamente y llaman `setShowAdminAuthModal(false)` / `setAdminAuthError(null)` como state updates propias, fuera del `setView` updater.
+- El mensaje sigue cayendo al `setView` → `handleServerMessage` para que actualice `connection.role`.
+- `handleServerMessage` case `ADMIN_AUTHENTICATED` queda limpio: solo devuelve `{ ...connection, role: message.payload.new_role }` sin side effects.
+- Archivos: `client/src/App.tsx`
+
+**Feature añadida: Revocación de rol admin al cambiar la contraseña del servidor:**
+- Cuando el admin cambia `admin_password` en `UpdateServerSettings`, el servidor revoca el rol de todos los usuarios `owner` (DB + in-memory sessions) y emite `SERVER_USERS` broadcast.
+- El cliente en `SERVER_USERS` sincroniza `connection.role` con `selfInUsers.role` de la lista autoritativa del servidor; si fue revocado, el cliente pasa automáticamente a `member` sin necesidad de un nuevo tipo de mensaje.
+- Archivos: `server/src/db.rs` (+`demote_all_owners_to_member`), `server/src/session.rs` (+`demote_all_owners_to_member`), `server/src/handlers.rs` (lógica de revocación), `client/src/App.tsx` (role sync en `SERVER_USERS`)
+
+**Estado:** ✅ Implementado en `feature/qa-fixes-round2`. Requiere rebuild con `.\build.ps1 -Release -Bundle`.
+
+---
+
+### � Bug crítico — WebView2 PNA bloquea avatares en clientes remotos (feature/qa-fixes-round2) — ✅ RESUELTO
+
+**Síntoma:** Los avatares aparecen siempre como iniciales/fallback para el cliente invitado (PC2), aunque el servidor los sirva correctamente. El usuario host (PC1, `localhost:8080`) los ve sin problema. El bug persistió a través de tres rondas de corrección.
+
+**Causa raíz definitiva (confirmada):** WebView2 en Tauri 2.0 aplica la política *Chrome Private Network Access* (PNA). Las peticiones desde el origen `tauri://localhost` a IPs RFC-1918 (`192.168.x.x`) requieren un preflight OPTIONS exitoso con cabecera `Access-Control-Allow-Private-Network: true`. El host está exento porque `localhost:8080` es loopback. Esta restricción afecta tanto a `<img src="http://...">` como a `fetch()` en modo GET — si WebView2 realiza la petición, la bloquea de forma no determinista incluso cuando el servidor responde correctamente.
+
+**Intentos fallidos (documentados para referencia futura):**
+
+1. **`crossOrigin="anonymous"` en etiquetas `<img>`** (feature/fix-avatar-remote-clients)
+   - Resultado: empeoró la situación. El atributo fuerza a WebView2 a elevar la petición a CORS, pero `nest_service` (Axum) no propagaba el middleware CORS del router — las imágenes fallaban con error CORS en lugar de solo PNA.
+   - Archivos: `ChatArea.tsx`, `DirectMessageView.tsx`, `MainView.tsx`, `UserListPanel.tsx`, `UserProfileModal.tsx`
+
+2. **Reemplazar `nest_service` con ruta Axum explícita + `.allow_private_network(true)`** (feature/qa-fixes-round2)
+   - Causa detectada: `nest_service("/avatars", ServeDir::new(...))` en Axum 0.7 **no hereda** el middleware `Router::layer(cors)`. Se reemplazó por `.route("/avatars/:filename", get(avatar::serve_static_avatar))` con función propia que incluye cabeceras CORS y PNA explícitas.
+   - Resultado: el servidor responde correctamente, pero WebView2 sigue bloqueando las peticiones GET de manera no determinista. El problema es del cliente, no del servidor.
+
+3. **Componente `ServerImage` con `fetch()` → Blob URL** (feature/qa-fixes-round2, commit ad75aa3)
+   - Estrategia: cambiar de `<img src>` a `fetch()` + `URL.createObjectURL()`. Creado `ServerImage.tsx` como drop-in replacement de `<img>`.
+   - Resultado: idéntico. `fetch()` en modo GET también pasa por el stack de red de WebView2 y está sujeto a las mismas restricciones PNA. El componente mostraba siempre el fallback (iniciales).
+
+**Solución definitiva — reqwest vía comando Tauri (bypassa WebView2 completamente):**
+
+Enrutar toda la carga de imágenes del servidor a través del backend Rust, evitando WebView2 por completo. El cliente invoca un comando Tauri que ejecuta la petición HTTP desde Rust con `reqwest`, codifica la respuesta en base64 y devuelve una data URL `data:image/webp;base64,...`. El componente `ServerImage` renderiza `<img src="data:...">` — mismo origen, sin red, sin restricciones PNA ni CORS.
+
+- **Nuevo comando Tauri:** `fetch_remote_image(url: String) -> Result<String, String>`
+  - Valida que la URL sea `http://` o `https://` (rechaza otros esquemas)
+  - Usa `reqwest::Client` con timeout de 15 segundos y TLS nativo (rustls)
+  - Codifica bytes de respuesta con `base64::engine::general_purpose::STANDARD.encode`
+  - Devuelve `"data:{content-type};base64,{b64}"` (fallback mime: `image/webp`)
+
+- **Componente `ServerImage`:** caché a nivel de módulo (`Map<string, string>`) keyed por URL completa incluyendo `?v=N`; URLs `data:` / `blob:` se pasan directamente sin invoke.
+
+- **Dependencias añadidas a `client/src-tauri/Cargo.toml`:**
+  - `reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "multipart"] }`
+  - `base64 = "0.22"`
+
+**Archivos clave modificados:**
+- `client/src-tauri/src/main.rs` — comando `fetch_remote_image` + registro en `invoke_handler!`
+- `client/src-tauri/Cargo.toml` — dependencias `reqwest` + `base64`
+- `client/src/components/ServerImage.tsx` — reescrito para usar `invoke('fetch_remote_image', { url })`
+- `server/src/avatar.rs` — función `serve_static_avatar` (reemplaza `nest_service`)
+- `server/src/websocket.rs` — `.route("/avatars/:filename", get(avatar::serve_static_avatar))`
+
+**Estado:** ✅ Resuelto en `feature/qa-fixes-round2`. TypeScript limpio. Rust `cargo check` limpio (`Finished dev profile [44.18s]`). Rebuild con `.\build.ps1 -Release -Bundle` necesario antes de test final.
+
+---
+
+### �🟡 Mejoras de moderación — PENDIENTE
+
+- [ ] **[QA2][FEATURE] Badge en barra de tareas para mensajes no leídos en canales de texto** — El badge de la bandeja del sistema solo contabiliza DMs no leídos. Los mensajes nuevos en canales de texto no incrementan el contador. Añadir `unreadChannelIds.size` al cálculo del badge. También: clic derecho sobre un canal para silenciarlo/activarlo.
+
+- [ ] **[QA5][FEATURE] Registro de moderación completo y mejoras al ban** — (a) Registro de moderación unificado (kick, ban, mute, unban, mensajes borrados) visible para el admin. (b) Los usuarios baneados deben desaparecer de la lista de miembros inmediatamente. (c) Mejoras al listado de bans: mostrar IP, motivo, fecha, con opción de filtrado.
+
+---
+
+### 🔴 UX / Notificaciones — URGENTE
+
+- [x] **[QA7][UX] Toggle de notificaciones de DMs poco visible** — El control "Sound notifications for DMs" en `ClientSettingsModal` es gris tanto en estado activo como inactivo, lo que hace imposible distinguir si está habilitado o no a simple vista. Prioridad: URGENTE. Rediseñar el toggle con colores claramente diferenciados: verde/azul para activado, gris neutro para desactivado, con etiqueta de estado textual ("ON" / "OFF") junto al control.
+  - Archivo: `client/src/components/ClientSettingsModal.tsx`
+
+---
+
+### 🟠 Gestión de servidor por el usuario — ALTA PRIORIDAD
+
+- [ ] **[QA8][FEATURE] Silenciar canales de texto individualmente** — Los usuarios deben poder silenciar/activar un canal de texto con clic derecho en el nombre del canal. Al silenciar un canal: no se muestra el punto naranja de mensajes no leídos en ese canal, ni se incrementa el badge de la barra de tareas. El resto del funcionamiento es normal (el usuario sigue recibiendo los mensajes, solo se suprimen las notificaciones visuales). La acción es reversible con otro clic derecho. Alta prioridad.
+  - Almacenamiento: `localStorage` o `tauri-store`, clave `mutedChannels: string[]` (IDs de canal).
+  - Archivos: `client/src/components/ChannelList.tsx`, `client/src/App.tsx` (lógica de unread).
+
+- [ ] **[QA9][FEATURE] Silenciar DMs de un usuario concreto** — Desde la tarjeta de usuario en el panel "Server members", añadir opción "Silenciar mensajes directos" (o "Activar notificaciones de mensajes directos" si ya está silenciado). Si un usuario tiene silenciado a otro, no recibirá el sonido de notificación ni el badge de DM no leído de ese usuario, aunque los mensajes siguen entregándose. Requiere persistencia local y UI contextual en la tarjeta de usuario.
+  - Almacenamiento: `localStorage` o `tauri-store`, clave `mutedDmUsers: string[]` (IDs de usuario).
+  - Archivos: `client/src/components/UserListPanel.tsx`, `client/src/App.tsx` (lógica de DM unread).
+
+- [ ] **[QA10][FEATURE] Menú de opciones de servidor (clic en nombre del servidor)** — Al hacer clic en el nombre del servidor en la esquina superior izquierda de la vista conectada, se desplegará un menú contextual con opciones a nivel de usuario:
+  - **Abandonar servidor** — Elimina el servidor de la lista de servidores guardados, desconecta al usuario y lo elimina de la lista de miembros del servidor. Requiere modal de confirmación. El servidor debe emitir un `USER_LEFT` al resto de usuarios. El cliente guest envía una petición de baja antes de desconectar (nuevo mensaje WS `LEAVE_SERVER` o similar). El servidor elimina al usuario de la BD o lo marca como inactivo.
+  - **Silenciar servidor** — Silencia todos los canales de texto y todos los DMs del servidor. Los canales e ítems individuales mostrarán una indicación visual de "silenciado por servidor". Las opciones individuales de silenciar canal/DM quedarán deshabilitadas mientras el servidor esté silenciado globalmente. Reversible desde el mismo menú.
+  - **Invitar al servidor** — Deshabilitado de momento (pendiente de definir el flujo de invitación).
+  - **Marcar todo como leído** — Marca como leídos todos los canales con mensajes no leídos de este servidor, limpiando los puntos naranjas y el badge del sistema de forma inmediata.
+  - Almacenamiento de estado de silencio: `localStorage` o `tauri-store`.
+  - Archivos: `client/src/components/MainView.tsx`, `client/src/App.tsx`, `server/src/handlers.rs` (para `LEAVE_SERVER`), `server/src/db.rs`.
+
+- [ ] **[FEATURE] Mensaje de motivo al kickear a un usuario** — Al kickear a un usuario, el admin debería poder introducir opcionalmente un motivo. Requiere añadir `reason: Option<String>` al payload `KICK_USER` en servidor y cliente, e input en el popover de kick.
   - Archivos candidatos: `server/src/handlers.rs`, `server/src/models.rs`, `client/src/components/UserListPanel.tsx`, `client/src/App.tsx`
 
 ---

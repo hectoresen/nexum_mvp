@@ -2,6 +2,8 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { User } from '../types/protocol'
 import { useAppTheme } from '../hooks/useAppTheme'
+import { buildBaseUrl } from '../lib/urlUtils'
+import ServerImage from './ServerImage'
 
 interface UserListPanelProps {
   users: User[] | null
@@ -23,6 +25,8 @@ export default function UserListPanel({ users, currentUserId, currentUserRole, s
   const [activePopoverId, setActivePopoverId] = useState<string | null>(null)
   const [dmInput, setDmInput] = useState('')
   const [popoverPos, setPopoverPos] = useState<{ top: number; right: number } | null>(null)
+  const [banPending, setBanPending] = useState(false)
+  const [banReasonInput, setBanReasonInput] = useState('')
   const popoverRef = useRef<HTMLDivElement>(null)
   const anchorRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
@@ -30,6 +34,8 @@ export default function UserListPanel({ users, currentUserId, currentUserRole, s
     setActivePopoverId(null)
     setDmInput('')
     setPopoverPos(null)
+    setBanPending(false)
+    setBanReasonInput('')
   }, [])
 
   useEffect(() => {
@@ -59,10 +65,10 @@ export default function UserListPanel({ users, currentUserId, currentUserRole, s
   const members = users.filter(u => u.role === 'member')
 
   const getAvatarUrl = (user: User): string | null => {
-    if (user.avatar_path && serverAddress) return `http://${serverAddress}/${user.avatar_path}?v=${user.avatar_version ?? 0}`
+    if (user.avatar_path && serverAddress) return `${buildBaseUrl(serverAddress)}/${user.avatar_path}?v=${user.avatar_version ?? 0}`
     if (user.avatar_url) {
       if (user.avatar_url.startsWith('http') || user.avatar_url.startsWith('data:')) return user.avatar_url
-      if (serverAddress) return `http://${serverAddress}/${user.avatar_url}?v=${user.avatar_version ?? 0}`
+      if (serverAddress) return `${buildBaseUrl(serverAddress)}/${user.avatar_url}?v=${user.avatar_version ?? 0}`
     }
     return null
   }
@@ -89,6 +95,8 @@ export default function UserListPanel({ users, currentUserId, currentUserRole, s
       }
       setActivePopoverId(user.id)
       setDmInput('')
+      setBanPending(false)
+      setBanReasonInput('')
     }
   }
 
@@ -119,7 +127,7 @@ export default function UserListPanel({ users, currentUserId, currentUserRole, s
           onClick={() => handleUserClick(user)}>
           <div className="relative flex-shrink-0">
             <div className={`w-8 h-8 rounded-full ${tw.bgInput} flex items-center justify-center overflow-hidden`}>
-              {avatarUrl ? <img src={avatarUrl} alt={user.username} className="w-full h-full object-cover" /> : <span className={`text-xs font-medium ${tw.textPrimary}`}>{user.username[0]?.toUpperCase()}</span>}
+              <ServerImage src={avatarUrl} alt={user.username} className="w-full h-full object-cover" fallback={<span className={`text-xs font-medium ${tw.textPrimary}`}>{user.username[0]?.toUpperCase()}</span>} />
             </div>
             <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 ${tw.bgHeader} ${user.is_online ? 'bg-green-500' : 'bg-gray-500'}`} />
           </div>
@@ -194,11 +202,7 @@ export default function UserListPanel({ users, currentUserId, currentUserRole, s
             return (
               <button key={tabUserId} onClick={() => onOpenExistingDm?.(tabUser)} className={`w-full px-2 py-1.5 rounded flex items-center gap-2 ${tw.bgHoverSubtle} transition-colors`}>
                 <div className={`w-6 h-6 rounded-full ${tw.bgInput} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
-                  {avatarUrl ? (
-                    <img src={avatarUrl} alt={tabUser.username} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className={`text-xs font-medium ${tw.textPrimary}`}>{tabUser.username[0]?.toUpperCase()}</span>
-                  )}
+                  <ServerImage src={avatarUrl} alt={tabUser.username} className="w-full h-full object-cover" fallback={<span className={`text-xs font-medium ${tw.textPrimary}`}>{tabUser.username[0]?.toUpperCase()}</span>} />
                 </div>
                 <span className={`text-xs ${tw.textSecondary} truncate flex-1 text-left`}>{tabUser.username}</span>
                 {unreadDmUserIds.includes(tabUserId) && <span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0 animate-pulse" />}
@@ -301,13 +305,39 @@ export default function UserListPanel({ users, currentUserId, currentUserRole, s
                   </button>
 
                   {/* Ban */}
-                  <button
-                    disabled={isTargetAdmin}
-                    onClick={() => { if (!isTargetAdmin) { onBan?.(activeUser.id); closePopover() } }}
-                    title={isTargetAdmin ? 'No se puede banear a un admin' : 'Banear permanentemente'}
-                    className={`${btnBase} text-red-400 hover:bg-red-500/20 ${isTargetAdmin ? disabledCls : ''}`}>
-                    <span>🔨</span> Ban
-                  </button>
+                  {!banPending ? (
+                    <button
+                      disabled={isTargetAdmin}
+                      onClick={() => { if (!isTargetAdmin) setBanPending(true) }}
+                      title={isTargetAdmin ? 'No se puede banear a un admin' : 'Banear permanentemente'}
+                      className={`${btnBase} text-red-400 hover:bg-red-500/20 ${isTargetAdmin ? disabledCls : ''}`}>
+                      <span>🔨</span> Ban
+                    </button>
+                  ) : (
+                    <div className={`mt-1 border ${tw.borderDefault} rounded p-2 bg-red-500/10`}>
+                      <p className="text-xs text-red-300 mb-1 font-medium">Banear a {activeUser.username}</p>
+                      <input
+                        type="text"
+                        value={banReasonInput}
+                        onChange={e => setBanReasonInput(e.target.value)}
+                        placeholder="Motivo (opcional)"
+                        autoFocus
+                        className={`w-full px-2 py-1 text-xs ${tw.bgInput} border ${tw.borderDefault} rounded ${tw.textPrimary} placeholder:${tw.textMuted} focus:outline-none focus:ring-1 focus:ring-red-500/50 mb-2`}
+                      />
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => { onBan?.(activeUser.id, banReasonInput.trim() || undefined); closePopover() }}
+                          className="flex-1 px-2 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors font-medium">
+                          Confirmar ban
+                        </button>
+                        <button
+                          onClick={() => { setBanPending(false); setBanReasonInput('') }}
+                          className={`px-2 py-1 text-xs ${tw.btnSecondary} ${tw.textPrimary} rounded transition-colors`}>
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   <div className={`my-0.5 border-t ${tw.borderDefault} opacity-40`} />
 

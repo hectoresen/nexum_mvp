@@ -315,6 +315,17 @@ impl Database {
         Ok(())
     }
 
+    /// Demote every owner back to member. Called when the admin password changes
+    /// so that previously-authenticated clients must re-authenticate with the new password.
+    pub fn demote_all_owners_to_member(&self) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE users SET role = 'member' WHERE role = 'owner'",
+            [],
+        )?;
+        Ok(())
+    }
+
     pub fn update_user_avatar(&self, user_id: Uuid, avatar_url: Option<String>) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute(

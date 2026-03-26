@@ -72,6 +72,17 @@ impl SessionManager {
         }
     }
 
+    /// Demote all currently-owner sessions to member. Called when the admin password
+    /// changes so active sessions immediately lose their elevated role.
+    pub fn demote_all_owners_to_member(&self) {
+        let mut sessions = self.sessions.write().unwrap();
+        for session in sessions.values_mut() {
+            if session.role == UserRole::Owner {
+                session.role = UserRole::Member;
+            }
+        }
+    }
+
     pub fn remove_session(&self, session_id: Uuid) {
         let mut sessions = self.sessions.write().unwrap();
         if let Some(session) = sessions.remove(&session_id) {

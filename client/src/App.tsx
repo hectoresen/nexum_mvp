@@ -4,6 +4,7 @@ import { WebSocketClient } from './lib/websocket'
 import { ServerManager } from './lib/serverManager'
 import { Channel, Message as ProtocolMessage, ServerMessage, UserRole, User, ServerSettingsPayload, Category, DmMessage, Ban, KickLogEntry } from './types/protocol'
 import { encryptDm } from './lib/dmCrypto'
+import { buildBaseUrl } from './lib/urlUtils'
 import { SavedServer, LocalServerStatus } from './types/server'
 import ServerListView from './components/ServerListView'
 import ServerConnectModal from './components/ServerConnectModal'
@@ -89,10 +90,12 @@ function App() {
   const [connectionError, setConnectionError] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
   const [showAdminAuthModal, setShowAdminAuthModal] = useState(false)
+  const showAdminAuthModalRef = useRef(false)
   const [adminAuthError, setAdminAuthError] = useState<string | null>(null)
   const [showServerSettingsModal, setShowServerSettingsModal] = useState(false)
   const [clientSettingsSection, setClientSettingsSection] = useState<'general' | 'voice-video' | 'notifications' | null>(null)
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false)
+  const showChangePasswordModalRef = useRef(false)
   const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null)
   const [showUserSettingsModal, setShowUserSettingsModal] = useState(false)
   const [showAvatarModal, setShowAvatarModal] = useState(false)
@@ -267,13 +270,20 @@ function App() {
           // Request user list after successful connection
           wsClient.send({ type: 'GET_USERS' })
         }
+        // Handle admin auth success — close modal outside setView so setState calls are
+        // never side-effects of a functional updater (avoids React batching edge cases)
+        if (message.type === 'ADMIN_AUTHENTICATED') {
+          setShowAdminAuthModal(false)
+          setAdminAuthError(null)
+          // fall through to setView below to update connection.role
+        }
         // Handle admin auth errors specifically
-        if (message.type === 'ERROR' && message.payload.code === 'UNAUTHORIZED' && showAdminAuthModal) {
+        if (message.type === 'ERROR' && message.payload.code === 'UNAUTHORIZED' && showAdminAuthModalRef.current) {
           setAdminAuthError(message.payload.message)
           return
         }
         // Handle password change errors specifically
-        if (message.type === 'ERROR' && showChangePasswordModal) {
+        if (message.type === 'ERROR' && showChangePasswordModalRef.current) {
           setPasswordChangeError(message.payload.message)
           return
         }
@@ -414,13 +424,20 @@ function App() {
           hasReceivedWelcome = true
           wsClient.send({ type: 'GET_USERS' })
         }
+        // Handle admin auth success — close modal outside setView so setState calls are
+        // never side-effects of a functional updater (avoids React batching edge cases)
+        if (message.type === 'ADMIN_AUTHENTICATED') {
+          setShowAdminAuthModal(false)
+          setAdminAuthError(null)
+          // fall through to setView below to update connection.role
+        }
         // Handle admin auth errors specifically
-        if (message.type === 'ERROR' && message.payload.code === 'UNAUTHORIZED' && showAdminAuthModal) {
+        if (message.type === 'ERROR' && message.payload.code === 'UNAUTHORIZED' && showAdminAuthModalRef.current) {
           setAdminAuthError(message.payload.message)
           return
         }
         // Handle password change errors specifically
-        if (message.type === 'ERROR' && showChangePasswordModal) {
+        if (message.type === 'ERROR' && showChangePasswordModalRef.current) {
           setPasswordChangeError(message.payload.message)
           return
         }
@@ -548,7 +565,7 @@ function App() {
 
       case 'SERVER_SETTINGS':
         // If password change modal is open, close it on success
-        if (showChangePasswordModal) {
+        if (showChangePasswordModalRef.current) {
           setShowChangePasswordModal(false)
           setPasswordChangeError(null)
         }
@@ -558,11 +575,19 @@ function App() {
           serverSettings: message.payload,
         }
 
-      case 'SERVER_USERS':
+      case 'SERVER_USERS': {
+        // Sync connection.role from the server's authoritative user list.
+        // This handles admin revocation when the server admin password changes:
+        // the server demotes all owners and broadcasts SERVER_USERS; each client
+        // picks up the role change here without needing a new message type.
+        const selfInUsers = message.payload.users.find(u => u.id === connection.userId)
+        const syncedRole = selfInUsers ? selfInUsers.role : connection.role
         return {
           ...connection,
           serverUsers: message.payload.users,
+          role: syncedRole,
         }
+      }
 
       case 'MESSAGE':
         const channelMessages = connection.messages.get(message.payload.message.channel_id) || []
@@ -645,9 +670,8 @@ function App() {
         }
 
       case 'ADMIN_AUTHENTICATED':
-        // User authenticated as admin - close modal and clear error
-        setShowAdminAuthModal(false)
-        setAdminAuthError(null)
+        // Modal/error state is already closed in the onMessage handler above.
+        // Here we only update the role in the connection state.
         return {
           ...connection,
           role: message.payload.new_role,
@@ -655,7 +679,7 @@ function App() {
 
       case 'USER_AVATAR_UPDATED':
         // Update avatar in user list if available
-        const updatedUsers = connection.serverUsers?.map(u => (u.id === message.payload.user_id ? { ...u, avatar_url: message.payload.avatar_url ?? undefined } : u)) || null
+        const updatedUsers = connection.serverUsers?.map(u => (u.id === message.payload.user_id ? { ...u, avatar_url: message.payload.avatar_url ?? undefined, avatar_path: undefined } : u)) || null
         // After updating, force re-request to ensure sync
         if (message.payload.user_id === connection.userId) {
           // It's our avatar - request fresh user list
@@ -1038,6 +1062,10 @@ function App() {
     view.connection.client.send({ type: 'GET_SERVER_SETTINGS' })
     setShowServerSettingsModal(true)
   }
+
+  // ── Sync modal state refs so WebSocket closures can read current values ─────
+  useEffect(() => { showAdminAuthModalRef.current = showAdminAuthModal }, [showAdminAuthModal])
+  useEffect(() => { showChangePasswordModalRef.current = showChangePasswordModal }, [showChangePasswordModal])
 
   // ── Sync unread count to tray tooltip ────────────────────────────────────
   useEffect(() => {
@@ -1546,12 +1574,12 @@ function App() {
 
   // Construct avatar URL - prefer avatar_path (relative, uses our own serverAddress) over avatar_url
   const currentUserAvatar = (currentUser?.avatar_path
-    ? `http://${conn.server.address}/${currentUser.avatar_path}?v=${currentUser.avatar_version ?? 0}`
+    ? `${buildBaseUrl(conn.server.address)}/${currentUser.avatar_path}?v=${currentUser.avatar_version ?? 0}`
     : null
   ) ?? (currentUser?.avatar_url
     ? (currentUser.avatar_url.startsWith('http') || currentUser.avatar_url.startsWith('data:')
         ? currentUser.avatar_url
-        : `http://${conn.server.address}/${currentUser.avatar_url}?v=${currentUser.avatar_version ?? 0}`)
+        : `${buildBaseUrl(conn.server.address)}/${currentUser.avatar_url}?v=${currentUser.avatar_version ?? 0}`)
     : null)
 
   return (

@@ -426,7 +426,7 @@ async fn handle_send_message(
     // Store message
     let message = state.db.create_message(payload.channel_id, user_id, &payload.content)?;
 
-    // Broadcast to channel
+    // Broadcast to all connected users (so clients can track unread state for all channels)
     let msg = ServerMessage::Message(MessagePayload {
         message,
         username: user.username,
@@ -436,7 +436,7 @@ async fn handle_send_message(
         deleted_by_username: None,
     });
 
-    broadcast_to_channel(&state.session_manager, payload.channel_id, &msg);
+    broadcast_message(&state.session_manager, &msg);
 
     Ok(())
 }
@@ -469,7 +469,7 @@ async fn handle_delete_message(
     let user = state.db.get_user(user_id)?
         .ok_or_else(|| anyhow::anyhow!("User not found"))?;
 
-    // Broadcast deletion to channel
+    // Broadcast deletion to all connected users
     let msg = ServerMessage::MessageDeleted(MessageDeletedPayload {
         message_id: payload.message_id,
         channel_id: message.channel_id,
@@ -477,7 +477,7 @@ async fn handle_delete_message(
         deleted_by_username: user.username,
     });
 
-    broadcast_to_channel(&state.session_manager, message.channel_id, &msg);
+    broadcast_message(&state.session_manager, &msg);
 
     Ok(())
 }
@@ -510,7 +510,7 @@ async fn handle_edit_message(
     // Update message content
     state.db.update_message_content(payload.message_id, &payload.content)?;
 
-    // Broadcast edited message to channel
+    // Broadcast edited message to all connected users
     let edited_at = chrono::Utc::now();
     let msg = ServerMessage::MessageEdited(MessageEditedPayload {
         message_id: payload.message_id,
@@ -519,7 +519,7 @@ async fn handle_edit_message(
         edited_at: edited_at.to_rfc3339(),
     });
 
-    broadcast_to_channel(&state.session_manager, message.channel_id, &msg);
+    broadcast_message(&state.session_manager, &msg);
 
     Ok(())
 }
@@ -704,6 +704,7 @@ async fn handle_update_server_settings(
         return Ok(());
     }
 
+    let mut password_changed = false;
     {
         let mut cfg = state.config.write().unwrap();
         if let Some(name) = payload.name {
@@ -720,6 +721,7 @@ async fn handle_update_server_settings(
                         return Ok(());
                     }
                     cfg.server.admin_password = new_pwd;
+                    password_changed = true;
                 } else {
                     // Require current password for password change
                     send_error(tx, ErrorCode::InvalidRequest, "Current admin password is required to change password")?;
@@ -765,6 +767,29 @@ async fn handle_update_server_settings(
     });
     drop(cfg);
     broadcast_message(&state.session_manager, &msg);
+
+    // If the admin password was changed, revoke all owner roles immediately.
+    // This forces every previously-authenticated admin to re-authenticate with
+    // the new password before regaining elevated privileges.
+    if password_changed {
+        // Demote all owners in the database
+        if let Err(e) = state.db.demote_all_owners_to_member() {
+            warn!("Failed to demote owner roles after password change: {}", e);
+        }
+        // Demote all active in-memory sessions too
+        state.session_manager.demote_all_owners_to_member();
+        // Broadcast updated user list so every connected client picks up the role change
+        let connected_ids = state.session_manager.get_connected_user_ids();
+        if let Ok(all_users) = state.db.list_users() {
+            let users: Vec<UserOnlineStatus> = all_users
+                .into_iter()
+                .map(|u| UserOnlineStatus { is_online: connected_ids.contains(&u.id), user: u })
+                .collect();
+            let users_msg = ServerMessage::ServerUsers(ServerUsersPayload { users });
+            broadcast_message(&state.session_manager, &users_msg);
+        }
+        info!("Admin password changed: all owner roles revoked, users must re-authenticate");
+    }
 
     Ok(())
 }
@@ -1189,11 +1214,15 @@ async fn handle_ban_user(
 
     // If the user is online, notify them and drop their session first
     if let Some(target_sid) = state.session_manager.get_session_id_for_user(payload.user_id) {
+        let ban_message = match payload.reason.as_deref() {
+            Some(reason) if !reason.is_empty() => format!("You have been banned from this server: {}", reason),
+            _ => "You have been banned from this server".to_string(),
+        };
         let _ = state.session_manager.send_to_session(
             target_sid,
             Message::Text(serde_json::to_string(&ServerMessage::Error(ErrorPayload {
                 code: ErrorCode::Banned,
-                message: "You have been banned from this server".to_string(),
+                message: ban_message,
             })).unwrap()),
         );
         state.session_manager.remove_session(target_sid);
@@ -1205,7 +1234,7 @@ async fn handle_ban_user(
         &target.username,
         &ip,
         target.device_public_key.as_deref(),
-        payload.reason,
+        payload.reason.clone(),
         banner_user_id,
     )?;
 
@@ -1214,6 +1243,7 @@ async fn handle_ban_user(
     broadcast_message(&state.session_manager, &ServerMessage::UserBanned(UserBannedPayload {
         user_id: payload.user_id,
         username: target.username,
+        reason: payload.reason,
     }));
 
     Ok(())

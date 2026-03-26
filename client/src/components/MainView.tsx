@@ -7,6 +7,7 @@ import UserListPanel from './UserListPanel'
 import UserProfileModal from './UserProfileModal'
 import DirectMessageView from './DirectMessageView'
 import { useAppTheme } from '../hooks/useAppTheme'
+import ServerImage from './ServerImage'
 
 interface MainViewProps {
   state: AppState
@@ -243,11 +244,7 @@ export default function MainView({
           <div className="flex items-center justify-between">
             <button onClick={() => setUserDropdownOpen(!userDropdownOpen)} className={`flex items-center gap-2 ${tw.bgHoverSubtle} rounded px-2 py-1 transition-colors flex-1 min-w-0 cursor-pointer`}>
               <div className={`w-8 h-8 rounded-full ${tw.bgInput} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
-                {currentUserAvatar ? (
-                  <img src={currentUserAvatar} alt={state.username} className="w-full h-full object-cover" />
-                ) : (
-                  <span className={`text-sm font-semibold ${tw.textPrimary}`}>{state.username[0]?.toUpperCase()}</span>
-                )}
+                <ServerImage src={currentUserAvatar} alt={state.username} className="w-full h-full object-cover" fallback={<span className={`text-sm font-semibold ${tw.textPrimary}`}>{state.username[0]?.toUpperCase()}</span>} />
               </div>
               <span className={`text-sm ${tw.textPrimary} truncate flex-1 text-left`}>{state.username}</span>
               <svg className={`w-4 h-4 ${tw.textTertiary} transition-transform flex-shrink-0 ${userDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
