@@ -3,6 +3,7 @@ import { Channel, Message, User } from '../types/protocol'
 import { useAppTheme } from '../hooks/useAppTheme'
 import UserProfileModal from './UserProfileModal'
 import { buildBaseUrl } from '../lib/urlUtils'
+import ServerImage from './ServerImage'
 
 interface ChatAreaProps {
   channel: Channel
@@ -155,7 +156,7 @@ export default function ChatArea({ channel, messages, currentUserId: _currentUse
               <div key={message.id} className="flex gap-3 group relative" onMouseEnter={() => setHoveredMessageId(message.id)} onMouseLeave={() => setHoveredMessageId(null)}>
                 {/* Avatar */}
                 <div className={`w-10 h-10 rounded-full ${tw.bgInput} flex items-center justify-center flex-shrink-0 overflow-hidden cursor-pointer`} onClick={() => handleUsernameClick(message.user_id)}>
-                  {avatarUrl ? <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" crossOrigin="anonymous" /> : <span className={`text-sm font-semibold ${tw.textPrimary}`}>{avatarInitial}</span>}
+                  <ServerImage src={avatarUrl} alt={displayName} className="w-full h-full object-cover" fallback={<span className={`text-sm font-semibold ${tw.textPrimary}`}>{avatarInitial}</span>} />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-baseline gap-2">

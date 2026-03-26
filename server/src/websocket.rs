@@ -7,7 +7,6 @@ use axum::{
 };
 use tower_http::{
     cors::{CorsLayer, Any},
-    services::ServeDir,
 };
 use tokio::sync::mpsc;
 use tracing::{info, error};
@@ -63,7 +62,10 @@ pub async fn run_ws_server(
         .route("/api/upload-avatar", post(avatar::upload_avatar_handler))
         .route("/api/users/:user_id/avatar", post(avatar::upload_avatar_handler))
         .route("/api/users/:user_id/avatar", get(avatar::download_avatar_handler))
-        .nest_service("/avatars", ServeDir::new("data/avatars"))
+        // Explicit handler (not nest_service) so Router::layer(cors) applies.
+        // In Axum 0.7, layers added via .layer() do NOT wrap services added via
+        // nest_service — only routes added via .route() receive those layers.
+        .route("/avatars/:filename", get(avatar::serve_static_avatar))
         .layer(cors)
         .with_state(state);
 

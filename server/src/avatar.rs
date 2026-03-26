@@ -31,7 +31,50 @@ pub struct ErrorResponse {
     pub error: String,
 }
 
-/// Upload avatar for a specific user
+/// Serve a static avatar file from disk.
+/// GET /avatars/{filename}
+/// This explicit handler (instead of nest_service/ServeDir) guarantees that the
+/// CORS middleware applied via Router::layer actually wraps this endpoint — Axum 0.7
+/// does not forward Router-level layers to services added via nest_service.
+pub async fn serve_static_avatar(
+    Path(filename): Path<String>,
+    headers: HeaderMap,
+) -> Response {
+    // Security: reject any path that could escape data/avatars/
+    if filename.contains("..") || filename.contains('/') || filename.contains('\\') || filename.contains('\0') {
+        return StatusCode::FORBIDDEN.into_response();
+    }
+    // Only serve .webp files
+    if !filename.ends_with(".webp") {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+
+    let file_path = format!("data/avatars/{}", filename);
+    let etag = format!("\"{}\"", filename);
+
+    // ETag-based cache validation
+    if let Some(inm) = headers.get(header::IF_NONE_MATCH) {
+        if inm.to_str().unwrap_or("") == etag {
+            return StatusCode::NOT_MODIFIED.into_response();
+        }
+    }
+
+    match tokio::fs::read(&file_path).await {
+        Ok(data) => (
+            StatusCode::OK,
+            [
+                (header::CONTENT_TYPE, "image/webp"),
+                (header::CACHE_CONTROL, "public, max-age=86400"),
+                (header::ETAG, etag.as_str()),
+            ],
+            data,
+        )
+            .into_response(),
+        Err(_) => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+
 /// POST /api/users/{user_id}/avatar
 /// Requires Authorization header with session ID
 pub async fn upload_avatar_handler(
