@@ -12,9 +12,9 @@ All notable changes and completed tasks are documented here.
 
 ### 🐛 Bug Fixes
 
-- [ ] **[QA-BUG-A] Avatares rotos para usuarios guest (IP privada)** — Los `<img>` que cargaban recursos del servidor carecían del atributo `crossOrigin="anonymous"`, por lo que WebView2 no enviaba el preflight PNA correcto al cargar imágenes desde IPs privadas (`192.168.x.x`). Corregido añadiendo `crossOrigin="anonymous"` a todos los `<img>` de avatar en `ChatArea.tsx`, `DirectMessageView.tsx`, `MainView.tsx`, `UserListPanel.tsx` y `UserProfileModal.tsx`.
+- [x] **[QA-BUG-A] Avatares rotos para usuarios guest (IP privada)** — Los `<img>` que cargaban recursos del servidor carecían del atributo `crossOrigin="anonymous"`, por lo que WebView2 no enviaba el preflight PNA correcto al cargar imágenes desde IPs privadas (`192.168.x.x`). Corregido añadiendo `crossOrigin="anonymous"` a todos los `<img>` de avatar en `ChatArea.tsx`, `DirectMessageView.tsx`, `MainView.tsx`, `UserListPanel.tsx` y `UserProfileModal.tsx`.
 
-- [ ] **[QA-BUG-B] Actualizar avatar por URL no limpiaba la ruta `avatar_path` previa** — El handler de `USER_AVATAR_UPDATED` en `App.tsx` actualizaba `avatar_url` pero no limpiaba `avatar_path`. Si el usuario tenía un avatar subido (ruta relativa que tiene prioridad en `getAvatarUrl`), el nuevo avatar por URL nunca se mostraba. Corregido añadiendo `avatar_path: undefined` en el mapeo del handler.
+- [x] **[QA-BUG-B] Actualizar avatar por URL no limpiaba la ruta `avatar_path` previa** — El handler de `USER_AVATAR_UPDATED` en `App.tsx` actualizaba `avatar_url` pero no limpiaba `avatar_path`. Si el usuario tenía un avatar subido (ruta relativa que tiene prioridad en `getAvatarUrl`), el nuevo avatar por URL nunca se mostraba. Corregido añadiendo `avatar_path: undefined` en el mapeo del handler.
 
 ---
 
@@ -26,13 +26,15 @@ All notable changes and completed tasks are documented here.
 
 ### 🐛 Bug Fixes
 
-- [ ] **[QA1] buildBaseUrl: detectar https cuando el puerto es 443** — Nuevo helper `buildBaseUrl(serverAddress)` en `client/src/lib/urlUtils.ts`. Cuando el serverAddress termina en `:443`, emite `https://host`; en otros casos `http://host:port`. Se aplica en todos los componentes que construyen URLs de avatares/recursos del servidor: `UserListPanel`, `ChatArea`, `DirectMessageView`, `UserProfileModal`, `App.tsx`.
+- [x] **[QA1] buildBaseUrl: detectar https cuando el puerto es 443** — Nuevo helper `buildBaseUrl(serverAddress)` en `client/src/lib/urlUtils.ts`. Cuando el serverAddress termina en `:443`, emite `https://host`; en otros casos `http://host:port`. Se aplica en todos los componentes que construyen URLs de avatares/recursos del servidor: `UserListPanel`, `ChatArea`, `DirectMessageView`, `UserProfileModal`, `App.tsx`.
 
-- [ ] **[QA3] Stale closure en modal de auth de admin** — Añadido `showAdminAuthModalRef = useRef(false)` y `showChangePasswordModalRef = useRef(false)` en `App.tsx` para que los handlers WebSocket registrados en tiempo de conexión puedan acceder al estado actual del modal sin depender del closure capturado.
+- [x] **[QA3] Stale closure en modal de auth de admin** — Añadido `showAdminAuthModalRef = useRef(false)` y `showChangePasswordModalRef = useRef(false)` en `App.tsx` para que los handlers WebSocket registrados en tiempo de conexión puedan acceder al estado actual del modal sin depender del closure capturado.
 
-- [ ] **[QA4] Motivo de ban: input en UI + mensaje al baneado** — `UserListPanel.tsx`: el botón de Ban ahora despliega un formulario de confirmación con campo de motivo opcional. El motivo se pasa como segundo argumento a `onBan(userId, reason)`. Servidor: `handle_ban_user` ahora incluye el motivo en el mensaje de error enviado al usuario baneado (`"You have been banned from this server: [reason]"`). Tipos: `UserBannedPayload` en `protocol.ts` actualizado con `reason?: string`.
+- [x] **[QA4] Motivo de ban: input en UI + mensaje al baneado** — `UserListPanel.tsx`: el botón de Ban ahora despliega un formulario de confirmación con campo de motivo opcional. El motivo se pasa como segundo argumento a `onBan(userId, reason)`. Servidor: `handle_ban_user` ahora incluye el motivo en el mensaje de error enviado al usuario baneado (`"You have been banned from this server: [reason]"`). Tipos: `UserBannedPayload` en `protocol.ts` actualizado con `reason?: string`.
 
-- [ ] **[QA6] Puntos de no leídos en canales** — Causa raíz: `broadcast_to_channel` solo enviaba mensajes al usuario actualmente en ese canal; al cambiar de canal el usuario dejaba de recibir mensajes de los canales anteriores. Solución: `handle_send_message`, `handle_delete_message` y `handle_edit_message` ahora usan `broadcast_message` para entregar a todos los usuarios conectados al servidor. La lógica de unread en el cliente no requiere cambios.
+- [x] **[QA6] Puntos de no leídos en canales** — Causa raíz: `broadcast_to_channel` solo enviaba mensajes al usuario actualmente en ese canal; al cambiar de canal el usuario dejaba de recibir mensajes de los canales anteriores. Solución: `handle_send_message`, `handle_delete_message` y `handle_edit_message` ahora usan `broadcast_message` para entregar a todos los usuarios conectados al servidor. La lógica de unread en el cliente no requiere cambios.
+
+- [x] **[QA7] Toggle de notificaciones de DMs con visibilidad mejorada** — Ambos toggles en `ClientSettingsModal.tsx` ("Launch at startup" y "Sound notifications for DMs") usaban `peer-checked:bg-gray-500` vs `bg-gray-600`: diferencia de contraste imperceptible, imposible distinguir si estaban activos o no. Corregido: estado activo usa `peer-checked:bg-green-600` + etiqueta textual `ON`/`OFF` en verde/gris junto al toggle. Afecta `ClientSettingsModal.tsx`.
 
 ---
 

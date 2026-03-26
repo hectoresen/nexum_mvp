@@ -8,16 +8,16 @@ Esta fase integra el servidor CLI con el cliente para ofrecer una experiencia de
 
 ### 🔴 Bugs de alta prioridad — EN REVISIÓN (feature/qa-fixes-round1)
 
-- [ ] **[QA1][BUG] Avatares rotos cuando el servidor es accedido por ngrok/HTTPS en puerto 443** — Las URLs construidas como `http://host:443/avatars/...` son inválidas; el puerto 443 requiere `https://`. El cliente genera `http://${serverAddress}/...` sin detectar el protocolo correcto. Solución: helper `buildBaseUrl(serverAddress)` que emite `https://host` cuando el puerto es 443, `http://host` en resto. Afecta a `UserListPanel`, `ChatArea`, `DirectMessageView`, `UserProfileModal`, `App.tsx`.
+- [x] **[QA1][BUG] Avatares rotos cuando el servidor es accedido por ngrok/HTTPS en puerto 443** — Las URLs construidas como `http://host:443/avatars/...` son inválidas; el puerto 443 requiere `https://`. El cliente genera `http://${serverAddress}/...` sin detectar el protocolo correcto. Solución: helper `buildBaseUrl(serverAddress)` que emite `https://host` cuando el puerto es 443, `http://host` en resto. Afecta a `UserListPanel`, `ChatArea`, `DirectMessageView`, `UserProfileModal`, `App.tsx`.
   - Branch: `feature/qa-fixes-round1`
 
-- [ ] **[QA3][BUG] Modal de autenticación de admin no muestra error al introducir contraseña incorrecta** — Closure obsoleto (*stale closure*): el handler de mensajes WebSocket captura `showAdminAuthModal = false` en el momento de la conexión. Cuando el modal se abre más tarde y el servidor responde con `UNAUTHORIZED`, el check `if (... && showAdminAuthModal)` siempre es `false` y el error nunca se muestra. Solución: `useRef` que espeja el estado del modal para acceder al valor actual desde el closure.
+- [x] **[QA3][BUG] Modal de autenticación de admin no muestra error al introducir contraseña incorrecta** — Closure obsoleto (*stale closure*): el handler de mensajes WebSocket captura `showAdminAuthModal = false` en el momento de la conexión. Cuando el modal se abre más tarde y el servidor responde con `UNAUTHORIZED`, el check `if (... && showAdminAuthModal)` siempre es `false` y el error nunca se muestra. Solución: `useRef` que espeja el estado del modal para acceder al valor actual desde el closure.
   - Branch: `feature/qa-fixes-round1`
 
-- [ ] **[QA4][BUG] Banear a un usuario no pide motivo al admin ni muestra razón al baneado** — El botón de ban en `UserListPanel` ejecuta `onBan(userId)` sin ningún input de motivo. El servidor envía `"You have been banned from this server"` al baneado sin incluir la razón aunque el payload `BAN_USER` ya soporta `reason: Option<String>`. Solución: añadir UI de motivo en el popover de ban + incluir razón en el mensaje de error que el servidor envía al usuario baneado.
+- [x] **[QA4][BUG] Banear a un usuario no pide motivo al admin ni muestra razón al baneado** — El botón de ban en `UserListPanel` ejecuta `onBan(userId)` sin ningún input de motivo. El servidor envía `"You have been banned from this server"` al baneado sin incluir la razón aunque el payload `BAN_USER` ya soporta `reason: Option<String>`. Solución: añadir UI de motivo en el popover de ban + incluir razón en el mensaje de error que el servidor envía al usuario baneado.
   - Branch: `feature/qa-fixes-round1`
 
-- [ ] **[QA6][BUG] Puntos de mensajes no leídos en canales inconsistentes** — Causa raíz: `broadcast_to_channel` solo entrega mensajes al usuario que ha hecho `JOIN_CHANNEL` para ese canal específico. Al cambiar de canal, el usuario deja de recibir mensajes de los canales anteriores, por lo que nunca acumula mensajes no leídos en canales no activos. Solución: cambiar `handle_send_message`, `handle_delete_message` y `handle_edit_message` a `broadcast_message` para entregar a todos los usuarios conectados; la lógica de unread en el cliente ya es correcta.
+- [x] **[QA6][BUG] Puntos de mensajes no leídos en canales inconsistentes** — Causa raíz: `broadcast_to_channel` solo entrega mensajes al usuario que ha hecho `JOIN_CHANNEL` para ese canal específico. Al cambiar de canal, el usuario deja de recibir mensajes de los canales anteriores, por lo que nunca acumula mensajes no leídos en canales no activos. Solución: cambiar `handle_send_message`, `handle_delete_message` y `handle_edit_message` a `broadcast_message` para entregar a todos los usuarios conectados; la lógica de unread en el cliente ya es correcta.
   - Branch: `feature/qa-fixes-round1`
 
 - [x] **[BUG] Avatar upload falla con "Failed to fetch" para clientes no-host** — Resuelto en `feature/fix-avatar-remote-clients`. Causa: WebView2 PNA bloqueaba `fetch()` a IPs privadas. Solución: comando Tauri `upload_avatar_via_backend` usando `reqwest` (bypassa WebView2).
@@ -104,7 +104,7 @@ Enrutar toda la carga de imágenes del servidor a través del backend Rust, evit
 
 ### 🔴 UX / Notificaciones — URGENTE
 
-- [ ] **[QA7][UX] Toggle de notificaciones de DMs poco visible** — El control "Sound notifications for DMs" en `ClientSettingsModal` es gris tanto en estado activo como inactivo, lo que hace imposible distinguir si está habilitado o no a simple vista. Prioridad: URGENTE. Rediseñar el toggle con colores claramente diferenciados: verde/azul para activado, gris neutro para desactivado, con etiqueta de estado textual ("ON" / "OFF") junto al control.
+- [x] **[QA7][UX] Toggle de notificaciones de DMs poco visible** — El control "Sound notifications for DMs" en `ClientSettingsModal` es gris tanto en estado activo como inactivo, lo que hace imposible distinguir si está habilitado o no a simple vista. Prioridad: URGENTE. Rediseñar el toggle con colores claramente diferenciados: verde/azul para activado, gris neutro para desactivado, con etiqueta de estado textual ("ON" / "OFF") junto al control.
   - Archivo: `client/src/components/ClientSettingsModal.tsx`
 
 ---
