@@ -6,7 +6,7 @@
 
 Esta fase integra el servidor CLI con el cliente para ofrecer una experiencia de usuario unificada.
 
-### 🔴 Bugs de alta prioridad — EN REVISIÓN (feature/qa-fixes-round1)
+### ✅ Bugs de alta prioridad — RESUELTOS en v0.1.6 (feature/qa-fixes-round1)
 
 - [ ] **[QA1][BUG] Avatares rotos cuando el servidor es accedido por ngrok/HTTPS en puerto 443** — Las URLs construidas como `http://host:443/avatars/...` son inválidas; el puerto 443 requiere `https://`. El cliente genera `http://${serverAddress}/...` sin detectar el protocolo correcto. Solución: helper `buildBaseUrl(serverAddress)` que emite `https://host` cuando el puerto es 443, `http://host` en resto. Afecta a `UserListPanel`, `ChatArea`, `DirectMessageView`, `UserProfileModal`, `App.tsx`.
   - Branch: `feature/qa-fixes-round1`

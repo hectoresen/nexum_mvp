@@ -255,7 +255,7 @@ Nexum is perfect for:
 
 ## 📦 Current Status
 
-**Version:** 0.1.5 (Bug Fix Release)  
+**Version:** 0.1.6 (Bug Fix Release)  
 **Release:** Beta / Active Development
 
 | Component           | Status                                        |
