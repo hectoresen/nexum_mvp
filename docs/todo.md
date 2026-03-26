@@ -26,6 +26,27 @@ Esta fase integra el servidor CLI con el cliente para ofrecer una experiencia de
 
 ---
 
+### 🔴 Bug crítico — Autenticación de admin falla para clientes remotos (feature/qa-fixes-round2) — ✅ RESUELTO
+
+**Síntoma:** Un usuario que descarga la app e intenta autenticarse como admin en el servidor de otro PC introduce la contraseña correcta, pero su rol sigue como `member` y no obtiene acceso a las herramientas de administrador. El host en el mismo PC donde corre el servidor autenticó correctamente en una sesión anterior y su rol `owner` fue persistido en DB, por lo que al reconectarse ya no necesita volver a autenticarse — lo que da la falsa impresión de que la autenticación funciona para el host pero no para el guest.
+
+**Causa raíz:** El handler `ADMIN_AUTHENTICATED` en `handleServerMessage` llamaba a `setShowAdminAuthModal(false)` y `setAdminAuthError(null)` **dentro del actualizador funcional de `setView`**. Esto convierte esas llamadas en *side effects* de un actualizador de estado, comportamiento que React 18 con automatic batching puede ejecutar en condiciones inesperadas. `handleServerMessage` es capturado por el closure del `wsClient.onMessage` en el momento de la conexión, y cuando el actualizador se ejecuta más tarde para un cliente remoto (donde la latencia de red hace que el modal ya esté abierto y el componente haya re-renderizado varias veces), los efectos secundarios dentro del updater pueden comportarse de forma inconsistente.
+
+**Solución aplicada:**
+- Ambos `wsClient.onMessage` handlers (en `handleConnectWithUserId` y en `handleConnect`) ahora detectan `message.type === 'ADMIN_AUTHENTICATED'` directamente y llaman `setShowAdminAuthModal(false)` / `setAdminAuthError(null)` como state updates propias, fuera del `setView` updater.
+- El mensaje sigue cayendo al `setView` → `handleServerMessage` para que actualice `connection.role`.
+- `handleServerMessage` case `ADMIN_AUTHENTICATED` queda limpio: solo devuelve `{ ...connection, role: message.payload.new_role }` sin side effects.
+- Archivos: `client/src/App.tsx`
+
+**Feature añadida: Revocación de rol admin al cambiar la contraseña del servidor:**
+- Cuando el admin cambia `admin_password` en `UpdateServerSettings`, el servidor revoca el rol de todos los usuarios `owner` (DB + in-memory sessions) y emite `SERVER_USERS` broadcast.
+- El cliente en `SERVER_USERS` sincroniza `connection.role` con `selfInUsers.role` de la lista autoritativa del servidor; si fue revocado, el cliente pasa automáticamente a `member` sin necesidad de un nuevo tipo de mensaje.
+- Archivos: `server/src/db.rs` (+`demote_all_owners_to_member`), `server/src/session.rs` (+`demote_all_owners_to_member`), `server/src/handlers.rs` (lógica de revocación), `client/src/App.tsx` (role sync en `SERVER_USERS`)
+
+**Estado:** ✅ Implementado en `feature/qa-fixes-round2`. Requiere rebuild con `.\build.ps1 -Release -Bundle`.
+
+---
+
 ### � Bug crítico — WebView2 PNA bloquea avatares en clientes remotos (feature/qa-fixes-round2) — ✅ RESUELTO
 
 **Síntoma:** Los avatares aparecen siempre como iniciales/fallback para el cliente invitado (PC2), aunque el servidor los sirva correctamente. El usuario host (PC1, `localhost:8080`) los ve sin problema. El bug persistió a través de tres rondas de corrección.

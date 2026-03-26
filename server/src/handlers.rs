@@ -704,6 +704,7 @@ async fn handle_update_server_settings(
         return Ok(());
     }
 
+    let mut password_changed = false;
     {
         let mut cfg = state.config.write().unwrap();
         if let Some(name) = payload.name {
@@ -720,6 +721,7 @@ async fn handle_update_server_settings(
                         return Ok(());
                     }
                     cfg.server.admin_password = new_pwd;
+                    password_changed = true;
                 } else {
                     // Require current password for password change
                     send_error(tx, ErrorCode::InvalidRequest, "Current admin password is required to change password")?;
@@ -765,6 +767,29 @@ async fn handle_update_server_settings(
     });
     drop(cfg);
     broadcast_message(&state.session_manager, &msg);
+
+    // If the admin password was changed, revoke all owner roles immediately.
+    // This forces every previously-authenticated admin to re-authenticate with
+    // the new password before regaining elevated privileges.
+    if password_changed {
+        // Demote all owners in the database
+        if let Err(e) = state.db.demote_all_owners_to_member() {
+            warn!("Failed to demote owner roles after password change: {}", e);
+        }
+        // Demote all active in-memory sessions too
+        state.session_manager.demote_all_owners_to_member();
+        // Broadcast updated user list so every connected client picks up the role change
+        let connected_ids = state.session_manager.get_connected_user_ids();
+        if let Ok(all_users) = state.db.list_users() {
+            let users: Vec<UserOnlineStatus> = all_users
+                .into_iter()
+                .map(|u| UserOnlineStatus { is_online: connected_ids.contains(&u.id), user: u })
+                .collect();
+            let users_msg = ServerMessage::ServerUsers(ServerUsersPayload { users });
+            broadcast_message(&state.session_manager, &users_msg);
+        }
+        info!("Admin password changed: all owner roles revoked, users must re-authenticate");
+    }
 
     Ok(())
 }

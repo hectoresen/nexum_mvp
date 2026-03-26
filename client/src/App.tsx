@@ -270,6 +270,13 @@ function App() {
           // Request user list after successful connection
           wsClient.send({ type: 'GET_USERS' })
         }
+        // Handle admin auth success — close modal outside setView so setState calls are
+        // never side-effects of a functional updater (avoids React batching edge cases)
+        if (message.type === 'ADMIN_AUTHENTICATED') {
+          setShowAdminAuthModal(false)
+          setAdminAuthError(null)
+          // fall through to setView below to update connection.role
+        }
         // Handle admin auth errors specifically
         if (message.type === 'ERROR' && message.payload.code === 'UNAUTHORIZED' && showAdminAuthModalRef.current) {
           setAdminAuthError(message.payload.message)
@@ -417,6 +424,13 @@ function App() {
           hasReceivedWelcome = true
           wsClient.send({ type: 'GET_USERS' })
         }
+        // Handle admin auth success — close modal outside setView so setState calls are
+        // never side-effects of a functional updater (avoids React batching edge cases)
+        if (message.type === 'ADMIN_AUTHENTICATED') {
+          setShowAdminAuthModal(false)
+          setAdminAuthError(null)
+          // fall through to setView below to update connection.role
+        }
         // Handle admin auth errors specifically
         if (message.type === 'ERROR' && message.payload.code === 'UNAUTHORIZED' && showAdminAuthModalRef.current) {
           setAdminAuthError(message.payload.message)
@@ -561,11 +575,19 @@ function App() {
           serverSettings: message.payload,
         }
 
-      case 'SERVER_USERS':
+      case 'SERVER_USERS': {
+        // Sync connection.role from the server's authoritative user list.
+        // This handles admin revocation when the server admin password changes:
+        // the server demotes all owners and broadcasts SERVER_USERS; each client
+        // picks up the role change here without needing a new message type.
+        const selfInUsers = message.payload.users.find(u => u.id === connection.userId)
+        const syncedRole = selfInUsers ? selfInUsers.role : connection.role
         return {
           ...connection,
           serverUsers: message.payload.users,
+          role: syncedRole,
         }
+      }
 
       case 'MESSAGE':
         const channelMessages = connection.messages.get(message.payload.message.channel_id) || []
@@ -648,9 +670,8 @@ function App() {
         }
 
       case 'ADMIN_AUTHENTICATED':
-        // User authenticated as admin - close modal and clear error
-        setShowAdminAuthModal(false)
-        setAdminAuthError(null)
+        // Modal/error state is already closed in the onMessage handler above.
+        // Here we only update the role in the connection state.
         return {
           ...connection,
           role: message.payload.new_role,
