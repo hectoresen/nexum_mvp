@@ -408,7 +408,65 @@ fn disable_auto_start(app_handle: tauri::AppHandle) -> Result<(), String> {
     Err("Auto-start is only supported on Windows".into())
 }
 
-/// Build and register the system tray icon with its context menu.
+/// Fetch an image from a remote URL using Rust's reqwest HTTP client,
+/// bypassing WebView2's network stack entirely.
+///
+/// WHY: Tauri 2 on Windows uses WebView2 (Chromium-based). Chrome enforces
+/// Private Network Access (PNA) policy: requests from tauri://localhost to
+/// RFC-1918 addresses (192.168.x.x, 10.x.x.x) require the server to respond
+/// to an OPTIONS preflight with `Access-Control-Allow-Private-Network: true`.
+/// This works reliably for POST requests with custom headers (avatar upload),
+/// but for simple GET requests (loading image files) the preflight behaviour
+/// in WebView2 is inconsistent — fetch() calls fail silently even when the
+/// server sends the correct headers. reqwest runs in Rust and has no such
+/// restrictions. It fetches the bytes directly, which are returned as a
+/// `data:<mime>;base64,<bytes>` URL that the WebView renders without any
+/// network request at all.
+///
+/// Security: only http:// and https:// are allowed. Loopback and private
+/// addresses are intentionally permitted because this is the expected
+/// use-case (LAN server). Arbitrary file:// or other schemes are blocked.
+#[tauri::command]
+async fn fetch_remote_image(url: String) -> Result<String, String> {
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err("Only http/https URLs are supported".to_string());
+    }
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("HTTP {}", response.status().as_u16()));
+    }
+
+    // Determine MIME type from the Content-Type header; default to webp
+    // since Nexum avatars are always stored as WebP.
+    let mime = response
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.split(';').next())
+        .map(|v| v.trim().to_string())
+        .unwrap_or_else(|| "image/webp".to_string());
+
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+
+    use base64::Engine;
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    Ok(format!("data:{};base64,{}", mime, b64))
+}
+
+
 ///
 /// Tray behaviour:
 /// - Left-click → show and focus the main window.
@@ -621,6 +679,7 @@ fn main() {
             full_reset_server,
             get_device_public_key,
             update_unread_count,
+            fetch_remote_image,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

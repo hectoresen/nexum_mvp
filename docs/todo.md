@@ -26,7 +26,54 @@ Esta fase integra el servidor CLI con el cliente para ofrecer una experiencia de
 
 ---
 
-### 🟡 Mejoras de moderación — PENDIENTE
+### � Bug crítico — WebView2 PNA bloquea avatares en clientes remotos (feature/qa-fixes-round2) — ✅ RESUELTO
+
+**Síntoma:** Los avatares aparecen siempre como iniciales/fallback para el cliente invitado (PC2), aunque el servidor los sirva correctamente. El usuario host (PC1, `localhost:8080`) los ve sin problema. El bug persistió a través de tres rondas de corrección.
+
+**Causa raíz definitiva (confirmada):** WebView2 en Tauri 2.0 aplica la política *Chrome Private Network Access* (PNA). Las peticiones desde el origen `tauri://localhost` a IPs RFC-1918 (`192.168.x.x`) requieren un preflight OPTIONS exitoso con cabecera `Access-Control-Allow-Private-Network: true`. El host está exento porque `localhost:8080` es loopback. Esta restricción afecta tanto a `<img src="http://...">` como a `fetch()` en modo GET — si WebView2 realiza la petición, la bloquea de forma no determinista incluso cuando el servidor responde correctamente.
+
+**Intentos fallidos (documentados para referencia futura):**
+
+1. **`crossOrigin="anonymous"` en etiquetas `<img>`** (feature/fix-avatar-remote-clients)
+   - Resultado: empeoró la situación. El atributo fuerza a WebView2 a elevar la petición a CORS, pero `nest_service` (Axum) no propagaba el middleware CORS del router — las imágenes fallaban con error CORS en lugar de solo PNA.
+   - Archivos: `ChatArea.tsx`, `DirectMessageView.tsx`, `MainView.tsx`, `UserListPanel.tsx`, `UserProfileModal.tsx`
+
+2. **Reemplazar `nest_service` con ruta Axum explícita + `.allow_private_network(true)`** (feature/qa-fixes-round2)
+   - Causa detectada: `nest_service("/avatars", ServeDir::new(...))` en Axum 0.7 **no hereda** el middleware `Router::layer(cors)`. Se reemplazó por `.route("/avatars/:filename", get(avatar::serve_static_avatar))` con función propia que incluye cabeceras CORS y PNA explícitas.
+   - Resultado: el servidor responde correctamente, pero WebView2 sigue bloqueando las peticiones GET de manera no determinista. El problema es del cliente, no del servidor.
+
+3. **Componente `ServerImage` con `fetch()` → Blob URL** (feature/qa-fixes-round2, commit ad75aa3)
+   - Estrategia: cambiar de `<img src>` a `fetch()` + `URL.createObjectURL()`. Creado `ServerImage.tsx` como drop-in replacement de `<img>`.
+   - Resultado: idéntico. `fetch()` en modo GET también pasa por el stack de red de WebView2 y está sujeto a las mismas restricciones PNA. El componente mostraba siempre el fallback (iniciales).
+
+**Solución definitiva — reqwest vía comando Tauri (bypassa WebView2 completamente):**
+
+Enrutar toda la carga de imágenes del servidor a través del backend Rust, evitando WebView2 por completo. El cliente invoca un comando Tauri que ejecuta la petición HTTP desde Rust con `reqwest`, codifica la respuesta en base64 y devuelve una data URL `data:image/webp;base64,...`. El componente `ServerImage` renderiza `<img src="data:...">` — mismo origen, sin red, sin restricciones PNA ni CORS.
+
+- **Nuevo comando Tauri:** `fetch_remote_image(url: String) -> Result<String, String>`
+  - Valida que la URL sea `http://` o `https://` (rechaza otros esquemas)
+  - Usa `reqwest::Client` con timeout de 15 segundos y TLS nativo (rustls)
+  - Codifica bytes de respuesta con `base64::engine::general_purpose::STANDARD.encode`
+  - Devuelve `"data:{content-type};base64,{b64}"` (fallback mime: `image/webp`)
+
+- **Componente `ServerImage`:** caché a nivel de módulo (`Map<string, string>`) keyed por URL completa incluyendo `?v=N`; URLs `data:` / `blob:` se pasan directamente sin invoke.
+
+- **Dependencias añadidas a `client/src-tauri/Cargo.toml`:**
+  - `reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "multipart"] }`
+  - `base64 = "0.22"`
+
+**Archivos clave modificados:**
+- `client/src-tauri/src/main.rs` — comando `fetch_remote_image` + registro en `invoke_handler!`
+- `client/src-tauri/Cargo.toml` — dependencias `reqwest` + `base64`
+- `client/src/components/ServerImage.tsx` — reescrito para usar `invoke('fetch_remote_image', { url })`
+- `server/src/avatar.rs` — función `serve_static_avatar` (reemplaza `nest_service`)
+- `server/src/websocket.rs` — `.route("/avatars/:filename", get(avatar::serve_static_avatar))`
+
+**Estado:** ✅ Resuelto en `feature/qa-fixes-round2`. TypeScript limpio. Rust `cargo check` limpio (`Finished dev profile [44.18s]`). Rebuild con `.\build.ps1 -Release -Bundle` necesario antes de test final.
+
+---
+
+### �🟡 Mejoras de moderación — PENDIENTE
 
 - [ ] **[QA2][FEATURE] Badge en barra de tareas para mensajes no leídos en canales de texto** — El badge de la bandeja del sistema solo contabiliza DMs no leídos. Los mensajes nuevos en canales de texto no incrementan el contador. Añadir `unreadChannelIds.size` al cálculo del badge. También: clic derecho sobre un canal para silenciarlo/activarlo.
 

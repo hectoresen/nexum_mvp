@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 
 /**
- * Module-level blob URL cache — persists across re-renders.
- * Keys are the original http(s):// URLs; values are blob: URLs created from fetched bytes.
- * The ?v=N version parameter in avatar URLs acts as a natural cache-buster:
- * a new avatar version gets a new cache key and a fresh fetch.
+ * Module-level data-URL cache — persists across re-renders.
+ * Keys are the original http(s):// URLs (including ?v=N cache-buster).
+ * Values are `data:<mime>;base64,...` strings returned by the Tauri backend.
  */
-const blobCache = new Map<string, string>()
+const dataUrlCache = new Map<string, string>()
 
 interface ServerImageProps {
   /** The raw image URL (http://, https://, data:, or null/undefined). */
@@ -18,27 +18,29 @@ interface ServerImageProps {
 }
 
 /**
- * Loads server-hosted images via JavaScript fetch() instead of a raw <img src>.
+ * Loads server-hosted images via the Tauri Rust backend instead of the WebView.
  *
- * WHY: In Tauri 2 on Windows, WebView2 enforces Chrome's Private Network Access (PNA)
- * policy differently for <img src="http://private-ip/..."> vs fetch(). The CORS preflight
- * path for <img> tags can silently fail even when the server responds correctly, leaving
- * avatars broken for remote (guest) clients. fetch() → blob URL is the reliable path:
- * - The same fetch() code path already works for avatar uploads (POST to private IP).
- * - A blob: URL is same-origin (tauri://localhost), so the final <img> has no CORS issues.
+ * WHY: Tauri 2 on Windows uses WebView2 (Chromium). Chrome enforces Private Network
+ * Access (PNA) policy for requests from tauri://localhost to RFC-1918 addresses
+ * (192.168.x.x, 10.x.x.x). For simple GET requests (image loads) WebView2 sends the
+ * PNA preflight but the resulting behaviour is unreliable — even a correctly configured
+ * server cannot be relied upon to unblock the load. This affects both raw <img src> and
+ * WebView2 fetch() for GET requests.
  *
- * For data: and blob: URLs the component renders them directly without fetching.
+ * Solution: invoke 'fetch_remote_image' — a Tauri command that uses Rust's `reqwest`
+ * crate to fetch image bytes outside WebView2's network stack. reqwest has no PNA
+ * restrictions. The bytes are returned as a `data:<mime>;base64,...` URL which the
+ * WebView renders without making any network request.
+ *
+ * For data: and blob: URLs the component renders them directly without any invoke.
  */
 export default function ServerImage({ src, alt, className, fallback }: ServerImageProps) {
   const [resolvedSrc, setResolvedSrc] = useState<string | null>(() => {
     if (!src) return null
-    // data: and blob: are safe to display directly
     if (src.startsWith('data:') || src.startsWith('blob:')) return src
-    // Return cached blob URL immediately on first render
-    return blobCache.get(src) ?? null
+    return dataUrlCache.get(src) ?? null
   })
 
-  // Track the current src so async callbacks can bail out if src changed
   const currentSrcRef = useRef(src)
   currentSrcRef.current = src
 
@@ -52,25 +54,21 @@ export default function ServerImage({ src, alt, className, fallback }: ServerIma
       return
     }
 
-    const cached = blobCache.get(src)
+    const cached = dataUrlCache.get(src)
     if (cached) {
       setResolvedSrc(cached)
       return
     }
 
     let cancelled = false
-    fetch(src, { mode: 'cors', credentials: 'omit' })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.blob()
-      })
-      .then(blob => {
+    invoke<string>('fetch_remote_image', { url: src })
+      .then(dataUrl => {
         if (cancelled) return
-        const blobUrl = URL.createObjectURL(blob)
-        blobCache.set(src, blobUrl)
-        if (currentSrcRef.current === src) setResolvedSrc(blobUrl)
+        dataUrlCache.set(src, dataUrl)
+        if (currentSrcRef.current === src) setResolvedSrc(dataUrl)
       })
       .catch(() => {
+        // Failed — show fallback; do not cache so a future render can retry
         if (!cancelled && currentSrcRef.current === src) setResolvedSrc(null)
       })
 

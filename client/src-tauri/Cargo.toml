@@ -21,6 +21,8 @@ tracing = "0.1"
 ed25519-dalek = "2"
 rand = "0.8"
 hex = "0.4"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "multipart"] }
+base64 = "0.22"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"
