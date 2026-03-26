@@ -1,5 +1,7 @@
 import { User } from '../types/protocol'
 import { useAppTheme } from '../hooks/useAppTheme'
+import { buildBaseUrl } from '../lib/urlUtils'
+import ServerImage from './ServerImage'
 
 interface UserProfileModalProps {
   user: User
@@ -12,7 +14,7 @@ export default function UserProfileModal({ user, serverAddress, currentUserRole,
   const { tw } = useAppTheme()
 
   // Construct avatar URL
-  const avatarUrl = user.avatar_url || (user.avatar_path && serverAddress ? `http://${serverAddress}/${user.avatar_path}` : null)
+  const avatarUrl = user.avatar_url || (user.avatar_path && serverAddress ? `${buildBaseUrl(serverAddress)}/${user.avatar_path}` : null)
   const avatarInitial = user.username ? user.username[0]?.toUpperCase() : 'U'
 
   // Format join date
@@ -41,11 +43,7 @@ export default function UserProfileModal({ user, serverAddress, currentUserRole,
           <div className="flex flex-col items-center">
             {/* Large avatar */}
             <div className={`w-20 h-20 rounded-full ${tw.bgInput} flex items-center justify-center overflow-hidden mb-3`}>
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={user.username} className="w-full h-full object-cover" />
-              ) : (
-                <span className={`text-2xl font-semibold ${tw.textPrimary}`}>{avatarInitial}</span>
-              )}
+              <ServerImage src={avatarUrl} alt={user.username} className="w-full h-full object-cover" fallback={<span className={`text-2xl font-semibold ${tw.textPrimary}`}>{avatarInitial}</span>} />
             </div>
             
             {/* Username */}

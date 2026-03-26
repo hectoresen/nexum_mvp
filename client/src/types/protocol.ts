@@ -435,6 +435,7 @@ export interface UserKickedPayload {
 export interface UserBannedPayload {
   user_id: string;
   username: string;
+  reason?: string;
 }
 
 export interface UserMuteUpdatedPayload {

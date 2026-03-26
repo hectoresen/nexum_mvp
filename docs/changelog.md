@@ -4,6 +4,57 @@ All notable changes and completed tasks are documented here.
 
 ---
 
+## 🔄 En progreso — feature/qa-fixes-round2 (2026-03-26)
+
+**Branch:** `feature/qa-fixes-round2`
+**Base:** `feature/qa-fixes-round1`
+**Status:** 🔄 En desarrollo
+
+### 🐛 Bug Fixes
+
+- [x] **[QA-BUG-A] Avatares rotos para usuarios guest (IP privada)** — Los `<img>` que cargaban recursos del servidor carecían del atributo `crossOrigin="anonymous"`, por lo que WebView2 no enviaba el preflight PNA correcto al cargar imágenes desde IPs privadas (`192.168.x.x`). Corregido añadiendo `crossOrigin="anonymous"` a todos los `<img>` de avatar en `ChatArea.tsx`, `DirectMessageView.tsx`, `MainView.tsx`, `UserListPanel.tsx` y `UserProfileModal.tsx`.
+
+- [x] **[QA-BUG-B] Actualizar avatar por URL no limpiaba la ruta `avatar_path` previa** — El handler de `USER_AVATAR_UPDATED` en `App.tsx` actualizaba `avatar_url` pero no limpiaba `avatar_path`. Si el usuario tenía un avatar subido (ruta relativa que tiene prioridad en `getAvatarUrl`), el nuevo avatar por URL nunca se mostraba. Corregido añadiendo `avatar_path: undefined` en el mapeo del handler.
+
+- [x] **[BUG] Admin auth no funcionaba para clientes remotos (guest)** — `setShowAdminAuthModal(false)` y `setAdminAuthError(null)` se llamaban como side-effects dentro del updater funcional `setView(prev => ...)` en `handleServerMessage`. Con React 18 automatic batching, el updater se ejecuta en un tick impredecible; en clientes remotos con latencia el componente había vuelto a renderizarse desde que el closure fue capturado, por lo que los setters jamás se ejecutaban. Solución: ambos handlers `wsClient.onMessage` (en `handleConnectWithUserId` y `handleConnect`) detectan `ADMIN_AUTHENTICATED` antes del `setView` y llaman a los setters como updates independientes de nivel superior. `handleServerMessage` queda puro en el caso `ADMIN_AUTHENTICATED`.
+  - Afectado: `client/src/App.tsx` — commit `90ba555`
+
+- [x] **[FEATURE] Revocar rol owner al cambiar la contraseña del servidor** — Cuando el admin modifica la contraseña, todos los `owner` son degradados a `member` y deben re-autenticarse. Implementado en:
+  - `server/src/db.rs`: `demote_all_owners_to_member()` → `UPDATE users SET role = 'member' WHERE role = 'owner'`
+  - `server/src/session.rs`: `demote_all_owners_to_member()` → itera sesiones en memoria y baja el rol a `UserRole::Member`
+  - `server/src/handlers.rs`: `handle_update_server_settings` detecta `password_changed`; si es true, llama a ambas funciones y emite `SERVER_USERS` broadcast
+  - `client/src/App.tsx`: handler de `SERVER_USERS` ahora sincroniza `connection.role` desde `selfInUsers.role` para reflejar la revocación en tiempo real
+  - Commit: `90ba555`
+
+- [x] **[QA7] Toggles sin contraste visual (inicio y notificaciones de DMs)** — Los dos toggles de `ClientSettingsModal.tsx` usaban `peer-checked:bg-gray-500` vs `bg-gray-600`: diferencia imperceptible, imposible saber si estaban activos. Estado activo cambiado a `peer-checked:bg-green-600` + etiqueta textual `ON`/`OFF` en verde/gris junto al toggle.
+  - Afectado: `client/src/components/ClientSettingsModal.tsx` — commit `15dfe5f`
+
+---
+
+## 🔄 En progreso — feature/qa-fixes-round1 (2026-03-23)
+
+**Branch:** `feature/qa-fixes-round1`
+**Base:** `develop`
+**Status:** 🔄 En desarrollo
+
+### 🐛 Bug Fixes
+
+- [ ] **[QA1] buildBaseUrl: detectar https cuando el puerto es 443** — Nuevo helper `buildBaseUrl(serverAddress)` en `client/src/lib/urlUtils.ts`. Cuando el serverAddress termina en `:443`, emite `https://host`; en otros casos `http://host:port`. Se aplica en todos los componentes que construyen URLs de avatares/recursos del servidor: `UserListPanel`, `ChatArea`, `DirectMessageView`, `UserProfileModal`, `App.tsx`.
+
+- [x] **[QA3] Stale closure en modal de auth de admin** — Añadido `showAdminAuthModalRef = useRef(false)` y `showChangePasswordModalRef = useRef(false)` en `App.tsx` para que los handlers WebSocket registrados en tiempo de conexión puedan acceder al estado actual del modal sin depender del closure capturado.
+
+- [x] **[QA4] Motivo de ban: input en UI + mensaje al baneado** — `UserListPanel.tsx`: el botón de Ban ahora despliega un formulario de confirmación con campo de motivo opcional. El motivo se pasa como segundo argumento a `onBan(userId, reason)`. Servidor: `handle_ban_user` ahora incluye el motivo en el mensaje de error enviado al usuario baneado (`"You have been banned from this server: [reason]"`). Tipos: `UserBannedPayload` en `protocol.ts` actualizado con `reason?: string`.
+
+- [x] **[QA6] Puntos de no leídos en canales** — Causa raíz: `broadcast_to_channel` solo enviaba mensajes al usuario actualmente en ese canal; al cambiar de canal el usuario dejaba de recibir mensajes de los canales anteriores. Solución: `handle_send_message`, `handle_delete_message` y `handle_edit_message` ahora usan `broadcast_message` para entregar a todos los usuarios conectados al servidor. La lógica de unread en el cliente no requiere cambios.
+
+---
+
+## 🔄 En progreso — feature/fix-avatar-remote-clients (2026-03-23)
+
+**Branch:** `feature/fix-avatar-remote-clients`
+**Base:** `develop`
+**Status:** 🔄 Esperando revisión/merge
+
 ## ✅ v0.1.5 — Released 2026-03-22
 
 **Type:** Bug Fix Release

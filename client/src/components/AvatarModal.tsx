@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { useAppTheme } from '../hooks/useAppTheme'
 import { PrimaryButton, SecondaryButton, CancelButton } from './Button'
+import { buildBaseUrl } from '../lib/urlUtils'
 
 interface AvatarModalProps {
   currentAvatar?: string | null
@@ -154,7 +155,7 @@ export default function AvatarModal({ currentAvatar, serverAddress, sessionId, u
         const formData = new FormData()
         formData.append('avatar', selectedFile)
 
-        const response = await fetch(`http://${serverAddress}/api/users/${userId}/avatar`, {
+        const response = await fetch(`${buildBaseUrl(serverAddress)}/api/users/${userId}/avatar`, {
           method: 'POST',
           headers: {
             Authorization: `Session ${sessionId}`,
