@@ -8,7 +8,7 @@ Esta fase integra el servidor CLI con el cliente para ofrecer una experiencia de
 
 ### 🔴 Bugs de alta prioridad — EN REVISIÓN (feature/qa-fixes-round1)
 
-- [x] **[QA1][BUG] Avatares rotos cuando el servidor es accedido por ngrok/HTTPS en puerto 443** — Las URLs construidas como `http://host:443/avatars/...` son inválidas; el puerto 443 requiere `https://`. El cliente genera `http://${serverAddress}/...` sin detectar el protocolo correcto. Solución: helper `buildBaseUrl(serverAddress)` que emite `https://host` cuando el puerto es 443, `http://host` en resto. Afecta a `UserListPanel`, `ChatArea`, `DirectMessageView`, `UserProfileModal`, `App.tsx`.
+- [ ] **[QA1][BUG] Avatares rotos cuando el servidor es accedido por ngrok/HTTPS en puerto 443** — Las URLs construidas como `http://host:443/avatars/...` son inválidas; el puerto 443 requiere `https://`. El cliente genera `http://${serverAddress}/...` sin detectar el protocolo correcto. Solución: helper `buildBaseUrl(serverAddress)` que emite `https://host` cuando el puerto es 443, `http://host` en resto. Afecta a `UserListPanel`, `ChatArea`, `DirectMessageView`, `UserProfileModal`, `App.tsx`.
   - Branch: `feature/qa-fixes-round1`
 
 - [x] **[QA3][BUG] Modal de autenticación de admin no muestra error al introducir contraseña incorrecta** — Closure obsoleto (*stale closure*): el handler de mensajes WebSocket captura `showAdminAuthModal = false` en el momento de la conexión. Cuando el modal se abre más tarde y el servidor responde con `UNAUTHORIZED`, el check `if (... && showAdminAuthModal)` siempre es `false` y el error nunca se muestra. Solución: `useRef` que espeja el estado del modal para acceder al valor actual desde el closure.
