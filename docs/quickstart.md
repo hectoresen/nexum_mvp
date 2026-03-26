@@ -124,28 +124,64 @@ npm run tauri dev                               # Hot reload habilitado
 
 ## 🏗️ Build para Producción
 
-### Cliente (Instalador Windows)
+### Forma rápida: script unificado (recomendado)
 
+Desde la raíz del repositorio:
+
+```powershell
+.\build.ps1 -Release -Bundle
+```
+
+Esto hace los 3 pasos en orden automáticamente:
+1. Compila el servidor (`cargo build --release` en `server/`)
+2. Copia `voice-server.exe` → `client/src-tauri/resources/`
+3. Genera el instalador (`npm run tauri build` en `client/`)
+
+Al finalizar encontrarás los instaladores en:
+- `client/src-tauri/target/release/bundle/msi/Nexum_*_x64_en-US.msi`
+- `client/src-tauri/target/release/bundle/nsis/Nexum_*_x64-setup.exe`
+
+**Nota PowerShell:** escribe siempre `.\build.ps1`, no `build.ps1`.
+
+---
+
+### Forma manual (paso a paso)
+
+> Úsala si quieres más control o si el script falla por algún motivo.
+
+**Paso 1 — Compilar el servidor:**
+```powershell
+cd server
+cargo build --release
+cd ..
+```
+
+**Paso 2 — Copiar el binario al cliente:**
+```powershell
+Copy-Item server\target\release\voice-server.exe client\src-tauri\resources\voice-server.exe -Force
+```
+
+> ⚠️ Este paso es crítico. `npm run tauri build` **no recompila el servidor** — solo empaqueta el `.exe` que esté en `resources/`. Si lo omites, el instalador lleva el servidor anterior.
+
+**Paso 3 — Generar el instalador:**
 ```powershell
 cd client
 npm run tauri build
 ```
 
 **Genera:**
+- `src-tauri/target/release/bundle/msi/Nexum_*_x64_en-US.msi`
+- `src-tauri/target/release/bundle/nsis/Nexum_*_x64-setup.exe`
 
-- `src-tauri/target/release/bundle/msi/Nexum_0.1.0_x64_en-US.msi` (~3.5 MB)
-- `src-tauri/target/release/bundle/nsis/Nexum_0.1.0_x64-setup.exe` (~2.3 MB)
+---
 
-### Servidor (Binario standalone)
+### Opciones adicionales del script
 
 ```powershell
-cd server
-cargo build --release
+.\build.ps1 -ServerOnly -Release      # Solo compilar servidor
+.\build.ps1 -ClientOnly -Bundle       # Solo generar instalador (servidor ya compilado)
+.\build.ps1                            # Build debug (sin -Release ni -Bundle)
 ```
-
-**Genera:**
-
-- `target/release/voice-server.exe` (~5 MB)
 
 ---
 
