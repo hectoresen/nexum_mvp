@@ -110,7 +110,7 @@ export default function DirectMessageView({ otherUser, messages, currentUserId, 
       <div className={`h-12 px-4 border-b ${tw.borderDefault} flex items-center gap-3 flex-shrink-0 ${tw.bgHeader}`}>
         <div className={`w-8 h-8 rounded-full ${tw.bgInput} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
           {otherAvatarUrl ? (
-            <img src={otherAvatarUrl} alt={otherUser.username} className="w-full h-full object-cover" />
+            <img src={otherAvatarUrl} alt={otherUser.username} className="w-full h-full object-cover" crossOrigin="anonymous" />
           ) : (
             <span className={`text-sm font-semibold ${tw.textPrimary}`}>{otherUser.username[0]?.toUpperCase()}</span>
           )}
@@ -151,7 +151,7 @@ export default function DirectMessageView({ otherUser, messages, currentUserId, 
           <div className={`flex flex-col items-center justify-center h-full gap-3 ${tw.textMuted}`}>
             <div className={`w-16 h-16 rounded-full ${tw.bgInput} flex items-center justify-center`}>
               {otherAvatarUrl ? (
-                <img src={otherAvatarUrl} alt={otherUser.username} className="w-full h-full object-cover rounded-full" />
+                <img src={otherAvatarUrl} alt={otherUser.username} className="w-full h-full object-cover rounded-full" crossOrigin="anonymous" />
               ) : (
                 <span className={`text-2xl font-semibold ${tw.textPrimary}`}>{otherUser.username[0]?.toUpperCase()}</span>
               )}
@@ -185,7 +185,7 @@ export default function DirectMessageView({ otherUser, messages, currentUserId, 
                     {showAvatar && (
                       <div className={`w-10 h-10 rounded-full ${tw.bgInput} flex items-center justify-center overflow-hidden`}>
                         {senderAvatar ? (
-                          <img src={senderAvatar} alt={msg.sender_username} className="w-full h-full object-cover" />
+                          <img src={senderAvatar} alt={msg.sender_username} className="w-full h-full object-cover" crossOrigin="anonymous" />
                         ) : (
                           <span className={`text-sm font-semibold ${tw.textPrimary}`}>{msg.sender_username[0]?.toUpperCase()}</span>
                         )}

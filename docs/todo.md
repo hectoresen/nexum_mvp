@@ -32,6 +32,33 @@ Esta fase integra el servidor CLI con el cliente para ofrecer una experiencia de
 
 - [ ] **[QA5][FEATURE] Registro de moderación completo y mejoras al ban** — (a) Registro de moderación unificado (kick, ban, mute, unban, mensajes borrados) visible para el admin. (b) Los usuarios baneados deben desaparecer de la lista de miembros inmediatamente. (c) Mejoras al listado de bans: mostrar IP, motivo, fecha, con opción de filtrado.
 
+---
+
+### 🔴 UX / Notificaciones — URGENTE
+
+- [ ] **[QA7][UX] Toggle de notificaciones de DMs poco visible** — El control "Sound notifications for DMs" en `ClientSettingsModal` es gris tanto en estado activo como inactivo, lo que hace imposible distinguir si está habilitado o no a simple vista. Prioridad: URGENTE. Rediseñar el toggle con colores claramente diferenciados: verde/azul para activado, gris neutro para desactivado, con etiqueta de estado textual ("ON" / "OFF") junto al control.
+  - Archivo: `client/src/components/ClientSettingsModal.tsx`
+
+---
+
+### 🟠 Gestión de servidor por el usuario — ALTA PRIORIDAD
+
+- [ ] **[QA8][FEATURE] Silenciar canales de texto individualmente** — Los usuarios deben poder silenciar/activar un canal de texto con clic derecho en el nombre del canal. Al silenciar un canal: no se muestra el punto naranja de mensajes no leídos en ese canal, ni se incrementa el badge de la barra de tareas. El resto del funcionamiento es normal (el usuario sigue recibiendo los mensajes, solo se suprimen las notificaciones visuales). La acción es reversible con otro clic derecho. Alta prioridad.
+  - Almacenamiento: `localStorage` o `tauri-store`, clave `mutedChannels: string[]` (IDs de canal).
+  - Archivos: `client/src/components/ChannelList.tsx`, `client/src/App.tsx` (lógica de unread).
+
+- [ ] **[QA9][FEATURE] Silenciar DMs de un usuario concreto** — Desde la tarjeta de usuario en el panel "Server members", añadir opción "Silenciar mensajes directos" (o "Activar notificaciones de mensajes directos" si ya está silenciado). Si un usuario tiene silenciado a otro, no recibirá el sonido de notificación ni el badge de DM no leído de ese usuario, aunque los mensajes siguen entregándose. Requiere persistencia local y UI contextual en la tarjeta de usuario.
+  - Almacenamiento: `localStorage` o `tauri-store`, clave `mutedDmUsers: string[]` (IDs de usuario).
+  - Archivos: `client/src/components/UserListPanel.tsx`, `client/src/App.tsx` (lógica de DM unread).
+
+- [ ] **[QA10][FEATURE] Menú de opciones de servidor (clic en nombre del servidor)** — Al hacer clic en el nombre del servidor en la esquina superior izquierda de la vista conectada, se desplegará un menú contextual con opciones a nivel de usuario:
+  - **Abandonar servidor** — Elimina el servidor de la lista de servidores guardados, desconecta al usuario y lo elimina de la lista de miembros del servidor. Requiere modal de confirmación. El servidor debe emitir un `USER_LEFT` al resto de usuarios. El cliente guest envía una petición de baja antes de desconectar (nuevo mensaje WS `LEAVE_SERVER` o similar). El servidor elimina al usuario de la BD o lo marca como inactivo.
+  - **Silenciar servidor** — Silencia todos los canales de texto y todos los DMs del servidor. Los canales e ítems individuales mostrarán una indicación visual de "silenciado por servidor". Las opciones individuales de silenciar canal/DM quedarán deshabilitadas mientras el servidor esté silenciado globalmente. Reversible desde el mismo menú.
+  - **Invitar al servidor** — Deshabilitado de momento (pendiente de definir el flujo de invitación).
+  - **Marcar todo como leído** — Marca como leídos todos los canales con mensajes no leídos de este servidor, limpiando los puntos naranjas y el badge del sistema de forma inmediata.
+  - Almacenamiento de estado de silencio: `localStorage` o `tauri-store`.
+  - Archivos: `client/src/components/MainView.tsx`, `client/src/App.tsx`, `server/src/handlers.rs` (para `LEAVE_SERVER`), `server/src/db.rs`.
+
 - [ ] **[FEATURE] Mensaje de motivo al kickear a un usuario** — Al kickear a un usuario, el admin debería poder introducir opcionalmente un motivo. Requiere añadir `reason: Option<String>` al payload `KICK_USER` en servidor y cliente, e input en el popover de kick.
   - Archivos candidatos: `server/src/handlers.rs`, `server/src/models.rs`, `client/src/components/UserListPanel.tsx`, `client/src/App.tsx`
 

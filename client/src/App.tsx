@@ -658,7 +658,7 @@ function App() {
 
       case 'USER_AVATAR_UPDATED':
         // Update avatar in user list if available
-        const updatedUsers = connection.serverUsers?.map(u => (u.id === message.payload.user_id ? { ...u, avatar_url: message.payload.avatar_url ?? undefined } : u)) || null
+        const updatedUsers = connection.serverUsers?.map(u => (u.id === message.payload.user_id ? { ...u, avatar_url: message.payload.avatar_url ?? undefined, avatar_path: undefined } : u)) || null
         // After updating, force re-request to ensure sync
         if (message.payload.user_id === connection.userId) {
           // It's our avatar - request fresh user list

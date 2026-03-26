@@ -43,7 +43,7 @@ export default function UserProfileModal({ user, serverAddress, currentUserRole,
             {/* Large avatar */}
             <div className={`w-20 h-20 rounded-full ${tw.bgInput} flex items-center justify-center overflow-hidden mb-3`}>
               {avatarUrl ? (
-                <img src={avatarUrl} alt={user.username} className="w-full h-full object-cover" />
+                <img src={avatarUrl} alt={user.username} className="w-full h-full object-cover" crossOrigin="anonymous" />
               ) : (
                 <span className={`text-2xl font-semibold ${tw.textPrimary}`}>{avatarInitial}</span>
               )}

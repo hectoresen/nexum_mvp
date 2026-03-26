@@ -4,6 +4,20 @@ All notable changes and completed tasks are documented here.
 
 ---
 
+## 🔄 En progreso — feature/qa-fixes-round2 (2026-03-26)
+
+**Branch:** `feature/qa-fixes-round2`
+**Base:** `feature/qa-fixes-round1`
+**Status:** 🔄 En desarrollo
+
+### 🐛 Bug Fixes
+
+- [ ] **[QA-BUG-A] Avatares rotos para usuarios guest (IP privada)** — Los `<img>` que cargaban recursos del servidor carecían del atributo `crossOrigin="anonymous"`, por lo que WebView2 no enviaba el preflight PNA correcto al cargar imágenes desde IPs privadas (`192.168.x.x`). Corregido añadiendo `crossOrigin="anonymous"` a todos los `<img>` de avatar en `ChatArea.tsx`, `DirectMessageView.tsx`, `MainView.tsx`, `UserListPanel.tsx` y `UserProfileModal.tsx`.
+
+- [ ] **[QA-BUG-B] Actualizar avatar por URL no limpiaba la ruta `avatar_path` previa** — El handler de `USER_AVATAR_UPDATED` en `App.tsx` actualizaba `avatar_url` pero no limpiaba `avatar_path`. Si el usuario tenía un avatar subido (ruta relativa que tiene prioridad en `getAvatarUrl`), el nuevo avatar por URL nunca se mostraba. Corregido añadiendo `avatar_path: undefined` en el mapeo del handler.
+
+---
+
 ## 🔄 En progreso — feature/qa-fixes-round1 (2026-03-23)
 
 **Branch:** `feature/qa-fixes-round1`
