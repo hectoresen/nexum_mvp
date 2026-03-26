@@ -4,11 +4,21 @@ All notable changes and completed tasks are documented here.
 
 ---
 
-## 🔄 En progreso — feature/qa-fixes-round2 (2026-03-26)
+## ✅ v0.1.6 — Released 2026-03-26
+
+**Type:** Bug Fix Release  
+**Branch merged:** `release/v0.1.6 → develop → main`  
+**Status:** ✅ Released
+
+See [releases/v0.1.6/README.md](../releases/v0.1.6/README.md) for full release notes.
+
+---
+
+## ✅ En progreso — feature/qa-fixes-round2 (2026-03-26) _(released in v0.1.6)_
 
 **Branch:** `feature/qa-fixes-round2`
 **Base:** `feature/qa-fixes-round1`
-**Status:** 🔄 En desarrollo
+**Status:** ✅ Merged into v0.1.6
 
 ### 🐛 Bug Fixes
 
@@ -31,11 +41,11 @@ All notable changes and completed tasks are documented here.
 
 ---
 
-## 🔄 En progreso — feature/qa-fixes-round1 (2026-03-23)
+## ✅ En progreso — feature/qa-fixes-round1 (2026-03-23) _(released in v0.1.6)_
 
 **Branch:** `feature/qa-fixes-round1`
 **Base:** `develop`
-**Status:** 🔄 En desarrollo
+**Status:** ✅ Merged into v0.1.6
 
 ### 🐛 Bug Fixes
 
@@ -49,11 +59,11 @@ All notable changes and completed tasks are documented here.
 
 ---
 
-## 🔄 En progreso — feature/fix-avatar-remote-clients (2026-03-23)
+## ✅ En progreso — feature/fix-avatar-remote-clients (2026-03-23) _(released in v0.1.6)_
 
 **Branch:** `feature/fix-avatar-remote-clients`
 **Base:** `develop`
-**Status:** 🔄 Esperando revisión/merge
+**Status:** ✅ Merged into v0.1.6
 
 ## ✅ v0.1.5 — Released 2026-03-22
 
